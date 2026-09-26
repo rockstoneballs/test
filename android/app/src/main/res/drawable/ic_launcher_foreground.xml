@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Sun rays -->
+    <path
+        android:pathData="M76.00,54.00 L85.00,54.00 M69.56,69.56 L75.92,75.92 M54.00,76.00 L54.00,85.00 M38.44,69.56 L32.08,75.92 M32.00,54.00 L23.00,54.00 M38.44,38.44 L32.08,32.08 M54.00,32.00 L54.00,23.00 M69.56,38.44 L75.92,32.08"
+        android:strokeColor="#E8590C"
+        android:strokeWidth="5"
+        android:strokeLineCap="round" />
+    <!-- Sun disc -->
+    <path
+        android:fillColor="#FF922B"
+        android:pathData="M54,38 A16,16 0 1,1 53.99,38 Z" />
+    <!-- Smile -->
+    <path
+        android:pathData="M46.5,56 Q54,63 61.5,56"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round" />
+    <!-- Eyes -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M48,49 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0 M60,49 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0" />
+</vector>

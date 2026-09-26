@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Sunnyside</string>
+    <string name="notification_channel_morning">Morning briefing</string>
+    <string name="notification_channel_morning_desc">A daily nudge when your good news is ready</string>
+</resources>

@@ -1,0 +1,41 @@
+package app.sunnyside.news
+
+import android.content.Context
+import app.sunnyside.news.data.NewsRepository
+import app.sunnyside.news.data.SettingsRepository
+import app.sunnyside.news.data.local.AppDatabase
+import app.sunnyside.news.data.remote.DirectSources
+import app.sunnyside.news.data.remote.FeedApi
+import kotlinx.serialization.json.Json
+import okhttp3.Cache
+import okhttp3.OkHttpClient
+import java.io.File
+import java.util.concurrent.TimeUnit
+
+/** Hand-rolled dependency container; one per process, owned by [SunnysideApp]. */
+class AppContainer(context: Context) {
+    private val json = Json {
+        ignoreUnknownKeys = true
+        coerceInputValues = true
+        explicitNulls = false
+    }
+
+    private val http = OkHttpClient.Builder()
+        .cache(Cache(File(context.cacheDir, "http"), 10L * 1024 * 1024))
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .addInterceptor { chain ->
+            chain.proceed(chain.request().newBuilder().header("User-Agent", "Sunnyside/${BuildConfig.VERSION_NAME} (Android)").build())
+        }
+        .build()
+
+    private val database = AppDatabase.create(context)
+
+    val newsRepository = NewsRepository(
+        db = database,
+        feedApi = FeedApi(http, json, BuildConfig.FEED_URL),
+        direct = DirectSources(http, json),
+    )
+
+    val settingsRepository = SettingsRepository(context)
+}

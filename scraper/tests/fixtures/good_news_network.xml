@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+<channel>
+<title>Good News Network</title>
+<item>
+  <title>Rescued Sea Turtles Return to the Ocean After Months of Rehab in Florida</title>
+  <link>https://www.goodnewsnetwork.org/rescued-sea-turtles-return/?utm_source=rss&amp;utm_medium=rss</link>
+  <pubDate>{{RECENT}}</pubDate>
+  <description><![CDATA[<p>Twelve green sea turtles were released back into the wild on Tuesday.</p><p>The post Rescued Sea Turtles Return appeared first on Good News Network.</p>]]></description>
+  <media:content url="https://www.goodnewsnetwork.org/wp-content/uploads/turtle.jpg" medium="image"/>
+</item>
+<item>
+  <title>Village in Kenya Gets Clean Water for the First Time Thanks to Solar Pumps</title>
+  <link>https://www.goodnewsnetwork.org/kenya-solar-water/</link>
+  <pubDate>{{RECENT}}</pubDate>
+  <content:encoded><![CDATA[<img src="https://www.goodnewsnetwork.org/wp-content/uploads/kenya.jpg"/> Solar-powered pumps now bring water to 2,000 people.]]></content:encoded>
+</item>
+<item>
+  <title>Man Killed While Trying to Save Dog</title>
+  <link>https://www.goodnewsnetwork.org/sad-story/</link>
+  <pubDate>{{RECENT}}</pubDate>
+  <description>A sad story.</description>
+</item>
+<item>
+  <title>Ancient Old Story</title>
+  <link>https://www.goodnewsnetwork.org/old/</link>
+  <pubDate>Mon, 01 Jan 2001 10:00:00 +0000</pubDate>
+  <description>Too old for the feed.</description>
+</item>
+</channel>
+</rss>

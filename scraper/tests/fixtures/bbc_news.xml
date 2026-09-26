@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+<channel>
+<title>BBC News</title>
+<item>
+  <title>Missile attack kills dozens as war escalates</title>
+  <link>https://www.bbc.co.uk/news/world-1</link>
+  <pubDate>{{RECENT}}</pubDate>
+  <description>Officials warn of a growing crisis.</description>
+</item>
+<item>
+  <title>Endangered tigers make remarkable comeback in Nepal as numbers triple</title>
+  <link>https://www.bbc.co.uk/news/world-asia-2</link>
+  <pubDate>{{RECENT}}</pubDate>
+  <description>Conservation success: wildlife officials celebrate a thriving population, a milestone for protection efforts.</description>
+  <media:thumbnail url="https://ichef.bbci.co.uk/tiger.jpg" width="240" height="135"/>
+</item>
+<item>
+  <title>Central bank holds interest rates</title>
+  <link>https://www.bbc.co.uk/news/business-3</link>
+  <pubDate>{{RECENT}}</pubDate>
+  <description>Rates stay unchanged for another month.</description>
+</item>
+</channel>
+</rss>
