@@ -41,6 +41,10 @@ USER_AGENT = "SunnysideGoodNewsBot/1.1 (+https://github.com/rockstoneballs/test)
 MAX_OG_IMAGE_LOOKUPS = 80
 SOCIAL_UPLIFT = 7
 MAX_PER_SOCIAL_COMMUNITY = 150
+# Sunnyside focuses on the West: at most this share of news stories may come from
+# Asia, Africa, Latin America or the Middle East (the most uplifting ones are kept).
+MAX_NON_WESTERN_SHARE = 0.15
+MIN_NON_WESTERN = 2
 MAX_REJECTED_IDS = 5000
 MIN_UPLIFT_MAINSTREAM = 6
 MIN_UPLIFT_TRUSTED = 3
@@ -236,6 +240,20 @@ def og_image(session: requests.Session, url: str) -> str | None:
         return None
     found = html.unescape(m.group(1) or m.group(2))
     return found if is_http_url(found) else None
+
+
+def refine_region(story: dict) -> None:
+    """Outlets like Indian newspapers tell us the region even when the headline doesn't."""
+    if story.get("kind", "article") != "article":
+        return
+    outlet_region = keywords.region_for_source(story.get("source", ""))
+    if outlet_region and story.get("region") in keywords.WESTERN_REGIONS | {"Global", None}:
+        story["region"] = outlet_region
+
+
+def is_western(story: dict) -> bool:
+    """Europe, North America, Oceania, or not tied to a place ("Global")."""
+    return story.get("region", "Global") in keywords.WESTERN_REGIONS | {"Global"}
 
 
 def unwanted(story: dict) -> bool:
@@ -455,10 +473,23 @@ def build_feed(
     stories = [_output(s) for s in fresh] + prev_stories
     stories.sort(key=lambda s: s["publishedAt"], reverse=True)
 
+    # Focus on the West: keep only the most uplifting few non-Western news stories.
+    for s in stories:
+        refine_region(s)
+    articles = [s for s in stories if s["kind"] == "article"]
+    non_western = [s for s in articles if not is_western(s)]
+    quota = max(MIN_NON_WESTERN, round(MAX_NON_WESTERN_SHARE * (len(articles) - len(non_western)) / (1 - MAX_NON_WESTERN_SHARE)))
+    keep_non_western = {
+        s["id"] for s in sorted(non_western, key=lambda s: (s.get("uplift", 0), s["publishedAt"]), reverse=True)[:quota]
+    }
+
     # Keep each social community from crowding out the news.
     per_community: Counter[str] = Counter()
     kept = []
     for s in stories:
+        if s["kind"] == "article" and not is_western(s) and s["id"] not in keep_non_western:
+            rejected.append(s["id"])  # over the quota: don't re-check it every run
+            continue
         if s["kind"] != "article":
             per_community[s["community"]] += 1
             if per_community[s["community"]] > MAX_PER_SOCIAL_COMMUNITY:

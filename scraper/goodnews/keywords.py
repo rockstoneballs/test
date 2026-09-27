@@ -149,6 +149,12 @@ _REGION_PLACES: dict[str, list[str]] = {
         "singapore", "korea", "korean", "nepal", "sri lanka", "myanmar", "cambodia", "laos",
         "mongolia", "taiwan", "hong kong", "bhutan", "kazakhstan", "uzbekistan", "tokyo",
         "beijing", "mumbai", "delhi", "bangkok", "himalaya", "borneo", "sumatra",
+        # India, in more detail (stories often name a city or state, not the country).
+        "bengaluru", "bangalore", "chennai", "hyderabad", "kolkata", "pune", "ahmedabad",
+        "jaipur", "lucknow", "kochi", "kerala", "tamil nadu", "karnataka", "maharashtra",
+        "gujarat", "rajasthan", "uttar pradesh", "bihar", "odisha", "assam", "telangana",
+        "andhra pradesh", "madhya pradesh", "himachal", "uttarakhand", "jharkhand", "goa",
+        "rupee", "rupees", "lakh", "crore", "iit", "isro", "modi",
     ],
     "Europe": [
         "europe", "european", "uk", "u.k.", "britain", "british", "england", "english",
@@ -203,6 +209,32 @@ def positivity(title: str, summary: str) -> int:
         score += weight * len(UPLIFT.findall(text))
         score -= 3 * weight * len(DOOM.findall(text))
     return score
+
+
+WESTERN_REGIONS = {"Europe", "North America", "Oceania"}
+
+# Outlets whose stories are almost always about one non-Western region.
+_NON_WESTERN_OUTLETS: dict[str, re.Pattern[str]] = {
+    region: re.compile(r"\b(?:" + pattern + r")", re.IGNORECASE)
+    for region, pattern in {
+        "Asia": r"the better india|times of india|hindustan times|ndtv|india today|the hindu\b|indian express|"
+                r"news18|deccan|theprint|the print|scroll\.in|livemint|economic times|tribune india|firstpost|"
+                r"wion|dawn\b|express tribune|geo news|daily star|straits times|south china morning post|scmp|"
+                r"inquirer|jakarta|bangkok post|vnexpress|the nation thailand|korea herald|japan times|china daily",
+        "Africa": r"allafrica|punch ng|vanguard|premium times|daily nation|the citizen|news24|iol\b|"
+                  r"ghanaweb|the east african|mail & guardian",
+        "Middle East": r"al jazeera|gulf news|khaleej|arab news|the national\b|times of israel|jerusalem post",
+        "Latin America": r"mercopress|buenos aires times|rio times|mexico news daily|tico times",
+    }.items()
+}
+
+
+def region_for_source(source: str) -> str | None:
+    """Region implied by the outlet itself (e.g. an Indian newspaper), if any."""
+    for region, rx in _NON_WESTERN_OUTLETS.items():
+        if rx.search(source or ""):
+            return region
+    return None
 
 
 # Place names that look royal but aren't.

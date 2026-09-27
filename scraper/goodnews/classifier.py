@@ -42,7 +42,9 @@ English.
 - uplift: 0-10, how much this would brighten a reader's morning (10 = pure joy).
 - category: the best fit from {CATEGORIES}.
 - region: where the story happens, from {REGIONS}. Use "Global" for worldwide or \
-unclear stories.
+unclear stories. Sunnyside's readers are mainly in the UK, Europe, North America \
+and Oceania, so be a little stricter about uplift for stories from elsewhere unless \
+they're remarkable.
 - summary: one or two plain sentences (max 45 words) telling the reader what \
 happened. Factual and warm, no hype, no emoji, don't start with "In a".
 

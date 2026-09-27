@@ -146,3 +146,32 @@ def test_rejected_stories_are_not_rechecked(fixtures, monkeypatch):
     monkeypatch.setattr(scrape, "select_good_news", lambda c, u: seen.extend(c) or real(c, u))
     build_feed(requests.Session(), first, NOW, fixtures=fixtures, fetch_images=False, fetch_pets=False)
     assert seen == []
+
+
+def test_feed_focuses_on_the_west(fixtures):
+    from goodnews import scrape
+    base = {"kind": "article", "summary": "", "imageUrl": None, "sourceHomepage": "https://x", "author": "S",
+            "publishedAt": "2026-09-26T10:00:00Z", "community": "Community", "category": "Community",
+            "score": None, "comments": None, "discussionUrl": None}
+    western = [dict(base, id=f"w{i}", title=f"Volunteers restore village hall {i}", url=f"https://x/w{i}",
+                    source="BBC News", region="Europe", uplift=6) for i in range(20)]
+    indian = [dict(base, id=f"i{i}", title=f"Bengaluru volunteers plant trees {i}", url=f"https://x/i{i}",
+                   source="The Better India", region="Global", uplift=5 + i % 5) for i in range(10)]
+    feed = build_feed(requests.Session(), {"stories": western + indian, "pets": []}, NOW,
+                      fixtures=fixtures, fetch_images=False, fetch_pets=False)
+    news = [s for s in feed["stories"] if s["kind"] == "article"]
+    kept_indian = [s for s in news if s["id"].startswith("i")]
+    assert len([s for s in news if s["id"].startswith("w")]) == 20
+    assert 1 <= len(kept_indian) <= 5  # about 15% of the news at most
+    assert all(s["region"] == "Asia" for s in kept_indian)  # outlet tells us the region
+    assert min(s["uplift"] for s in kept_indian) >= 8  # the most uplifting ones are kept
+    dropped = {s["id"] for s in indian} - {s["id"] for s in kept_indian}
+    assert dropped <= set(feed["rejected"])  # and not re-checked every run
+    assert scrape.is_western({"region": "Global"}) and not scrape.is_western({"region": "Africa"})
+
+
+def test_region_for_source():
+    assert keywords.region_for_source("The Times of India") == "Asia"
+    assert keywords.region_for_source("Premium Times") == "Africa"
+    assert keywords.region_for_source("BBC News") is None
+    assert keywords.guess_region("Kerala village celebrates new school", "") == "Asia"
