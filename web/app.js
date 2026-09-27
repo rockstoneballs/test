@@ -98,12 +98,13 @@ function topicOf(p) {
   return TOPICS[p.community || p.category] || TOPICS.Community;
 }
 
-/** Where a post came from, in plain words: "Good News Network", "Reddit", "Mastodon"… */
+/** Where a post came from, in plain words: "Good News Network", "Reddit", "9GAG"… */
 function platformOf(p) {
   const src = p.source || "";
   if (src.startsWith("r/")) return "Reddit";
   if (src.startsWith("Lemmy")) return "Lemmy";
-  if (src.startsWith("#")) return "Mastodon";
+  if (src.startsWith("9GAG")) return "9GAG";
+  if (src.startsWith("Imgur")) return "Imgur";
   return src;
 }
 

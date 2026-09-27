@@ -17,7 +17,7 @@ a **Puppy of the Day**.
  │ GitHub Actions: scrape.yml       │ ─────────────▶ │ GitHub Pages                 │
  │  • 30+ good-news & world RSS     │   publishes    │  index.html  ← the website   │
  │  • Google News searches          │                │  feed.json   ← the data      │
- │  • Reddit, Lemmy, Mastodon       │                └──────┬───────────────┬───────┘
+ │  • Reddit, Lemmy, 9GAG, Imgur    │                └──────┬───────────────┬───────┘
  │  • positivity filter (Claude)    │                       │               │
  │  • kitten + puppy of the day     │                  Android app      web browsers
  └──────────────────────────────────┘
@@ -29,9 +29,9 @@ Every post has a small topic tag, like Reddit's post flair:
 
 | Tag | What it is | Where it comes from |
 |---|---|---|
-| 😂 Meme | Feel-good memes | r/wholesomememes, r/wholesome, Lemmy, Mastodon #WholesomeMemes |
-| 🥹 Cute | Cute animal photos and videos | r/aww, r/Eyebleach, r/rarepuppers, r/IllegallySmolCats, Lemmy, Mastodon #CatsOfMastodon / #DogsOfMastodon / #Caturday |
-| 😊 Wholesome | People (and animals) being lovely | r/MadeMeSmile, r/HumansBeingBros, r/AnimalsBeingBros, Lemmy, Mastodon #wholesome |
+| 😂 Meme | Feel-good memes | r/wholesomememes, r/wholesome, Lemmy, 9GAG #wholesome, Imgur #wholesome |
+| 🥹 Cute | Cute animal photos and videos | r/aww, r/Eyebleach, r/rarepuppers, r/IllegallySmolCats, Lemmy, 9GAG #cute / #aww / #dogs / #cats, Imgur #aww / #cats / #dogs |
+| 😊 Wholesome | People (and animals) being lovely | r/MadeMeSmile, r/HumansBeingBros, r/AnimalsBeingBros, Lemmy |
 | 🔭 Science, 🌿 Environment, 💚 Health, 🐾 Animals, 🤝 Kindness, 💡 Innovation, 🎨 Culture | Good-news stories | Good-news outlets, world news filtered for positivity, Google News, r/UpliftingNews, r/goodnews |
 
 Memes and animal photos link back to the original post, as credit. Saved posts stay
@@ -58,13 +58,15 @@ stories, then one meme or animal post. **Latest** is simply newest first.
   headline, decides whether it's really good news, scores how uplifting it is,
   tags the topic and region, and writes a short summary. Without a key, a strict
   keyword filter is used instead.
-* **Memes and cute animals** come from Reddit, Lemmy and Mastodon. NSFW and spoiler posts
+* **Memes and cute animals** come from Reddit, Lemmy, 9GAG and Imgur. NSFW and spoiler posts
   are dropped, and so are posts below a per-source upvote threshold. Cute
   animals stay for 3 days, news for 7, and memes for up to 30 (they don't go stale).
 * **Left out on purpose:** posts not written in English, celebrity and showbiz news,
   anything about royalty or monarchies, and all sport. These rules apply to every
   source, including posts already in the feed (`unwanted()` in `scraper/goodnews/scrape.py`,
   word lists in `scraper/goodnews/keywords.py`).
+* 9GAG has no official API; the scraper reads the same public JSON its tag pages use,
+  so it may break or be blocked at any time (it's then skipped).
 * A dead source is logged and skipped. It never breaks a run.
 
 ## Setup
@@ -80,7 +82,8 @@ Optional repository secrets (**Settings → Secrets and variables → Actions**)
 | Secret | What it does |
 |---|---|
 | `ANTHROPIC_API_KEY` | Claude decides what counts as good news. Model `claude-opus-5`; override with `GOODNEWS_MODEL`. |
-| `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET` | Reliable Reddit access. Reddit often blocks anonymous requests from GitHub's servers. Create a free "script" app at <https://www.reddit.com/prefs/apps>. Without these, Lemmy and Mastodon still supply memes and cute animals. |
+| `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET` | Reliable Reddit access. Reddit often blocks anonymous requests from GitHub's servers. Create a free "script" app at <https://www.reddit.com/prefs/apps>. Without these, Lemmy and 9GAG still supply memes and cute animals. |
+| `IMGUR_CLIENT_ID` | Turns on Imgur as a source. Register a free app at <https://api.imgur.com/oauth2/addclient> ("anonymous usage"). Note: Imgur isn't available to visitors in the UK, so its images won't load there. |
 | `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` | Signs release APKs with your own key, so updates install over the previous version. |
 
 On branches other than `main`, the scrape runs as a dry run. The result is

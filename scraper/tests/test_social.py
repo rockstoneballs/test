@@ -163,23 +163,57 @@ def test_social_communities_are_capped(monkeypatch):
     assert len(feed["stories"]) == 3
 
 
-def test_mastodon_hashtag_posts():
-    from goodnews.social import fetch_mastodon
-    session = FakeSession({"mastodon.social/api/v1/timelines/tag/CatsOfMastodon": FakeResponse([
-        {"url": "https://mastodon.social/@kit/1", "created_at": "2026-09-26T10:00:00.000Z",
-         "content": "<p>Meet Pickle, who has claimed the laundry basket <a href='https://x'>#CatsOfMastodon</a></p>",
-         "favourites_count": 120, "reblogs_count": 30, "replies_count": 4, "sensitive": False, "spoiler_text": "",
-         "account": {"acct": "kit@example.org"},
-         "media_attachments": [{"type": "image", "url": "https://files.mastodon.social/cat.jpg",
-                                "meta": {"original": {"width": 800, "height": 1000}}}]},
-        {"url": "https://mastodon.social/@x/2", "created_at": "2026-09-26T10:00:00Z", "content": "<p>cw</p>",
-         "favourites_count": 999, "reblogs_count": 0, "sensitive": True, "spoiler_text": "",
-         "account": {"acct": "x"}, "media_attachments": [{"type": "image", "url": "https://files/x.jpg"}]},
-    ])})
-    items = fetch_mastodon(session, SocialSource("mastodon", "CatsOfMastodon@mastodon.social", AWW, min_score=10))
+def test_ninegag_tag_posts():
+    from goodnews.social import fetch_ninegag
+    session = FakeSession({"9gag.com/v1/tag-posts/tag/wholesome": FakeResponse({"data": {"posts": [
+        {"id": "a1", "url": "https://9gag.com/gag/a1", "title": "Grandpa learned to text &amp; now sends 40 emojis a day",
+         "type": "Photo", "nsfw": 0, "upVoteCount": 5400, "commentsCount": 120, "creationTs": int(TS),
+         "images": {"image700": {"url": "https://img-9gag-fun.9cache.com/photo/a1_700b.jpg", "width": 700, "height": 900}}},
+        {"id": "a2", "title": "nsfw", "type": "Photo", "nsfw": 1, "upVoteCount": 9999, "creationTs": int(TS),
+         "images": {"image700": {"url": "https://img/a2.jpg"}}},
+        {"id": "a3", "title": "Too few upvotes", "type": "Photo", "nsfw": 0, "upVoteCount": 3, "creationTs": int(TS),
+         "images": {"image700": {"url": "https://img/a3.jpg"}}},
+    ]}})})
+    items = fetch_ninegag(session, SocialSource("9gag", "wholesome", MEMES, min_score=100))
     assert len(items) == 1
-    cat = items[0]
-    assert cat["title"] == "Meet Pickle, who has claimed the laundry basket"
-    assert cat["score"] == 150 and cat["comments"] == 4
-    assert (cat["imageWidth"], cat["imageHeight"]) == (800, 1000)
-    assert cat["author"] == "@kit@example.org" and cat["kind"] == "image"
+    meme = items[0]
+    assert meme["title"] == "Grandpa learned to text & now sends 40 emojis a day"
+    assert meme["imageUrl"].endswith("a1_700b.jpg") and (meme["imageWidth"], meme["imageHeight"]) == (700, 900)
+    assert meme["url"] == "https://9gag.com/gag/a1" and meme["source"] == "9GAG · wholesome"
+
+
+def test_ninegag_block_is_harmless():
+    from goodnews.social import fetch_ninegag
+    session = FakeSession({"9gag.com": FakeResponse({}, 403)})
+    assert fetch_ninegag(session, SocialSource("9gag", "wholesome", MEMES)) == []
+
+
+def test_imgur_needs_client_id_and_parses_gallery(monkeypatch):
+    from goodnews.social import fetch_imgur
+    route = {"api.imgur.com/3/gallery/t/aww": FakeResponse({"data": {"items": [
+        {"id": "g1", "title": "My cat supervising the laundry", "is_album": False, "nsfw": False, "points": 800,
+         "comment_count": 12, "datetime": int(TS), "link": "https://i.imgur.com/g1.jpg", "width": 900, "height": 1200},
+        {"id": "g2", "title": "Album of puppies", "is_album": True, "nsfw": False, "points": 500, "comment_count": 3,
+         "datetime": int(TS), "link": "https://imgur.com/a/g2",
+         "images": [{"id": "p1", "link": "https://i.imgur.com/p1.mp4", "animated": True, "width": 640, "height": 640}]},
+    ]}})}
+    monkeypatch.delenv("IMGUR_CLIENT_ID", raising=False)
+    assert fetch_imgur(FakeSession(route), SocialSource("imgur", "aww", AWW, min_score=100)) == []
+    monkeypatch.setenv("IMGUR_CLIENT_ID", "abc")
+    items = fetch_imgur(FakeSession(route), SocialSource("imgur", "aww", AWW, min_score=100))
+    by_title = {i["title"]: i for i in items}
+    assert by_title["My cat supervising the laundry"]["imageUrl"] == "https://i.imgur.com/g1.jpg"
+    puppies = by_title["Album of puppies"]
+    assert puppies["kind"] == "video" and puppies["imageUrl"] == "https://i.imgur.com/p1h.jpg"
+    assert puppies["url"] == "https://imgur.com/a/g2"
+
+
+def test_old_mastodon_posts_are_removed(monkeypatch):
+    monkeypatch.setattr(scrape, "fetch_source", lambda *a: [])
+    monkeypatch.setattr(scrape, "fetch_social", lambda session: [])
+    toot = {"id": "t1", "kind": "image", "title": "Cat in a box", "summary": "", "url": "https://mastodon.social/@x/1",
+            "imageUrl": "https://files/cat.jpg", "source": "#CatsOfMastodon", "sourceHomepage": "https://m",
+            "author": "@x", "publishedAt": "2026-09-26T10:00:00Z", "community": AWW, "category": AWW,
+            "region": "Global", "uplift": 7, "score": 50, "comments": 1, "discussionUrl": "https://mastodon.social/@x/1"}
+    feed = scrape.build_feed(requests.Session(), {"stories": [toot], "pets": []}, NOW, fetch_images=False, fetch_pets=False)
+    assert feed["stories"] == []

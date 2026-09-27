@@ -31,7 +31,7 @@ import requests
 from . import keywords
 from .classifier import ClaudeClassifier
 from .pets import pets_for_today
-from .social import RedditClient, fetch_lemmy, fetch_mastodon, fetch_reddit
+from .social import RedditClient, fetch_imgur, fetch_lemmy, fetch_ninegag, fetch_reddit
 from .sources import MAX_AGE_DAYS, SOCIAL_COMMUNITIES, SOCIAL_SOURCES, SOURCES, Source
 
 log = logging.getLogger("goodnews")
@@ -212,7 +212,7 @@ def fetch_social(session: requests.Session) -> list[dict]:
         got = fetch_reddit(reddit, src)
         log.info("r/%s: %d posts", src.name, len(got))
         results += got
-    fetchers = {"lemmy": fetch_lemmy, "mastodon": fetch_mastodon}
+    fetchers = {"lemmy": fetch_lemmy, "9gag": fetch_ninegag, "imgur": fetch_imgur}
     open_apis = [s for s in SOCIAL_SOURCES if s.platform in fetchers]
     with ThreadPoolExecutor(max_workers=6) as pool:
         for src, got in zip(open_apis, pool.map(lambda s: fetchers[s.platform](session, s), open_apis)):
@@ -387,6 +387,8 @@ def build_feed(
         if s.get("publishedAt", "") >= iso(cutoff_for(s.get("community")))
         # Filters added later also clean up posts that were published before them.
         and not unwanted(s)
+        # Mastodon was dropped as a source; its old posts go too.
+        and not s.get("source", "").startswith("#")
     ]
     by_id = {s["id"]: s for s in prev_stories}
     by_title = {title_key(s["title"]): s for s in prev_stories}
