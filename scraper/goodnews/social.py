@@ -124,6 +124,22 @@ def _reddit_media(d: dict) -> tuple[str | None, int | None, int | None, str]:
     return preview_url, width, height, "link"
 
 
+def _reddit_video(d: dict) -> str | None:
+    """A directly playable MP4 for a Reddit video or GIF post, if there is one."""
+    for media in (d.get("secure_media"), d.get("media")):
+        fallback = ((media or {}).get("reddit_video") or {}).get("fallback_url")
+        if fallback:
+            return fallback
+    try:
+        return d["preview"]["reddit_video_preview"]["fallback_url"]
+    except (KeyError, TypeError):
+        pass
+    try:
+        return d["preview"]["images"][0]["variants"]["mp4"]["source"]["url"]
+    except (KeyError, IndexError, TypeError):
+        return None
+
+
 def fetch_reddit(client: RedditClient, src: SocialSource) -> list[dict]:
     items = []
     for d in client.listing(src.name):
@@ -145,6 +161,9 @@ def fetch_reddit(client: RedditClient, src: SocialSource) -> list[dict]:
             if kind == "link" or not image:
                 continue
             item_kind, url = kind, discussion
+        video = _reddit_video(d) if item_kind == "video" else None
+        if item_kind == "video" and not video:
+            continue  # e.g. YouTube embeds: nothing we can play inline
 
         items.append({
             "title": title,
@@ -157,6 +176,7 @@ def fetch_reddit(client: RedditClient, src: SocialSource) -> list[dict]:
             "sourceHomepage": f"https://www.reddit.com/r/{src.name}",
             "publishedAt": datetime.fromtimestamp(d.get("created_utc", 0), tz=timezone.utc),
             "kind": item_kind,
+            "videoUrl": video,
             "community": src.community,
             "author": f"u/{d.get('author', 'unknown')}",
             "score": int(d.get("score", 0)),
@@ -251,12 +271,16 @@ def fetch_ninegag(session: requests.Session, src: SocialSource) -> list[dict]:
 
     items = []
     for p in posts:
-        if p.get("nsfw") or p.get("type") not in ("Photo", "Animated"):
+        if p.get("nsfw") or p.get("type") not in ("Photo", "Animated", "Video"):
             continue
         score = int(p.get("upVoteCount", 0))
         if score < src.min_score:
             continue
-        img = (p.get("images") or {}).get("image700") or {}
+        images = p.get("images") or {}
+        img = images.get("image700") or images.get("image460") or {}
+        # Animated posts come as MP4 (H.264) at 460px; the JPEG above is their poster frame.
+        video = (images.get("image460sv") or {}).get("url")
+        video = video if str(video or "").startswith("https://") else None
         if not str(img.get("url", "")).startswith("https://"):
             continue
         title = html.unescape(p.get("title") or "").strip()
@@ -273,7 +297,8 @@ def fetch_ninegag(session: requests.Session, src: SocialSource) -> list[dict]:
             "source": f"9GAG · {src.name}",
             "sourceHomepage": f"https://9gag.com/tag/{src.name}",
             "publishedAt": datetime.fromtimestamp(int(p.get("creationTs", 0)), tz=timezone.utc),
-            "kind": "video" if p.get("type") == "Animated" else "image",
+            "kind": "video" if video else "image",
+            "videoUrl": video,
             "community": src.community,
             "author": "9GAG",
             "score": score,
@@ -311,6 +336,7 @@ def fetch_imgur(session: requests.Session, src: SocialSource) -> list[dict]:
         image = (e.get("images") or [e])[0] if e.get("is_album") else e
         link = image.get("link") or ""
         animated = bool(image.get("animated"))
+        video = image.get("mp4") or (link if link.endswith(".mp4") else None)
         if animated:
             # Use a still frame for GIF/MP4 posts; the post link plays it.
             link = f"https://i.imgur.com/{image.get('id')}h.jpg" if image.get("id") else ""
@@ -330,7 +356,8 @@ def fetch_imgur(session: requests.Session, src: SocialSource) -> list[dict]:
             "source": f"Imgur · {src.name}",
             "sourceHomepage": f"https://imgur.com/t/{src.name}",
             "publishedAt": datetime.fromtimestamp(int(e.get("datetime", 0)), tz=timezone.utc),
-            "kind": "video" if animated else "image",
+            "kind": "video" if animated and video else "image",
+            "videoUrl": video if animated else None,
             "community": src.community,
             "author": e.get("account_url") or "Imgur",
             "score": score,

@@ -78,13 +78,15 @@ def test_reddit_image_posts_become_meme_items():
 
 def test_reddit_videos_use_preview_and_link_posts_become_articles():
     session = FakeSession({
-        "/r/aww/": listing(reddit_post(is_video=True, post_hint="hosted:video", url="https://v.redd.it/xyz")),
+        "/r/aww/": listing(reddit_post(is_video=True, post_hint="hosted:video", url="https://v.redd.it/xyz",
+                                       secure_media={"reddit_video": {"fallback_url": "https://v.redd.it/xyz/DASH_720.mp4"}})),
         "/r/UpliftingNews/": listing(reddit_post(
             title="Whales return to the Thames", post_hint="link", url="https://news.example.com/whales")),
     })
     client = RedditClient(session)
     video = fetch_reddit(client, SocialSource("reddit", "aww", AWW, min_score=10))[0]
     assert video["kind"] == "video" and video["imageUrl"].startswith("https://preview.redd.it/")
+    assert video["videoUrl"] == "https://v.redd.it/xyz/DASH_720.mp4"
     article = fetch_reddit(client, SocialSource("reddit", "UpliftingNews", None, min_score=10))[0]
     assert article["kind"] == "article" and article["url"] == "https://news.example.com/whales"
     assert article["community"] is None
@@ -180,6 +182,22 @@ def test_ninegag_tag_posts():
     assert meme["title"] == "Grandpa learned to text & now sends 40 emojis a day"
     assert meme["imageUrl"].endswith("a1_700b.jpg") and (meme["imageWidth"], meme["imageHeight"]) == (700, 900)
     assert meme["url"] == "https://9gag.com/gag/a1" and meme["source"] == "9GAG · wholesome"
+    assert meme["kind"] == "image" and meme["videoUrl"] is None
+
+
+def test_ninegag_animated_posts_get_their_mp4():
+    from goodnews.social import fetch_ninegag
+    session = FakeSession({"9gag.com/v1/tag-posts/tag/cute": FakeResponse({"data": {"posts": [
+        {"id": "v1", "title": "Puppy discovers snow", "type": "Animated", "nsfw": 0, "upVoteCount": 900,
+         "commentsCount": 4, "creationTs": int(TS),
+         "images": {"image460": {"url": "https://img-9gag-fun.9cache.com/photo/v1_460s.jpg", "width": 460, "height": 460},
+                    "image460sv": {"url": "https://img-9gag-fun.9cache.com/photo/v1_460sv.mp4", "width": 460,
+                                   "height": 460, "hasAudio": 0}}},
+    ]}})})
+    clip = fetch_ninegag(session, SocialSource("9gag", "cute", AWW, min_score=100))[0]
+    assert clip["kind"] == "video"
+    assert clip["videoUrl"] == "https://img-9gag-fun.9cache.com/photo/v1_460sv.mp4"
+    assert clip["imageUrl"] == "https://img-9gag-fun.9cache.com/photo/v1_460s.jpg"
 
 
 def test_ninegag_block_is_harmless():
@@ -205,6 +223,7 @@ def test_imgur_needs_client_id_and_parses_gallery(monkeypatch):
     assert by_title["My cat supervising the laundry"]["imageUrl"] == "https://i.imgur.com/g1.jpg"
     puppies = by_title["Album of puppies"]
     assert puppies["kind"] == "video" and puppies["imageUrl"] == "https://i.imgur.com/p1h.jpg"
+    assert puppies["videoUrl"] == "https://i.imgur.com/p1.mp4"
     assert puppies["url"] == "https://imgur.com/a/g2"
 
 
