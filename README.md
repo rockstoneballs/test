@@ -1,10 +1,11 @@
 # ☀️ Sunnyside: only good news
 
 Sunnyside is a news app and website that only shows good news, meant to be the
-first thing you open in the morning. It works like Reddit: communities, Hot / New / Top
-sorting, upvotes, comment counts, and card or compact layouts. But everything in it
-is good news, wholesome memes or cute animals. There's also a **Kitten of the Day**
-and a **Puppy of the Day**.
+first thing you open in the morning. It looks and feels like Reddit: one feed of
+posts with upvotes, comment counts, Hot / New / Top sorting, and card or compact
+layouts. But everything in it is good news, wholesome memes or cute animals. There
+are no communities to join; it's one feed. There's also a **Kitten of the Day** and
+a **Puppy of the Day**.
 
 * **Android app:** `android/` (Kotlin + Jetpack Compose)
 * **Website:** `web/` (plain HTML/CSS/JS, no build step)
@@ -22,19 +23,21 @@ and a **Puppy of the Day**.
  └──────────────────────────────────┘
 ```
 
-## Communities
+## What's in the feed
 
-| Community | What's in it | Where it comes from |
+Every post has a small topic tag, like Reddit's post flair:
+
+| Tag | What it is | Where it comes from |
 |---|---|---|
-| s/WholesomeMemes 😂 | Feel-good memes | r/wholesomememes, r/wholesome, Lemmy |
-| s/Aww 🥹 | Cute animal photos and videos | r/aww, r/Eyebleach, r/rarepuppers, r/IllegallySmolCats, Lemmy, Mastodon #CatsOfMastodon / #DogsOfMastodon / #Caturday |
-| s/MadeMeSmile 😊 | People (and animals) being lovely | r/MadeMeSmile, r/HumansBeingBros, r/AnimalsBeingBros, Lemmy, Mastodon #wholesome |
-| s/Science, s/Environment, s/Health, s/Animals, s/Community, s/Innovation, s/Culture, s/Sport | Good-news stories, sorted by topic | Good-news outlets, world news filtered for positivity, Google News, r/UpliftingNews, r/goodnews |
+| 😂 Meme | Feel-good memes | r/wholesomememes, r/wholesome, Lemmy, Mastodon #WholesomeMemes |
+| 🥹 Cute | Cute animal photos and videos | r/aww, r/Eyebleach, r/rarepuppers, r/IllegallySmolCats, Lemmy, Mastodon #CatsOfMastodon / #DogsOfMastodon / #Caturday |
+| 😊 Wholesome | People (and animals) being lovely | r/MadeMeSmile, r/HumansBeingBros, r/AnimalsBeingBros, Lemmy, Mastodon #wholesome |
+| 🔭 Science, 🌿 Environment, 💚 Health, 🐾 Animals, 🤝 Kindness, 💡 Innovation, 🎨 Culture, 🏅 Sport | Good-news stories | Good-news outlets, world news filtered for positivity, Google News, r/UpliftingNews, r/goodnews |
 
-Upvote and comment counts on posts from Reddit, Lemmy and Mastodon are real, and they're
-refreshed on every scrape. When a news story was also shared on r/UpliftingNews, it
-gets that thread's votes and a link to the discussion. Your own votes, saved posts
-and joined communities stay on your device. There are no accounts yet.
+Upvote and comment counts on posts from Reddit, Lemmy and Mastodon are real, and
+they're refreshed on every scrape. When a news story was also shared on
+r/UpliftingNews, it gets that thread's votes and a link to the discussion. Your own
+votes and saved posts stay on your device. There are no accounts yet.
 
 **Hot** ranking (the same formula in `web/app.js` and `Ranking` in the app) =
 uplift score + a capped boost from upvotes + your vote − 1 point per 6 hours of age.
@@ -56,7 +59,7 @@ The cap keeps news, which has no Reddit votes, from being buried under memes.
   tags the topic and region, and writes a short summary. Without a key, a strict
   keyword filter is used instead.
 * **Memes and cute animals** come from Reddit, Lemmy and Mastodon. NSFW and spoiler posts
-  are dropped, and so are posts below a per-community upvote threshold. Cute
+  are dropped, and so are posts below a per-source upvote threshold. Cute
   animals stay for 3 days, news for 7, and memes for up to 30 (they don't go stale).
 * A dead source is logged and skipped. It never breaks a run.
 

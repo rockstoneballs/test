@@ -19,8 +19,8 @@ A dead or blocked source is logged and skipped; it never fails the run.
 from dataclasses import dataclass
 from urllib.parse import quote_plus
 
-# Community names shown in the apps as s/<name>. News topics come from the
-# classifier; the social communities below are fixed per source.
+# Topic keys (the feed's "community" field; the apps show them as flair tags).
+# News topics come from the classifier; these social topics are fixed per source.
 MEMES = "WholesomeMemes"
 AWW = "Aww"
 SMILES = "MadeMeSmile"

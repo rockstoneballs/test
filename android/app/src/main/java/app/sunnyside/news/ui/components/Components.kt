@@ -52,7 +52,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.sunnyside.news.data.Community
+import app.sunnyside.news.data.Topic
 import app.sunnyside.news.data.Pet
 import app.sunnyside.news.data.PetKind
 import app.sunnyside.news.data.PostKind
@@ -71,7 +71,6 @@ import coil.compose.SubcomposeAsyncImage
 /** Everything a post can do. Screens build one of these and hand it to every post. */
 class PostCallbacks(
     val open: (Story) -> Unit,
-    val openCommunity: (Community) -> Unit,
     val vote: (Story, Int) -> Unit,
     val toggleSave: (Story) -> Unit,
     val share: (Story) -> Unit,
@@ -87,13 +86,12 @@ fun LazyListScope.postItems(
     view: ViewMode,
     user: PostUserState,
     callbacks: PostCallbacks,
-    showCommunity: Boolean = true,
 ) {
     items(stories, key = { it.id }, contentType = { view }) { story ->
         val vote = user.votes[story.id] ?: 0
         val saved = story.id in user.savedIds
         when (view) {
-            ViewMode.Card -> PostCard(story, vote, saved, callbacks, showCommunity, Modifier.padding(horizontal = 10.dp, vertical = 5.dp))
+            ViewMode.Card -> PostCard(story, vote, saved, callbacks, Modifier.padding(horizontal = 10.dp, vertical = 5.dp))
             ViewMode.Compact -> {
                 PostRow(story, vote, saved, callbacks)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
@@ -104,31 +102,59 @@ fun LazyListScope.postItems(
 
 // ------------------------------------------------------------------ building blocks
 
+/** Round avatar with the first letter of where a post came from (Reddit, Good News Network…). */
 @Composable
-fun CommunityAvatar(community: Community, size: Dp = 28.dp, modifier: Modifier = Modifier) {
+fun SourceAvatar(story: Story, size: Dp = 24.dp, modifier: Modifier = Modifier) {
+    val name = story.platform.ifBlank { "?" }
+    val hue = if (name == "Reddit") 16f else (name.hashCode().toLong().and(0xffffffffL) % 360).toFloat()
     Box(
         modifier = modifier
             .size(size)
             .clip(CircleShape)
-            .background(community.accent().copy(alpha = 0.18f)),
+            .background(Color.hsl(hue, 0.7f, 0.45f)),
         contentAlignment = Alignment.Center,
     ) {
-        Text(community.emoji, fontSize = (size.value * 0.55f).sp)
+        Text(name.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = (size.value * 0.5f).sp)
     }
 }
 
-/** Post image with a soft community-coloured placeholder while loading or when missing. */
+/** Topic tag after the title, like Reddit's post flair. */
 @Composable
-fun PostImage(url: String?, community: Community, modifier: Modifier = Modifier, emojiSize: Int = 40, contentScale: ContentScale = ContentScale.Crop) {
+fun TopicFlair(topic: Topic, modifier: Modifier = Modifier) {
+    Text(
+        "${topic.emoji} ${topic.label}",
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.Bold,
+        color = topic.accent(),
+        maxLines = 1,
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(topic.accent().copy(alpha = 0.14f))
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+    )
+}
+
+/** Post title followed by its flair. */
+@Composable
+fun PostTitle(story: Story, style: androidx.compose.ui.text.TextStyle, maxLines: Int = Int.MAX_VALUE) {
+    Column {
+        Text(story.title, style = style, maxLines = maxLines, overflow = TextOverflow.Ellipsis)
+        TopicFlair(story.topic, Modifier.padding(top = 6.dp))
+    }
+}
+
+/** Post image with a soft topic-coloured placeholder while loading or when missing. */
+@Composable
+fun PostImage(url: String?, topic: Topic, modifier: Modifier = Modifier, emojiSize: Int = 40, contentScale: ContentScale = ContentScale.Crop) {
     val placeholder = @Composable {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
-                    Brush.linearGradient(listOf(community.accent().copy(alpha = 0.35f), community.accent().copy(alpha = 0.12f))),
+                    Brush.linearGradient(listOf(topic.accent().copy(alpha = 0.35f), topic.accent().copy(alpha = 0.12f))),
                 ),
             contentAlignment = Alignment.Center,
-        ) { Text(community.emoji, fontSize = emojiSize.sp) }
+        ) { Text(topic.emoji, fontSize = emojiSize.sp) }
     }
     Box(modifier) {
         if (url == null) {
@@ -147,21 +173,20 @@ fun PostImage(url: String?, community: Community, modifier: Modifier = Modifier,
 }
 
 @Composable
-fun PostHeader(story: Story, callbacks: PostCallbacks, showCommunity: Boolean = true, modifier: Modifier = Modifier) {
+fun PostHeader(story: Story, modifier: Modifier = Modifier) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        if (showCommunity) {
-            CommunityAvatar(story.community, 24.dp)
-            Spacer(Modifier.width(8.dp))
-            Text(
-                "s/${story.community.label}",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.clickable(role = Role.Button) { callbacks.openCommunity(story.community) },
-            )
-            Text(" • ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        SourceAvatar(story, 22.dp)
+        Spacer(Modifier.width(8.dp))
         Text(
-            "${timeAgo(story.publishedAtMillis)} • ${story.byline}",
+            story.platform,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false),
+        )
+        Text(
+            " • ${timeAgo(story.publishedAtMillis)}" + (story.poster?.let { " • posted by $it" } ?: ""),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
@@ -312,7 +337,7 @@ fun PostMedia(story: Story, modifier: Modifier = Modifier, large: Boolean = fals
     if (story.kind == PostKind.Article) {
         if (story.imageUrl == null && !large) return
         PostImage(
-            story.imageUrl, story.community,
+            story.imageUrl, story.topic,
             modifier
                 .fillMaxWidth()
                 .aspectRatio(16f / 9f)
@@ -329,7 +354,7 @@ fun PostMedia(story: Story, modifier: Modifier = Modifier, large: Boolean = fals
             .background(MaterialTheme.colorScheme.surfaceContainerHigh),
     ) {
         PostImage(
-            story.imageUrl, story.community,
+            story.imageUrl, story.topic,
             Modifier
                 .fillMaxWidth()
                 .aspectRatio(ratio)
@@ -345,7 +370,7 @@ fun PostMedia(story: Story, modifier: Modifier = Modifier, large: Boolean = fals
 
 /** Card layout: header, title, media, snippet, action pills. */
 @Composable
-fun PostCard(story: Story, myVote: Int, saved: Boolean, callbacks: PostCallbacks, showCommunity: Boolean = true, modifier: Modifier = Modifier) {
+fun PostCard(story: Story, myVote: Int, saved: Boolean, callbacks: PostCallbacks, modifier: Modifier = Modifier) {
     Surface(
         onClick = { callbacks.open(story) },
         shape = RoundedCornerShape(16.dp),
@@ -354,9 +379,9 @@ fun PostCard(story: Story, myVote: Int, saved: Boolean, callbacks: PostCallbacks
         modifier = modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 10.dp)) {
-            PostHeader(story, callbacks, showCommunity)
+            PostHeader(story)
             Spacer(Modifier.height(8.dp))
-            Text(story.title, style = MaterialTheme.typography.titleMedium)
+            PostTitle(story, MaterialTheme.typography.titleMedium)
             PostMedia(story, Modifier.padding(top = 10.dp))
             if (story.summary.isNotBlank()) {
                 Text(
@@ -392,7 +417,7 @@ fun PostRow(story: Story, myVote: Int, saved: Boolean, callbacks: PostCallbacks)
                 .size(width = 76.dp, height = 60.dp)
                 .clip(RoundedCornerShape(10.dp)),
         ) {
-            PostImage(story.imageUrl, story.community, Modifier.fillMaxSize(), emojiSize = 26)
+            PostImage(story.imageUrl, story.topic, Modifier.fillMaxSize(), emojiSize = 26)
             if (story.kind == PostKind.Video) {
                 Icon(
                     Icons.Filled.PlayArrow, contentDescription = "Video", tint = Color.White,
@@ -406,9 +431,9 @@ fun PostRow(story: Story, myVote: Int, saved: Boolean, callbacks: PostCallbacks)
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(story.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 3, overflow = TextOverflow.Ellipsis)
+            PostTitle(story, MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold), maxLines = 3)
             Spacer(Modifier.height(4.dp))
-            PostHeader(story, callbacks)
+            PostHeader(story)
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
                 if (story.discussionUrl != null) {
                     Text(

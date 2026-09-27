@@ -146,7 +146,7 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
             SectionLabel("Where the good news comes from")
             Text(
                 "New posts are gathered every half hour. Dedicated good-news publications and " +
-                    "wholesome communities are included as-is; stories from general news outlets are " +
+                    "wholesome meme and cute-animal pages are included as-is; stories from general news outlets are " +
                     "only included when they pass our positivity filter. Scores on memes and photos are " +
                     "their Reddit/Lemmy upvotes; your own votes stay on this phone.",
                 style = MaterialTheme.typography.bodyMedium,

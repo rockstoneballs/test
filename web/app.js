@@ -5,20 +5,20 @@ const FEED_URL = "feed.json";
 const PAGE_SIZE = 20;
 const REFRESH_MS = 5 * 60 * 1000;
 
-const COMMUNITIES = {
-  WholesomeMemes: { emoji: "😂", color: "#F2A516", about: "Memes that make you feel good about the world." },
-  Aww: { emoji: "🥹", color: "#E86A92", about: "Cute animals. That's it. That's the community." },
-  MadeMeSmile: { emoji: "😊", color: "#F28C28", about: "Small moments of pure joy and people being lovely." },
-  Science: { emoji: "🔭", color: "#5B6CD9", about: "Discoveries, space and the wonders of research." },
-  Environment: { emoji: "🌿", color: "#2E9D5B", about: "Climate wins, rewilding and a greener planet." },
-  Health: { emoji: "💚", color: "#0F9D8F", about: "Medical breakthroughs and healthier lives." },
-  Animals: { emoji: "🐾", color: "#E07A1F", about: "Wildlife comebacks and animal news." },
-  Community: { emoji: "🤝", color: "#D9477A", about: "Kindness, neighbours and people helping people." },
-  Innovation: { emoji: "💡", color: "#8A56D6", about: "Clever ideas making life better." },
-  Culture: { emoji: "🎨", color: "#C9533A", about: "Art, music, books and joy." },
-  Sport: { emoji: "🏅", color: "#2C88C9", about: "Triumphs, comebacks and good sportsmanship." },
+// Topic flair shown on each post, like Reddit's post flair. Keys are the feed's "community" values.
+const TOPICS = {
+  WholesomeMemes: { label: "Meme", emoji: "😂", color: "#F2A516" },
+  Aww: { label: "Cute", emoji: "🥹", color: "#E86A92" },
+  MadeMeSmile: { label: "Wholesome", emoji: "😊", color: "#F28C28" },
+  Science: { label: "Science", emoji: "🔭", color: "#5B6CD9" },
+  Environment: { label: "Environment", emoji: "🌿", color: "#2E9D5B" },
+  Health: { label: "Health", emoji: "💚", color: "#0F9D8F" },
+  Animals: { label: "Animals", emoji: "🐾", color: "#E07A1F" },
+  Community: { label: "Kindness", emoji: "🤝", color: "#D9477A" },
+  Innovation: { label: "Innovation", emoji: "💡", color: "#8A56D6" },
+  Culture: { label: "Culture", emoji: "🎨", color: "#C9533A" },
+  Sport: { label: "Sport", emoji: "🏅", color: "#2C88C9" },
 };
-const COMMUNITY_NAMES = Object.keys(COMMUNITIES);
 
 const SORTS = [
   { id: "hot", label: "Hot", icon: "🔥" },
@@ -51,7 +51,6 @@ const state = {
   view: store.get("view", "card"),
   votes: store.get("votes", {}),          // id -> 1 | -1
   saved: store.get("saved", {}),          // id -> post snapshot
-  joined: store.get("joined", null),      // array of community names, null = all
   pendingFeed: null,
   shown: PAGE_SIZE,
   list: [],
@@ -106,18 +105,30 @@ function compact(n) {
   return String(n);
 }
 
-function communityOf(p) {
-  const name = p.community || p.category || "Community";
-  return COMMUNITIES[name] ? name : "Community";
+function topicOf(p) {
+  return TOPICS[p.community || p.category] || TOPICS.Community;
 }
 
-function meta(name) {
-  return COMMUNITIES[name] || COMMUNITIES.Community;
+/** Where a post came from, in plain words: "Good News Network", "Reddit", "Mastodon"… */
+function platformOf(p) {
+  const src = p.source || "";
+  if (src.startsWith("r/")) return "Reddit";
+  if (src.startsWith("Lemmy")) return "Lemmy";
+  if (src.startsWith("#")) return "Mastodon";
+  return src;
 }
 
-function avatar(name, size) {
-  const m = meta(name);
-  return h("span", { class: "avatar" + (size ? " " + size : ""), style: `background:${m.color}26`, "aria-hidden": "true" }, m.emoji);
+function sourceAvatar(p) {
+  const name = platformOf(p) || "?";
+  let hash = 0;
+  for (const ch of name) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  const hue = name === "Reddit" ? 16 : hash % 360;
+  return h("span", { class: "avatar", style: `background:hsl(${hue} 70% 45%)`, "aria-hidden": "true" }, name.charAt(0).toUpperCase());
+}
+
+function flair(p) {
+  const t = topicOf(p);
+  return h("span", { class: "flair", style: `background:${t.color}22;color:${t.color}` }, `${t.emoji} ${t.label}`);
 }
 
 function toast(text) {
@@ -162,10 +173,6 @@ function sortPosts(posts, sort) {
   return list;
 }
 
-function joined() {
-  return state.joined || COMMUNITY_NAMES;
-}
-
 /* ------------------------------------------------------------------ actions */
 
 function vote(p, dir) {
@@ -201,15 +208,6 @@ async function share(p) {
   } catch (e) {
     if (e && e.name !== "AbortError") toast("Couldn't share");
   }
-}
-
-function toggleJoin(name) {
-  const set = new Set(joined());
-  if (set.has(name)) set.delete(name); else set.add(name);
-  state.joined = COMMUNITY_NAMES.filter((n) => set.has(n));
-  store.set("joined", state.joined);
-  toast(set.has(name) ? `Joined s/${name}` : `Left s/${name}`);
-  render();
 }
 
 /* ------------------------------------------------------------------ components */
@@ -253,15 +251,15 @@ function actions(p, layout) {
 }
 
 function postHead(p) {
-  const name = communityOf(p);
-  const by = p.author && p.author !== p.source ? `${p.author} · ${p.source}` : p.source;
+  const platform = platformOf(p);
+  const social = platform !== p.source && p.author && p.author !== p.source;
   return h("div", { class: "post-head" },
-    avatar(name),
-    h("a", { class: "community", href: "#/s/" + name }, "s/" + name),
+    sourceAvatar(p),
+    h("span", { class: "source" }, platform),
     h("span", { class: "dot" }),
     h("time", { datetime: p.publishedAt, title: new Date(p.publishedAt).toLocaleString() }, timeAgo(p.publishedAt)),
-    h("span", { class: "dot" }),
-    h("span", { class: "by" }, "via " + by),
+    social ? h("span", { class: "dot" }) : null,
+    social ? h("span", { class: "by" }, "posted by " + p.author) : null,
   );
 }
 
@@ -270,7 +268,7 @@ function media(p, detail) {
   const isArticle = (p.kind || "article") === "article";
   if (!img) {
     if (isArticle && !detail) return null;
-    return h("div", { class: "media placeholder", style: `background:${meta(communityOf(p)).color}22` }, meta(communityOf(p)).emoji);
+    return h("div", { class: "media placeholder", style: `background:${topicOf(p).color}22` }, topicOf(p).emoji);
   }
   const attrs = { src: img, alt: "", loading: "lazy", decoding: "async", referrerpolicy: "no-referrer" };
   if (p.imageWidth && p.imageHeight) {
@@ -296,7 +294,7 @@ function postCard(p) {
   const href = "#/post/" + encodeURIComponent(p.id);
   return h("article", { class: "post" },
     postHead(p),
-    h("h2", { class: "post-title" }, h("a", { href }, p.title)),
+    h("h2", { class: "post-title" }, h("a", { href }, p.title), flair(p)),
     media(p, false),
     p.summary ? h("p", { class: "post-summary" }, p.summary) : null,
     linkChip(p),
@@ -307,14 +305,14 @@ function postCard(p) {
 function postRow(p) {
   const href = "#/post/" + encodeURIComponent(p.id);
   const img = safeUrl(p.imageUrl);
-  const name = communityOf(p);
-  const thumb = h("div", { class: "thumb", style: img ? "" : `background:${meta(name).color}22` },
-    img ? h("img", { src: img, alt: "", loading: "lazy", referrerpolicy: "no-referrer" }) : meta(name).emoji);
+  const t = topicOf(p);
+  const thumb = h("div", { class: "thumb", style: img ? "" : `background:${t.color}22` },
+    img ? h("img", { src: img, alt: "", loading: "lazy", referrerpolicy: "no-referrer" }) : t.emoji);
   return h("article", { class: "post row" },
     voteBox(p, "column"),
     thumb,
     h("div", null,
-      h("h2", { class: "post-title" }, h("a", { href }, p.title)),
+      h("h2", { class: "post-title" }, h("a", { href }, p.title), flair(p)),
       postHead(p),
       actions(p, "compact"),
     ),
@@ -341,24 +339,6 @@ function todaysPets() {
 
 /* ------------------------------------------------------------------ chrome */
 
-function renderLeftNav(route) {
-  const nav = document.getElementById("left-nav");
-  const counts = {};
-  for (const p of state.posts) counts[communityOf(p)] = (counts[communityOf(p)] || 0) + 1;
-  const link = (href, emoji, label, current, count) =>
-    h("a", { class: "nav-link", href, "aria-current": current ? "page" : null },
-      typeof emoji === "string" ? h("span", { class: "nav-emoji" }, emoji) : emoji, label,
-      count != null ? h("span", { class: "count" }, count) : null);
-  nav.replaceChildren(
-    link("#/", "🏠", "Home", route.name === "home"),
-    link("#/all", "🌍", "Everything", route.name === "all"),
-    link("#/saved", "🔖", "Saved", route.name === "saved", Object.keys(state.saved).length || null),
-    h("div", { class: "nav-section" }, "Communities"),
-    ...COMMUNITY_NAMES.map((name) =>
-      link("#/s/" + name, avatar(name), "s/" + name, route.name === "community" && route.arg === name, counts[name] || 0)),
-  );
-}
-
 function renderRightRail() {
   const rail = document.getElementById("right-rail");
   const pets = todaysPets().map(petTile).filter(Boolean);
@@ -368,7 +348,7 @@ function renderRightRail() {
       h("div", { class: "card-head" }, "About Sunnyside"),
       h("div", { class: "card-body" },
         h("p", null, "Only good news. Every story is picked from dedicated good-news outlets, or checked for positivity before it gets here."),
-        h("p", null, "Wholesome memes and cute animals come from Reddit and Lemmy communities. Scores are their upvotes; your own votes stay on this device."),
+        h("p", null, "Wholesome memes and cute animals come from Reddit, Lemmy and Mastodon. Scores are their upvotes; your own votes stay on this device."),
         h("a", { class: "btn btn-primary btn-block", href: document.getElementById("get-app").href }, "📱 Get the Android app"),
       ),
     ),
@@ -377,15 +357,6 @@ function renderRightRail() {
       h("a", { href: "https://github.com/rockstoneballs/test", target: "_blank", rel: "noopener" }, "Source code"),
       h("span", null, "Kittens: The Cat API · Puppies: Dog CEO"),
     ),
-  );
-}
-
-function chips(route) {
-  const chip = (href, label, current) => h("a", { class: "chip", href, "aria-current": current ? "page" : null }, label);
-  return h("div", { class: "chips" },
-    chip("#/", "🏠 Home", route.name === "home"),
-    chip("#/saved", "🔖 Saved", route.name === "saved"),
-    ...COMMUNITY_NAMES.map((n) => chip("#/s/" + n, `${meta(n).emoji} ${n}`, route.name === "community" && route.arg === n)),
   );
 }
 
@@ -453,41 +424,18 @@ function pinnedPets() {
   );
 }
 
-function pageHome(route) {
-  const all = route.name === "all";
-  const allowed = new Set(all ? COMMUNITY_NAMES : joined());
-  const posts = sortPosts(state.posts.filter((p) => allowed.has(communityOf(p))), state.sort);
+function pageHome() {
+  const posts = sortPosts(state.posts, state.sort);
   return [
-    chips(route), newPostsButton(), sortBar(), pinnedPets(),
-    feedList(posts, empty("🌤️", "Nothing here yet", all ? "Check back soon — new good news arrives every half hour." : "Join some communities from the menu to fill your feed.")),
+    newPostsButton(), sortBar(), pinnedPets(),
+    feedList(posts, empty("🌤️", "Nothing here yet", "Check back soon — new good news arrives every half hour.")),
   ];
 }
 
-function pageCommunity(route) {
-  const name = COMMUNITIES[route.arg] ? route.arg : "Community";
-  const m = meta(name);
-  const isJoined = joined().includes(name);
-  const posts = sortPosts(state.posts.filter((p) => communityOf(p) === name), state.sort);
-  document.title = `s/${name} · Sunnyside`;
-  return [
-    h("section", { class: "community-hero" },
-      h("div", { class: "community-banner", style: `background:linear-gradient(120deg, ${m.color}, ${m.color}88)` }),
-      h("div", { class: "community-head" },
-        avatar(name, "lg"),
-        h("div", { class: "meta" }, h("h1", null, "s/" + name), h("p", null, m.about)),
-        h("button", { class: "btn" + (isJoined ? "" : " btn-primary"), onclick: () => toggleJoin(name) }, isJoined ? "Joined" : "Join"),
-      ),
-    ),
-    chips(route), newPostsButton(), sortBar(),
-    feedList(posts, empty(m.emoji, "Nothing here right now", "New posts arrive every half hour.")),
-  ];
-}
-
-function pageSaved(route) {
+function pageSaved() {
   const posts = Object.values(state.saved).sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
   document.title = "Saved · Sunnyside";
   return [
-    chips(route),
     h("h1", { class: "page-title" }, "🔖 Saved"),
     feedList(posts, empty("🔖", "Nothing saved yet", "Hit Save on any post to keep it here for a rainy day.")),
   ];
@@ -497,7 +445,7 @@ function pageSearch(route) {
   const q = route.arg.trim().toLowerCase();
   const words = q.split(/\s+/).filter(Boolean);
   const posts = sortPosts(state.posts.filter((p) => {
-    const hay = `${p.title} ${p.summary || ""} ${p.source} ${communityOf(p)} ${p.region || ""}`.toLowerCase();
+    const hay = `${p.title} ${p.summary || ""} ${p.source} ${topicOf(p).label} ${p.region || ""}`.toLowerCase();
     return words.every((w) => hay.includes(w));
   }), state.sort);
   document.title = `${route.arg} · Sunnyside search`;
@@ -515,12 +463,12 @@ function pagePost(route) {
   const article = (p.kind || "article") === "article";
   const url = safeUrl(p.url);
   const discussion = safeUrl(p.discussionUrl);
-  const related = sortPosts(state.posts.filter((o) => communityOf(o) === communityOf(p) && o.id !== p.id), "hot").slice(0, 5);
+  const related = sortPosts(state.posts.filter((o) => topicOf(o) === topicOf(p) && o.id !== p.id), "hot").slice(0, 5);
   return [
     h("button", { class: "back", onclick: () => (history.length > 1 ? history.back() : (location.hash = "#/")), html: ICON.back + " Back" }),
     h("article", { class: "post detail" },
       postHead(p),
-      h("h1", { class: "post-title" }, p.title,
+      h("h1", { class: "post-title" }, p.title, flair(p),
         p.region && p.region !== "Global" ? h("span", { class: "flair", style: "background:var(--surface-2)" }, "📍 " + p.region) : null),
       media(p, true),
       p.summary ? h("p", { class: "post-summary" }, p.summary) : null,
@@ -532,7 +480,7 @@ function pagePost(route) {
       ),
       actions(p),
     ),
-    related.length ? h("h2", { class: "section-title" }, `More from s/${communityOf(p)}`) : null,
+    related.length ? h("h2", { class: "section-title" }, "More good news like this") : null,
     related.length ? h("div", { class: "feed compact" }, related.map(postRow)) : null,
   ];
 }
@@ -544,9 +492,7 @@ function parseRoute() {
   const [head, ...rest] = hash.split("/");
   const arg = rest.join("/");
   if (!head) return { name: "home" };
-  if (head === "all") return { name: "all" };
   if (head === "saved") return { name: "saved" };
-  if (head === "s" && arg) return { name: "community", arg };
   if (head === "post" && arg) return { name: "post", arg };
   if (head === "search") return { name: "search", arg };
   return { name: "home" };
@@ -561,9 +507,8 @@ function render() {
   if (routeChanged) state.shown = PAGE_SIZE;
   lastRouteKey = key;
 
-  renderLeftNav(route);
   renderRightRail();
-  closeMenu();
+  document.getElementById("saved-link").setAttribute("aria-current", route.name === "saved" ? "page" : "false");
 
   const main = document.getElementById("main");
   if (!state.feed) {
@@ -574,7 +519,7 @@ function render() {
   }
 
   document.title = "Sunnyside — only good news";
-  const pages = { home: pageHome, all: pageHome, community: pageCommunity, saved: pageSaved, search: pageSearch, post: pagePost };
+  const pages = { home: pageHome, saved: pageSaved, search: pageSearch, post: pagePost };
   main.replaceChildren(...[pages[route.name](route)].flat(3).filter(Boolean));
   if (route.name === "search") document.getElementById("search-input").value = route.arg;
   if (routeChanged) scrollTo({ top: 0 });
@@ -618,23 +563,7 @@ async function loadFeed(background) {
 
 /* ------------------------------------------------------------------ boot */
 
-function closeMenu() {
-  document.getElementById("left-nav").classList.remove("open");
-  document.getElementById("scrim").hidden = true;
-  document.getElementById("menu-btn").setAttribute("aria-expanded", "false");
-}
-
 function setupChrome() {
-  const menuBtn = document.getElementById("menu-btn");
-  menuBtn.addEventListener("click", () => {
-    const nav = document.getElementById("left-nav");
-    const open = !nav.classList.contains("open");
-    nav.classList.toggle("open", open);
-    document.getElementById("scrim").hidden = !open;
-    menuBtn.setAttribute("aria-expanded", String(open));
-  });
-  document.getElementById("scrim").addEventListener("click", closeMenu);
-
   const themeBtn = document.getElementById("theme-btn");
   const isDark = () => document.documentElement.dataset.theme
     ? document.documentElement.dataset.theme === "dark"
@@ -658,7 +587,6 @@ function setupChrome() {
   });
 
   addEventListener("hashchange", render);
-  addEventListener("keydown", (e) => { if (e.key === "Escape") closeMenu(); });
   document.addEventListener("visibilitychange", () => { if (!document.hidden) loadFeed(true); });
 }
 

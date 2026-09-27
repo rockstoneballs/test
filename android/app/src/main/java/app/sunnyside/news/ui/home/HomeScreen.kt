@@ -111,11 +111,7 @@ fun HomeScreen(
                 }
                 if (state.loaded && state.posts.isEmpty() && !refreshing) {
                     item(key = "empty") {
-                        EmptyState(
-                            "🌤️",
-                            if (settings.joined.isEmpty()) "Your feed is empty" else "The sun is still rising",
-                            if (settings.joined.isEmpty()) "Join some communities to fill your feed." else "Pull down to fetch today's good news.",
-                        )
+                        EmptyState("🌤️", "The sun is still rising", "Pull down to fetch today's good news.")
                     }
                 }
                 postItems(state.posts, settings.view, user, callbacks)

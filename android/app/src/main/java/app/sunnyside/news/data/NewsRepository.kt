@@ -115,7 +115,7 @@ class NewsRepository(
             imageUrl = imageUrl,
             source = source,
             publishedAt = published,
-            category = Community.from(community ?: category).label,
+            category = Topic.from(community ?: category).key,
             region = Region.from(region).label,
             uplift = uplift,
             kind = PostKind.from(kind).name.lowercase(),
