@@ -1,14 +1,15 @@
 name: Scrape good news
 
-# Scrapes good-news stories + picks the kitten and puppy of the day, then
-# publishes feed.json to GitHub Pages for the app to download.
+# Every 30 minutes: scrape good-news stories, wholesome memes and cute animals, pick the
+# kitten and puppy of the day, and publish the website + feed.json to GitHub Pages.
+# On branches other than main it runs the same scrape as a dry run (no deploy) and uploads
+# the result as an artifact, so changes to sources can be checked before merging.
 on:
   schedule:
-    - cron: "17 */2 * * *" # every two hours
+    - cron: "*/30 * * * *"
   workflow_dispatch:
   push:
-    branches: [main]
-    paths: ["scraper/**", ".github/workflows/scrape.yml"]
+    paths: ["scraper/**", "web/**", ".github/workflows/scrape.yml"]
 
 permissions:
   contents: read
@@ -16,15 +17,13 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: scrape-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -33,17 +32,32 @@ jobs:
           cache: pip
           cache-dependency-path: scraper/requirements.txt
       - run: pip install -r scraper/requirements.txt
-      - id: pages
-        uses: actions/configure-pages@v5
+      - name: Build site
+        run: |
+          mkdir -p site
+          cp -r web/. site/
       - name: Scrape
         working-directory: scraper
         env:
-          # Optional. With a key, Claude judges which stories are genuinely good news;
-          # without one, keyword filtering is used.
+          # All optional. With an Anthropic key, Claude judges which stories are genuinely good
+          # news (otherwise keyword filtering is used). Reddit credentials make Reddit reliable
+          # from GitHub's servers; without them Lemmy still supplies memes.
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: python -m goodnews.scrape --out ../site --previous "${{ steps.pages.outputs.base_url }}/feed.json"
-      - uses: actions/upload-pages-artifact@v3
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+        run: python -m goodnews.scrape --out ../site --previous "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/feed.json"
+      - name: Preview (non-main branches)
+        if: github.ref != 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-preview
+          path: site
+      - if: github.ref == 'refs/heads/main'
+        uses: actions/configure-pages@v5
+      - if: github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
         with:
           path: site
-      - id: deployment
+      - if: github.ref == 'refs/heads/main'
+        id: deployment
         uses: actions/deploy-pages@v4

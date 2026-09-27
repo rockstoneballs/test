@@ -64,7 +64,7 @@ class DirectSources(private val client: OkHttpClient, private val json: Json) {
                     source = outlet.name,
                     sourceHomepage = outlet.homepage,
                     publishedAt = item.published ?: Instant.now().toString(),
-                    category = StoryHeuristics.guessCategory(item.title, summary).label,
+                    community = StoryHeuristics.guessCategory(item.title, summary).label,
                     region = StoryHeuristics.guessRegion(item.title, summary).label,
                 )
             }

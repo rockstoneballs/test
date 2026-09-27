@@ -1,85 +1,93 @@
 # ☀️ Sunnyside: only good news
 
-Sunnyside is a news app that only shows good news. It's meant to be the first
-thing you open in the morning, instead of the usual doom.
+Sunnyside is a news app and website that only shows good news, meant to be the
+first thing you open in the morning. It works like Reddit: communities, Hot / New / Top
+sorting, upvotes, comment counts, and card or compact layouts. But everything in it
+is good news, wholesome memes or cute animals. There's also a **Kitten of the Day**
+and a **Puppy of the Day**.
 
-It works like any modern news app: a lead story, top stories, topic filters,
-"around the world" coverage, search, saved stories and sharing. It also has a
-**Kitten of the Day** and **Puppy of the Day**, and an optional morning
-notification when the day's good news is ready.
-
-Android comes first. The feed is a plain JSON file, so a website or iOS app can
-use the same feed later.
-
-## How it works
+* **Android app:** `android/` (Kotlin + Jetpack Compose)
+* **Website:** `web/` (plain HTML/CSS/JS, no build step)
+* **Scraper:** `scraper/` (Python). It runs on GitHub Actions every 30 minutes and
+  publishes `feed.json`, which both the app and the website read.
 
 ```
- ┌────────────────────────────┐   every 2h    ┌──────────────────────┐
- │ GitHub Actions: scrape.yml │ ────────────▶ │ GitHub Pages         │
- │  scraper/ (Python)         │   publishes   │  feed.json           │
- │  • 13 RSS feeds            │               └──────────┬───────────┘
- │  • positivity filter       │                          │ downloads
- │  • topic + region tagging  │               ┌──────────▼───────────┐
- │  • kitten + puppy of day   │               │ Android app          │
- └────────────────────────────┘               │  android/ (Compose)  │
-                                              └──────────────────────┘
+ ┌──────────────────────────────────┐  every 30 min  ┌──────────────────────────────┐
+ │ GitHub Actions: scrape.yml       │ ─────────────▶ │ GitHub Pages                 │
+ │  • 30+ good-news & world RSS     │   publishes    │  index.html  ← the website   │
+ │  • Google News searches          │                │  feed.json   ← the data      │
+ │  • Reddit + Lemmy communities    │                └──────┬───────────────┬───────┘
+ │  • positivity filter (Claude)    │                       │               │
+ │  • kitten + puppy of the day     │                  Android app      web browsers
+ └──────────────────────────────────┘
 ```
 
-### Scraper (`scraper/`)
+## Communities
 
-* **Sources** (`goodnews/sources.py`). Dedicated good-news outlets (Good News
-  Network, Positive News, Reasons to be Cheerful, The Optimist Daily, YES!,
-  The Guardian's *The Upside*, Good Good Good) plus general and science
-  outlets (BBC, NPR, Al Jazeera, ScienceDaily, Mongabay) for wider global
-  coverage.
-* **Positivity filter**
-  * **With `ANTHROPIC_API_KEY` set:** Claude reads each new headline and snippet,
-    decides whether it's really good news, scores how uplifting it is (0–10),
-    tags the topic and region, and writes a short summary
-    (`goodnews/classifier.py`). This catches cases keywords miss, like "40
-    people died despite rescue efforts".
-  * **Without a key:** conservative keyword scoring (`goodnews/keywords.py`).
-    Stories from general outlets need several uplifting signals and no "doom"
-    words to get in.
-* **Kitten and Puppy of the Day** (`goodnews/pets.py`). Photos come from The
-  Cat API and the Dog CEO API. Each pet gets a name and caption picked from the
-  date. They're chosen once per UTC day, so every user sees the same ones. The
-  last 14 days are kept for the "previous cuties" gallery.
-* Each run merges with the previously published feed, so stories stay for 7
-  days. It skips duplicates and doesn't send the same story to Claude twice.
+| Community | What's in it | Where it comes from |
+|---|---|---|
+| s/WholesomeMemes 😂 | Feel-good memes | r/wholesomememes, r/wholesome, Lemmy |
+| s/Aww 🥹 | Cute animal photos and videos | r/aww, r/Eyebleach, r/rarepuppers, r/IllegallySmolCats, Lemmy |
+| s/MadeMeSmile 😊 | People (and animals) being lovely | r/MadeMeSmile, r/HumansBeingBros, r/AnimalsBeingBros, Lemmy |
+| s/Science, s/Environment, s/Health, s/Animals, s/Community, s/Innovation, s/Culture, s/Sport | Good-news stories, sorted by topic | Good-news outlets, world news filtered for positivity, Google News, r/UpliftingNews, r/goodnews |
 
-### Android app (`android/`)
+Upvote and comment counts on posts from Reddit and Lemmy are real, and they're
+refreshed on every scrape. When a news story was also shared on r/UpliftingNews, it
+gets that thread's votes and a link to the discussion. Your own votes, saved posts
+and joined communities stay on your device. There are no accounts yet.
 
-Kotlin, Jetpack Compose, Material 3, Room, WorkManager, DataStore, Coil and
-OkHttp. Min SDK 26 (Android 8.0).
+**Hot** ranking (the same formula in `web/app.js` and `Ranking` in the app) =
+uplift score + a capped boost from upvotes + your vote − 1 point per 6 hours of age.
+The cap keeps news, which has no Reddit votes, from being buried under memes.
 
-* **Today:** greeting, topic chips, lead story, cuteness break (kitten +
-  puppy), top stories, an "Around the world" carousel with one story per
-  region, then more stories. Pull to refresh.
-* **Explore:** search, browse by region or topic.
-* **Saved:** bookmarked stories, kept even after they leave the feed.
-* **Story page:** summary, "mood boost" rating, related stories, share, and
-  "Read the full story" in an in-app browser tab.
-* **Pets page:** today's kitten or puppy with a share button, plus a gallery
-  of previous days.
-* **Settings:** morning briefing notification on/off and time (default
-  7:00), light/dark/system theme, list of sources.
-* Works offline from its cache and refreshes in the background every 3
-  hours.
-* If the published feed can't be reached (for example before Pages is set
-  up), the app reads the dedicated good-news RSS feeds directly and fetches a
-  kitten and puppy itself. So a fresh install is never empty.
+## Sources and filtering (`scraper/`)
 
-## Getting it running
+* **Dedicated good-news outlets** are included as-is: Good News Network,
+  Positive News, Reasons to be Cheerful, The Optimist Daily, YES!, The Guardian's
+  *The Upside*, Good Good Good, Nice News, Inspire More, Squirrel News, The Better
+  India, Sunny Skyz and Future Crunch.
+* **World and science news** only gets in if it passes the positivity filter.
+  Sources: BBC, NPR, Al Jazeera, The Guardian, DW, France 24, CBC, ABC Australia,
+  AllAfrica, ScienceDaily, Phys.org, ScienceAlert, New Atlas, NASA, Smithsonian,
+  Mongabay, and Google News searches like "good news", "heartwarming" and
+  "conservation success".
+* **Positivity filter.** With `ANTHROPIC_API_KEY` set, Claude reads each new
+  headline, decides whether it's really good news, scores how uplifting it is,
+  tags the topic and region, and writes a short summary. Without a key, a strict
+  keyword filter is used instead.
+* **Memes and cute animals** come from Reddit and Lemmy. NSFW and spoiler posts
+  are dropped, and so are posts below a per-community upvote threshold. Posts stay
+  for 3 days; news stays for 7.
+* A dead source is logged and skipped. It never breaks a run.
 
-### 1. Get the APK
+## Setup
 
-Every push runs the **CI** workflow, which builds the app. Open the run in the
-repo's **Actions** tab and download the `sunnyside-apk` artifact. Install
-`app-debug.apk` on an Android phone (you'll need to allow installs from
-unknown sources).
+### 1. Publish the website and feed
 
-To build locally you need JDK 17 and the Android SDK:
+1. **Settings → Pages → Build and deployment → Source: GitHub Actions.**
+2. Merge to `main`. The **Scrape good news** workflow then runs every 30 minutes
+   and deploys the site to `https://rockstoneballs.github.io/test/`.
+
+Optional repository secrets (**Settings → Secrets and variables → Actions**):
+
+| Secret | What it does |
+|---|---|
+| `ANTHROPIC_API_KEY` | Claude decides what counts as good news. Model `claude-opus-5`; override with `GOODNEWS_MODEL`. |
+| `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET` | Reliable Reddit access. Reddit often blocks anonymous requests from GitHub's servers. Create a free "script" app at <https://www.reddit.com/prefs/apps>. Without these, Lemmy still supplies memes. |
+| `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` | Signs release APKs with your own key, so updates install over the previous version. |
+
+On branches other than `main`, the scrape runs as a dry run. The result is
+uploaded as a `site-preview` artifact, so you can check source changes before
+merging.
+
+### 2. Get the Android app
+
+Every push builds the app (**Actions → CI → `sunnyside-apk` artifact**). On `main`
+the APK is also published to the
+[latest release](https://github.com/rockstoneballs/test/releases/latest). That's
+what the website's **Get the app** button links to.
+
+To build locally (you need JDK 17 and the Android SDK):
 
 ```bash
 cd android
@@ -87,39 +95,24 @@ cd android
 ./gradlew testDebugUnitTest
 ```
 
-### 2. Publish the feed (one-time setup)
+The app reads `https://rockstoneballs.github.io/test/feed.json`. To change that,
+edit `sunnyside.feedUrl` in `android/gradle.properties`, or build with
+`-Psunnyside.feedUrl=…`.
 
-1. **Settings → Pages → Build and deployment → Source: GitHub Actions.**
-2. *(Optional, recommended)* **Settings → Secrets and variables → Actions →
-   New repository secret** `ANTHROPIC_API_KEY`. This turns on Claude
-   filtering (default model `claude-opus-5`). To use a different model, set
-   the `GOODNEWS_MODEL` environment variable in `scrape.yml`.
-3. Merge to `main`. The **Scrape good news** workflow runs on every push to
-   `scraper/` and then every two hours. You can also start it by hand from the
-   Actions tab.
-
-The app reads `https://rockstoneballs.github.io/test/feed.json` by default. To
-point it somewhere else, change `sunnyside.feedUrl` in
-`android/gradle.properties`, or pass
-`-Psunnyside.feedUrl=https://…/feed.json` when building.
-
-> GitHub Pages on a private repository needs a paid GitHub plan. You can make
-> the repo public, or host `feed.json` anywhere else (S3, Cloudflare R2,
-> Netlify, …) and point `sunnyside.feedUrl` at it.
-
-### Running the scraper locally
+### Running things locally
 
 ```bash
 cd scraper
 pip install -r requirements-dev.txt
 python -m pytest -q
-python -m goodnews.scrape --out ../site            # add --no-claude to force keyword mode
+python -m goodnews.scrape --out ../site            # --no-claude, --no-social, --no-pets to skip parts
+cp -r ../web/. ../site/ && python -m http.server -d ../site 8000   # website at http://localhost:8000
 ```
 
 ## Ideas for what's next
 
-* A web version at the same Pages site, reading the same `feed.json`
-* Push notifications through FCM instead of a local daily schedule
-* Personalised "For you" ranking based on the topics people read and save
-* Play Store release: a real signing key, a privacy policy and store listing
-  art
+* Real accounts, so votes and comments are shared between people (needs a
+  backend such as Supabase or Firebase)
+* Push notifications through FCM for breaking good news
+* Personalised ranking based on what each person upvotes and saves
+* Play Store release: a signing key, a privacy policy and store listing art

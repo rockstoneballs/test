@@ -5,20 +5,25 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.sunnyside.news.SunnysideApp
-import app.sunnyside.news.data.Category
+import app.sunnyside.news.data.Community
 import app.sunnyside.news.data.NewsRepository
 import app.sunnyside.news.data.Pet
 import app.sunnyside.news.data.PetKind
-import app.sunnyside.news.data.Region
+import app.sunnyside.news.data.Ranking
 import app.sunnyside.news.data.RefreshSource
 import app.sunnyside.news.data.Settings
 import app.sunnyside.news.data.SettingsRepository
+import app.sunnyside.news.data.SortMode
 import app.sunnyside.news.data.Story
 import app.sunnyside.news.data.ThemeMode
+import app.sunnyside.news.data.ViewMode
+import app.sunnyside.news.ui.components.PostUserState
 import app.sunnyside.news.work.Scheduler
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -27,49 +32,74 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-private fun <T> kotlinx.coroutines.flow.Flow<T>.asState(vm: ViewModel, initial: T): StateFlow<T> =
+private fun <T> Flow<T>.asState(vm: ViewModel, initial: T): StateFlow<T> =
     stateIn(vm.viewModelScope, SharingStarted.WhileSubscribed(5_000), initial)
+
+/** Shared by every screen that shows posts: votes, saves, sort and layout. */
+abstract class PostsViewModel(
+    protected val repo: NewsRepository,
+    protected val settingsRepo: SettingsRepository,
+) : ViewModel() {
+    val user: StateFlow<PostUserState> =
+        combine(repo.votes, repo.savedIds) { votes, saved -> PostUserState(votes, saved) }.asState(this, PostUserState())
+
+    val settings: StateFlow<Settings> = settingsRepo.settings.asState(this, Settings())
+
+    fun vote(story: Story, direction: Int) = viewModelScope.launch {
+        repo.vote(story.id, direction, repo.votes.first()[story.id] ?: 0)
+    }
+
+    fun toggleSave(story: Story) = viewModelScope.launch {
+        repo.toggleSaved(story, story.id in repo.savedIds.first())
+    }
+
+    fun setSort(mode: SortMode) = viewModelScope.launch { settingsRepo.setSort(mode) }
+
+    fun toggleView() = viewModelScope.launch {
+        settingsRepo.setView(if (settingsRepo.current().view == ViewMode.Card) ViewMode.Compact else ViewMode.Card)
+    }
+
+    fun toggleJoined(community: Community) = viewModelScope.launch { settingsRepo.toggleJoined(community) }
+}
 
 // ------------------------------------------------------------------ Home
 
 data class HomeState(
-    val stories: List<Story> = emptyList(),
+    val posts: List<Story> = emptyList(),
     val kitten: Pet? = null,
     val puppy: Pet? = null,
-    val savedIds: Set<String> = emptySet(),
-    val category: Category? = null,
     val loaded: Boolean = false,
 )
 
-class HomeViewModel(private val repo: NewsRepository) : ViewModel() {
-    private val category = MutableStateFlow<Category?>(null)
+class HomeViewModel(repo: NewsRepository, settingsRepo: SettingsRepository) : PostsViewModel(repo, settingsRepo) {
     private val _refreshing = MutableStateFlow(false)
     val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
+    val updatedAt: StateFlow<Long?> = repo.feedUpdatedAt
 
-    val state: StateFlow<HomeState> = combine(repo.stories, repo.pets, repo.savedIds, category) { stories, pets, saved, cat ->
+    val state: StateFlow<HomeState> = combine(repo.stories, repo.pets, repo.votes, settingsRepo.settings) { stories, pets, votes, s ->
         HomeState(
-            stories = if (cat == null) stories else stories.filter { it.category == cat },
+            posts = Ranking.sort(stories.filter { it.community in s.joined }, s.sort, votes),
             kitten = pets.firstOrNull { it.kind == PetKind.Kitten },
             puppy = pets.firstOrNull { it.kind == PetKind.Puppy },
-            savedIds = saved,
-            category = cat,
             loaded = true,
         )
     }.asState(this, HomeState())
 
     init {
         viewModelScope.launch {
-            // Refresh on launch; if we already have cached stories this happens quietly.
+            // Refresh on launch; if we already have cached posts this happens quietly.
             refresh(showSpinner = repo.stories.first().isEmpty())
         }
     }
 
-    fun selectCategory(value: Category?) = category.update { value }
+    /** Called when the app comes back to the foreground: new posts land every half hour. */
+    fun refreshIfStale() {
+        if (System.currentTimeMillis() - repo.lastRefreshAt > STALE_AFTER_MS) refresh(showSpinner = false)
+    }
 
     fun refresh(showSpinner: Boolean = true) {
         if (_refreshing.value) return
@@ -77,7 +107,7 @@ class HomeViewModel(private val repo: NewsRepository) : ViewModel() {
             if (showSpinner) _refreshing.value = true
             runCatching { repo.refresh() }
                 .onSuccess { if (it == RefreshSource.Direct) _message.value = "Showing stories straight from our good-news sources" }
-                .onFailure { _message.value = "Couldn't refresh — check your connection" }
+                .onFailure { if (showSpinner) _message.value = "Couldn't refresh — check your connection" }
             _refreshing.value = false
         }
     }
@@ -86,98 +116,85 @@ class HomeViewModel(private val repo: NewsRepository) : ViewModel() {
         _message.value = null
     }
 
-    fun toggleSaved(story: Story) = viewModelScope.launch {
-        repo.toggleSaved(story, story.id in state.value.savedIds)
+    private companion object {
+        const val STALE_AFTER_MS = 10 * 60 * 1000L
     }
 }
 
-// ------------------------------------------------------------------ Explore
+// ------------------------------------------------------------------ One community
 
-data class ExploreState(
-    val query: String = "",
-    val region: Region? = null,
-    val category: Category? = null,
-    val results: List<Story> = emptyList(),
-    val regionCounts: Map<Region, Int> = emptyMap(),
-    val categoryCounts: Map<Category, Int> = emptyMap(),
-    val savedIds: Set<String> = emptySet(),
-) {
-    val filtering: Boolean get() = query.isNotBlank() || region != null || category != null
+class CommunityViewModel(repo: NewsRepository, settingsRepo: SettingsRepository, handle: SavedStateHandle) :
+    PostsViewModel(repo, settingsRepo) {
+    val community: Community = Community.valueOf(checkNotNull(handle["name"]))
+
+    val posts: StateFlow<List<Story>?> = combine(repo.stories, repo.votes, settingsRepo.settings) { stories, votes, s ->
+        Ranking.sort(stories.filter { it.community == community }, s.sort, votes)
+    }.asState(this, null)
 }
 
-class ExploreViewModel(private val repo: NewsRepository) : ViewModel() {
-    private val query = MutableStateFlow("")
-    private val region = MutableStateFlow<Region?>(null)
-    private val category = MutableStateFlow<Category?>(null)
+// ------------------------------------------------------------------ All communities
 
-    val state: StateFlow<ExploreState> = combine(repo.stories, repo.savedIds, query, region, category) { stories, saved, q, r, c ->
+data class CommunityListItem(val community: Community, val posts: Int, val joined: Boolean)
+
+class CommunitiesViewModel(repo: NewsRepository, settingsRepo: SettingsRepository) : PostsViewModel(repo, settingsRepo) {
+    val communities: StateFlow<List<CommunityListItem>> = combine(repo.stories, settingsRepo.settings) { stories, s ->
+        val counts = stories.groupingBy { it.community }.eachCount()
+        Community.entries.map { CommunityListItem(it, counts[it] ?: 0, it in s.joined) }
+    }.asState(this, emptyList())
+}
+
+// ------------------------------------------------------------------ Search
+
+class SearchViewModel(repo: NewsRepository, settingsRepo: SettingsRepository) : PostsViewModel(repo, settingsRepo) {
+    private val _query = MutableStateFlow("")
+    val query: StateFlow<String> = _query.asStateFlow()
+
+    val results: StateFlow<List<Story>> = combine(repo.stories, repo.votes, settingsRepo.settings, _query) { stories, votes, s, q ->
         val words = q.trim().lowercase().split(Regex("\\s+")).filter { it.isNotEmpty() }
-        ExploreState(
-            query = q,
-            region = r,
-            category = c,
-            results = stories.filter { s ->
-                (r == null || s.region == r) &&
-                    (c == null || s.category == c) &&
-                    words.all { w -> s.title.lowercase().contains(w) || s.summary.lowercase().contains(w) || s.source.lowercase().contains(w) }
-            },
-            regionCounts = stories.groupingBy { it.region }.eachCount(),
-            categoryCounts = stories.groupingBy { it.category }.eachCount(),
-            savedIds = saved,
-        )
-    }.asState(this, ExploreState())
+        if (words.isEmpty()) {
+            emptyList()
+        } else {
+            Ranking.sort(
+                stories.filter { story ->
+                    val hay = "${story.title} ${story.summary} ${story.source} ${story.community.label} ${story.region.label}".lowercase()
+                    words.all { it in hay }
+                },
+                s.sort,
+                votes,
+            )
+        }
+    }.asState(this, emptyList())
 
-    fun setQuery(value: String) = query.update { value }
-    fun setRegion(value: Region?) = region.update { value }
-    fun setCategory(value: Category?) = category.update { value }
-    fun clear() {
-        query.value = ""; region.value = null; category.value = null
-    }
-
-    fun toggleSaved(story: Story) = viewModelScope.launch {
-        repo.toggleSaved(story, story.id in state.value.savedIds)
+    fun setQuery(value: String) {
+        _query.value = value
     }
 }
 
 // ------------------------------------------------------------------ Saved
 
-class SavedViewModel(private val repo: NewsRepository) : ViewModel() {
+class SavedViewModel(repo: NewsRepository, settingsRepo: SettingsRepository) : PostsViewModel(repo, settingsRepo) {
     val stories: StateFlow<List<Story>?> = repo.savedStories.map<List<Story>, List<Story>?> { it }.asState(this, null)
-
-    fun remove(story: Story) = viewModelScope.launch { repo.toggleSaved(story, currentlySaved = true) }
 }
 
-// ------------------------------------------------------------------ Story detail
+// ------------------------------------------------------------------ Post detail
 
-data class DetailState(
-    val story: Story? = null,
-    val saved: Boolean = false,
-    val related: List<Story> = emptyList(),
-    val savedIds: Set<String> = emptySet(),
-    val loaded: Boolean = false,
-)
+data class DetailState(val story: Story? = null, val related: List<Story> = emptyList(), val loaded: Boolean = false)
 
-class DetailViewModel(private val repo: NewsRepository, handle: SavedStateHandle) : ViewModel() {
+class DetailViewModel(repo: NewsRepository, settingsRepo: SettingsRepository, handle: SavedStateHandle) :
+    PostsViewModel(repo, settingsRepo) {
     private val id: String = checkNotNull(handle["id"])
 
-    val state: StateFlow<DetailState> = combine(repo.story(id), repo.savedIds, repo.stories) { story, saved, all ->
+    val state: StateFlow<DetailState> = combine(repo.story(id), repo.stories, repo.votes) { story, all, votes ->
         DetailState(
             story = story,
-            saved = id in saved,
-            related = if (story == null) emptyList() else all.filter { it.category == story.category && it.id != id }.take(4),
-            savedIds = saved,
+            related = if (story == null) {
+                emptyList()
+            } else {
+                Ranking.sort(all.filter { it.community == story.community && it.id != id }, SortMode.Hot, votes).take(5)
+            },
             loaded = true,
         )
     }.asState(this, DetailState())
-
-    fun toggleSaved() = viewModelScope.launch {
-        val s = state.value
-        s.story?.let { repo.toggleSaved(it, s.saved) }
-    }
-
-    fun toggleSaved(story: Story) = viewModelScope.launch {
-        repo.toggleSaved(story, story.id in state.value.savedIds)
-    }
 }
 
 // ------------------------------------------------------------------ Pets
@@ -208,13 +225,16 @@ class SettingsViewModel(private val app: SunnysideApp, private val repo: Setting
 // ------------------------------------------------------------------ Factory
 
 val AppViewModels: ViewModelProvider.Factory = viewModelFactory {
-    fun app(extras: androidx.lifecycle.viewmodel.CreationExtras) =
-        extras[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as SunnysideApp
+    fun app(extras: CreationExtras) = extras[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as SunnysideApp
+    fun news(extras: CreationExtras) = app(extras).container.newsRepository
+    fun prefs(extras: CreationExtras) = app(extras).container.settingsRepository
 
-    initializer { HomeViewModel(app(this).container.newsRepository) }
-    initializer { ExploreViewModel(app(this).container.newsRepository) }
-    initializer { SavedViewModel(app(this).container.newsRepository) }
-    initializer { DetailViewModel(app(this).container.newsRepository, createSavedStateHandle()) }
-    initializer { PetsViewModel(app(this).container.newsRepository, createSavedStateHandle()) }
-    initializer { SettingsViewModel(app(this), app(this).container.settingsRepository) }
+    initializer { HomeViewModel(news(this), prefs(this)) }
+    initializer { CommunityViewModel(news(this), prefs(this), createSavedStateHandle()) }
+    initializer { CommunitiesViewModel(news(this), prefs(this)) }
+    initializer { SearchViewModel(news(this), prefs(this)) }
+    initializer { SavedViewModel(news(this), prefs(this)) }
+    initializer { DetailViewModel(news(this), prefs(this), createSavedStateHandle()) }
+    initializer { PetsViewModel(news(this), createSavedStateHandle()) }
+    initializer { SettingsViewModel(app(this), prefs(this)) }
 }

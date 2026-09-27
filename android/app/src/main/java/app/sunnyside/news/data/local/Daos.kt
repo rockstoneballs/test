@@ -16,7 +16,7 @@ interface StoryDao {
     @Query("SELECT * FROM stories WHERE id = :id")
     fun observe(id: String): Flow<StoryEntity?>
 
-    @Query("SELECT * FROM stories ORDER BY uplift DESC, publishedAt DESC LIMIT 1")
+    @Query("SELECT * FROM stories WHERE kind = 'article' ORDER BY uplift DESC, publishedAt DESC LIMIT 1")
     suspend fun topStory(): StoryEntity?
 
     @Query("SELECT COUNT(*) FROM stories WHERE publishedAt >= :since")
@@ -51,6 +51,18 @@ interface SavedStoryDao {
 
     @Query("DELETE FROM saved_stories WHERE id = :id")
     suspend fun remove(id: String)
+}
+
+@Dao
+interface VoteDao {
+    @Query("SELECT * FROM votes")
+    fun observeAll(): Flow<List<VoteEntity>>
+
+    @Upsert
+    suspend fun set(vote: VoteEntity)
+
+    @Query("DELETE FROM votes WHERE id = :id")
+    suspend fun clear(id: String)
 }
 
 @Dao

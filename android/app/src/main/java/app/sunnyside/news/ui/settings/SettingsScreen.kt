@@ -50,8 +50,10 @@ import java.time.format.FormatStyle
 
 private val SOURCES = listOf(
     "Good News Network", "Positive News", "Reasons to be Cheerful", "The Optimist Daily",
-    "YES! Magazine", "The Guardian — The Upside", "Good Good Good",
-    "BBC News", "NPR", "Al Jazeera", "ScienceDaily", "Mongabay",
+    "YES! Magazine", "The Guardian — The Upside", "Good Good Good", "Nice News", "The Better India",
+    "BBC", "NPR", "Al Jazeera", "DW", "France 24", "CBC", "ABC Australia", "AllAfrica",
+    "ScienceDaily", "Phys.org", "NASA", "Mongabay", "Google News",
+    "r/UpliftingNews", "r/wholesomememes", "r/aww", "r/MadeMeSmile", "r/HumansBeingBros", "Lemmy",
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -143,9 +145,10 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             SectionLabel("Where the good news comes from")
             Text(
-                "Stories are gathered every couple of hours from these outlets. Dedicated good-news " +
-                    "publications are included as-is; stories from general news outlets are only " +
-                    "included when they pass our positivity filter.",
+                "New posts are gathered every half hour. Dedicated good-news publications and " +
+                    "wholesome communities are included as-is; stories from general news outlets are " +
+                    "only included when they pass our positivity filter. Scores on memes and photos are " +
+                    "their Reddit/Lemmy upvotes; your own votes stay on this phone.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),

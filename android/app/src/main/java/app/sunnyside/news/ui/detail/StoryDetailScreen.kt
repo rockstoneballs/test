@@ -1,28 +1,32 @@
 package app.sunnyside.news.ui.detail
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.outlined.Comment
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.AssistChip
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -31,51 +35,61 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.sunnyside.news.data.PostKind
+import app.sunnyside.news.data.Region
 import app.sunnyside.news.ui.DetailViewModel
-import app.sunnyside.news.ui.components.CategoryLabel
 import app.sunnyside.news.ui.components.EmptyState
-import app.sunnyside.news.ui.components.SaveButton
+import app.sunnyside.news.ui.components.PostCallbacks
+import app.sunnyside.news.ui.components.PostHeader
+import app.sunnyside.news.ui.components.PostMedia
 import app.sunnyside.news.ui.components.SectionHeader
-import app.sunnyside.news.ui.components.StoryImage
-import app.sunnyside.news.ui.components.StoryRow
-import app.sunnyside.news.util.openInBrowser
-import app.sunnyside.news.util.shareText
-import app.sunnyside.news.util.timeAgo
+import app.sunnyside.news.ui.components.VoteControl
+import app.sunnyside.news.ui.components.postItems
+import app.sunnyside.news.data.ViewMode
+import app.sunnyside.news.util.compactCount
+import app.sunnyside.news.util.domainOf
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StoryDetailScreen(viewModel: DetailViewModel, onBack: () -> Unit, onOpenStory: (String) -> Unit) {
+fun StoryDetailScreen(
+    viewModel: DetailViewModel,
+    callbacks: PostCallbacks,
+    onBack: () -> Unit,
+    onReadArticle: (String) -> Unit,
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-    val toolbarColor = MaterialTheme.colorScheme.surface.toArgb()
+    val user by viewModel.user.collectAsStateWithLifecycle()
     val story = state.story
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {},
+                title = { if (story != null) Text("s/${story.community.label}") },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 },
                 actions = {
                     if (story != null) {
-                        IconButton(onClick = {
-                            shareText(context, story.title, "${story.title}\n\n${story.url}\n\nShared from Sunnyside ☀️")
-                        }) { Icon(Icons.Filled.Share, contentDescription = "Share") }
-                        SaveButton(state.saved, onToggle = { viewModel.toggleSaved() }, tint = MaterialTheme.colorScheme.onSurface)
+                        val saved = story.id in user.savedIds
+                        IconButton(onClick = { callbacks.share(story) }) { Icon(Icons.Filled.Share, contentDescription = "Share") }
+                        IconButton(onClick = { callbacks.toggleSave(story) }) {
+                            Icon(
+                                if (saved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                                contentDescription = if (saved) "Remove from saved" else "Save",
+                                tint = if (saved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
             )
         },
     ) { padding ->
         if (story == null) {
             if (state.loaded) {
-                EmptyState("🍃", "Story not found", "This story has rolled off the feed.", Modifier.padding(padding))
+                EmptyState("🍃", "Post not found", "It may have drifted out of the feed. Posts stay for about a week.", Modifier.padding(padding))
             }
             return@Scaffold
         }
@@ -84,74 +98,78 @@ fun StoryDetailScreen(viewModel: DetailViewModel, onBack: () -> Unit, onOpenStor
             contentPadding = PaddingValues(top = padding.calculateTopPadding(), bottom = padding.calculateBottomPadding() + 24.dp),
         ) {
             item {
-                Column(Modifier.padding(horizontal = 20.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        CategoryLabel(story.category)
+                Column(
+                    Modifier
+                        .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                        .padding(16.dp),
+                ) {
+                    PostHeader(story, callbacks)
+                    Spacer(Modifier.height(10.dp))
+                    Text(story.title, style = MaterialTheme.typography.headlineSmall)
+                    if (story.region != Region.Global) {
                         Text(
-                            "  ·  ${story.region.emoji} ${story.region.label.uppercase()}",
-                            style = MaterialTheme.typography.labelSmall,
+                            "📍 ${story.region.label}",
+                            style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 6.dp),
                         )
                     }
-                    Spacer(Modifier.height(8.dp))
-                    Text(story.title, style = MaterialTheme.typography.headlineMedium)
-                    Spacer(Modifier.height(10.dp))
-                    Text(
-                        "${story.source} · ${timeAgo(story.publishedAtMillis)}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(16.dp))
-                }
-            }
-            item {
-                StoryImage(
-                    story.imageUrl, story.category,
-                    Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(16f / 10f),
-                    emojiSize = 72,
-                )
-            }
-            item {
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    PostMedia(story, Modifier.padding(top = 12.dp), large = true)
                     if (story.summary.isNotBlank()) {
-                        Text(story.summary, style = MaterialTheme.typography.bodyLarge)
+                        Text(story.summary, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 12.dp))
                     }
-                    UpliftMeter(story.uplift)
-                    Button(
-                        onClick = { openInBrowser(context, story.url, toolbarColor) },
-                        modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(vertical = 14.dp),
-                    ) {
-                        Text("Read the full story at ${story.source}")
-                        Spacer(Modifier.size(8.dp))
-                        Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (story.kind == PostKind.Article) {
+                            Button(
+                                onClick = { onReadArticle(story.url) },
+                                modifier = Modifier.fillMaxWidth(),
+                                contentPadding = PaddingValues(vertical = 14.dp),
+                            ) {
+                                Text("Read the full story on ${domainOf(story.url)}")
+                                Spacer(Modifier.size(8.dp))
+                                Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
+                            }
+                        }
+                        story.discussionUrl?.let { discussion ->
+                            val label = buildString {
+                                append(if (story.kind == PostKind.Video) "Watch it" else "Join the discussion")
+                                story.comments?.let { append(" (${compactCount(it)} comments)") }
+                                append(" on ${domainOf(discussion)}")
+                            }
+                            val content: @Composable () -> Unit = {
+                                Icon(
+                                    if (story.kind == PostKind.Video) Icons.Filled.PlayArrow else Icons.AutoMirrored.Outlined.Comment,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Spacer(Modifier.size(8.dp))
+                                Text(label)
+                            }
+                            if (story.kind == PostKind.Article) {
+                                OutlinedButton(
+                                    onClick = { callbacks.openDiscussion(story) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentPadding = PaddingValues(vertical = 14.dp),
+                                ) { content() }
+                            } else {
+                                Button(
+                                    onClick = { callbacks.openDiscussion(story) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentPadding = PaddingValues(vertical = 14.dp),
+                                ) { content() }
+                            }
+                        }
+                    }
+                    Row(Modifier.padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        VoteControl(story, user.votes[story.id] ?: 0, onVote = { callbacks.vote(story, it) })
                     }
                 }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }
             if (state.related.isNotEmpty()) {
-                item { SectionHeader("More ${story.category.label.lowercase()} news", Modifier.padding(top = 8.dp)) }
-                items(state.related, key = { it.id }) { related ->
-                    StoryRow(
-                        story = related,
-                        saved = related.id in state.savedIds,
-                        onClick = { onOpenStory(related.id) },
-                        onToggleSave = { viewModel.toggleSaved(related) },
-                    )
-                }
+                item { SectionHeader("More from s/${story.community.label}", Modifier.padding(top = 20.dp, bottom = 8.dp)) }
+                postItems(state.related, ViewMode.Compact, user, callbacks)
             }
         }
     }
-}
-
-@Composable
-private fun UpliftMeter(uplift: Int) {
-    val suns = (uplift.coerceIn(0, 10) + 1) / 2
-    AssistChip(
-        onClick = {},
-        label = {
-            Text("Mood boost  " + "☀️".repeat(suns.coerceAtLeast(1)))
-        },
-    )
 }

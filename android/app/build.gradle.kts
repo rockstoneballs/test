@@ -16,9 +16,23 @@ android {
         applicationId = "app.sunnyside.news"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
         buildConfigField("String", "FEED_URL", "\"$feedUrl\"")
+    }
+
+    // Release signing comes from environment variables (see .github/workflows/ci.yml). Without them the
+    // release APK is signed with the debug key, which is fine for trying it out but changes per machine.
+    val keystore = System.getenv("SUNNYSIDE_KEYSTORE")
+    signingConfigs {
+        if (keystore != null) {
+            create("release") {
+                storeFile = file(keystore)
+                storePassword = System.getenv("SUNNYSIDE_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("SUNNYSIDE_KEY_ALIAS")
+                keyPassword = System.getenv("SUNNYSIDE_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
@@ -26,9 +40,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Signed with the debug key so the release APK is installable out of the box.
-            // Swap in a real signing config before publishing to the Play Store.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName(if (keystore != null) "release" else "debug")
         }
     }
 
@@ -65,6 +77,7 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.browser)
     implementation(libs.coil.compose)
+    implementation(libs.coil.gif)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)

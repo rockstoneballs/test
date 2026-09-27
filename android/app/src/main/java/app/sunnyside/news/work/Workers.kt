@@ -45,10 +45,10 @@ object Scheduler {
     private const val MORNING = "morning-briefing"
 
     fun schedulePeriodicRefresh(context: Context) {
-        val request = PeriodicWorkRequestBuilder<RefreshWorker>(3, TimeUnit.HOURS)
+        val request = PeriodicWorkRequestBuilder<RefreshWorker>(1, TimeUnit.HOURS)
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
             .build()
-        WorkManager.getInstance(context).enqueueUniquePeriodicWork(REFRESH, ExistingPeriodicWorkPolicy.KEEP, request)
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(REFRESH, ExistingPeriodicWorkPolicy.UPDATE, request)
     }
 
     /** [reschedule] = true when the user changed the time; otherwise an existing schedule is kept. */

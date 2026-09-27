@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -20,6 +21,10 @@ data class Settings(
     val briefingMinute: Int = 0,
     val theme: ThemeMode = ThemeMode.System,
     val onboarded: Boolean = false,
+    val sort: SortMode = SortMode.Hot,
+    val view: ViewMode = ViewMode.Card,
+    /** Communities shown on Home. Everyone starts in all of them. */
+    val joined: Set<Community> = Community.entries.toSet(),
 )
 
 class SettingsRepository(private val context: Context) {
@@ -29,6 +34,9 @@ class SettingsRepository(private val context: Context) {
         val minute = intPreferencesKey("briefing_minute")
         val theme = stringPreferencesKey("theme")
         val onboarded = booleanPreferencesKey("onboarded")
+        val sort = stringPreferencesKey("sort")
+        val view = stringPreferencesKey("view")
+        val joined = stringSetPreferencesKey("joined")
     }
 
     val settings: Flow<Settings> = context.dataStore.data.map { p ->
@@ -38,6 +46,10 @@ class SettingsRepository(private val context: Context) {
             briefingMinute = p[Keys.minute] ?: 0,
             theme = p[Keys.theme]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.System,
             onboarded = p[Keys.onboarded] ?: false,
+            sort = p[Keys.sort]?.let { runCatching { SortMode.valueOf(it) }.getOrNull() } ?: SortMode.Hot,
+            view = p[Keys.view]?.let { runCatching { ViewMode.valueOf(it) }.getOrNull() } ?: ViewMode.Card,
+            joined = p[Keys.joined]?.mapNotNull { name -> Community.entries.firstOrNull { it.name == name } }?.toSet()
+                ?: Community.entries.toSet(),
         )
     }
 
@@ -53,4 +65,14 @@ class SettingsRepository(private val context: Context) {
     suspend fun setTheme(mode: ThemeMode) = context.dataStore.edit { it[Keys.theme] = mode.name }
 
     suspend fun setOnboarded() = context.dataStore.edit { it[Keys.onboarded] = true }
+
+    suspend fun setSort(mode: SortMode) = context.dataStore.edit { it[Keys.sort] = mode.name }
+
+    suspend fun setView(mode: ViewMode) = context.dataStore.edit { it[Keys.view] = mode.name }
+
+    suspend fun toggleJoined(community: Community) {
+        val joined = current().joined
+        val next = if (community in joined) joined - community else joined + community
+        context.dataStore.edit { p -> p[Keys.joined] = next.map { it.name }.toSet() }
+    }
 }

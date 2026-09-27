@@ -4,14 +4,15 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmarks
-import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.outlined.Bookmarks
-import androidx.compose.material.icons.outlined.Explore
+import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -23,28 +24,60 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import app.sunnyside.news.data.PostKind
+import app.sunnyside.news.data.Story
+import app.sunnyside.news.ui.community.CommunitiesScreen
+import app.sunnyside.news.ui.community.CommunityScreen
+import app.sunnyside.news.ui.components.PostCallbacks
 import app.sunnyside.news.ui.detail.StoryDetailScreen
-import app.sunnyside.news.ui.explore.ExploreScreen
 import app.sunnyside.news.ui.home.HomeScreen
 import app.sunnyside.news.ui.pets.PetsScreen
 import app.sunnyside.news.ui.saved.SavedScreen
+import app.sunnyside.news.ui.search.SearchScreen
 import app.sunnyside.news.ui.settings.SettingsScreen
+import app.sunnyside.news.util.openInBrowser
+import app.sunnyside.news.util.shareText
 
 private enum class Tab(val route: String, val label: String, val selected: ImageVector, val unselected: ImageVector) {
-    Today("today", "Today", Icons.Filled.WbSunny, Icons.Outlined.WbSunny),
-    Explore("explore", "Explore", Icons.Filled.Explore, Icons.Outlined.Explore),
+    Home("home", "Home", Icons.Filled.WbSunny, Icons.Outlined.WbSunny),
+    Communities("communities", "Communities", Icons.Filled.Groups, Icons.Outlined.Groups),
     Saved("saved", "Saved", Icons.Filled.Bookmarks, Icons.Outlined.Bookmarks),
     Settings("settings", "Settings", Icons.Filled.Settings, Icons.Outlined.Settings),
+}
+
+/** Opens posts, communities, links and the share sheet for whichever screen is showing posts. */
+@Composable
+private fun rememberPostCallbacks(nav: NavHostController, vm: PostsViewModel): PostCallbacks {
+    val context = LocalContext.current
+    val toolbar = MaterialTheme.colorScheme.surface.toArgb()
+    return remember(nav, vm, toolbar) {
+        PostCallbacks(
+            open = { nav.navigate("post/${it.id}") },
+            openCommunity = { nav.navigate("s/${it.name}") },
+            vote = { story, direction -> vm.vote(story, direction) },
+            toggleSave = { vm.toggleSave(it) },
+            share = { shareText(context, it.title, shareBody(it)) },
+            openDiscussion = { story -> story.discussionUrl?.let { openInBrowser(context, it, toolbar) } },
+        )
+    }
+}
+
+private fun shareBody(story: Story): String {
+    val link = if (story.kind == PostKind.Article) story.url else story.discussionUrl ?: story.url
+    return "${story.title}\n\n$link\n\nShared from Sunnyside ☀️"
 }
 
 @Composable
@@ -54,12 +87,12 @@ fun SunnysideNavHost(openStoryId: String?, onStoryOpened: () -> Unit) {
     val backStack by nav.currentBackStackEntryAsState()
     val destination = backStack?.destination
     val showBottomBar = Tab.entries.any { tab -> destination?.hierarchy?.any { it.route == tab.route } == true }
-
-    val openStory: (String) -> Unit = { id -> nav.navigate("story/$id") }
+    val context = LocalContext.current
+    val toolbar = MaterialTheme.colorScheme.surface.toArgb()
 
     LaunchedEffect(openStoryId) {
         if (openStoryId != null) {
-            openStory(openStoryId)
+            nav.navigate("post/$openStoryId")
             onStoryOpened()
         }
     }
@@ -89,29 +122,42 @@ fun SunnysideNavHost(openStoryId: String?, onStoryOpened: () -> Unit) {
             }
         },
     ) { padding ->
-        NavHost(nav, startDestination = Tab.Today.route, modifier = Modifier.padding(padding)) {
-            composable(Tab.Today.route) {
+        NavHost(nav, startDestination = Tab.Home.route, modifier = Modifier.padding(padding)) {
+            composable(Tab.Home.route) {
+                val vm: HomeViewModel = viewModel(factory = AppViewModels)
                 HomeScreen(
-                    viewModel = viewModel(factory = AppViewModels),
+                    viewModel = vm,
+                    callbacks = rememberPostCallbacks(nav, vm),
                     snackbar = snackbar,
-                    onOpenStory = openStory,
                     onOpenPets = { kind -> nav.navigate("pets/${kind.name}") },
+                    onSearch = { nav.navigate("search") },
                 )
             }
-            composable(Tab.Explore.route) {
-                ExploreScreen(viewModel = viewModel(factory = AppViewModels), onOpenStory = openStory)
+            composable(Tab.Communities.route) {
+                CommunitiesScreen(viewModel = viewModel(factory = AppViewModels), onOpen = { nav.navigate("s/${it.name}") })
             }
             composable(Tab.Saved.route) {
-                SavedScreen(viewModel = viewModel(factory = AppViewModels), onOpenStory = openStory)
+                val vm: SavedViewModel = viewModel(factory = AppViewModels)
+                SavedScreen(viewModel = vm, callbacks = rememberPostCallbacks(nav, vm))
             }
             composable(Tab.Settings.route) {
                 SettingsScreen(viewModel = viewModel(factory = AppViewModels))
             }
-            composable("story/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {
+            composable("search") {
+                val vm: SearchViewModel = viewModel(factory = AppViewModels)
+                SearchScreen(viewModel = vm, callbacks = rememberPostCallbacks(nav, vm), onBack = { nav.popBackStack() })
+            }
+            composable("s/{name}", arguments = listOf(navArgument("name") { type = NavType.StringType })) {
+                val vm: CommunityViewModel = viewModel(factory = AppViewModels)
+                CommunityScreen(viewModel = vm, callbacks = rememberPostCallbacks(nav, vm), onBack = { nav.popBackStack() })
+            }
+            composable("post/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {
+                val vm: DetailViewModel = viewModel(factory = AppViewModels)
                 StoryDetailScreen(
-                    viewModel = viewModel(factory = AppViewModels),
+                    viewModel = vm,
+                    callbacks = rememberPostCallbacks(nav, vm),
                     onBack = { nav.popBackStack() },
-                    onOpenStory = openStory,
+                    onReadArticle = { openInBrowser(context, it, toolbar) },
                 )
             }
             composable("pets/{kind}", arguments = listOf(navArgument("kind") { type = NavType.StringType })) {

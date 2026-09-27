@@ -1,6 +1,6 @@
 package app.sunnyside.news.data.remote
 
-import app.sunnyside.news.data.Category
+import app.sunnyside.news.data.Community
 import app.sunnyside.news.data.Region
 import androidx.core.text.HtmlCompat
 
@@ -14,15 +14,15 @@ object StoryHeuristics {
         RegexOption.IGNORE_CASE,
     )
 
-    private val categoryWords: Map<Category, Regex> = mapOf(
-        Category.Animals to "animal|wildlife|species|dog|pupp|cats?\\b|kitten|bird|whale|dolphin|turtle|elephant|bees?\\b|sanctuary|otter|koala|penguin",
-        Category.Environment to "climate|emission|renewable|solar|carbon|forest|trees?\\b|ocean|river|plastic|recycl|rewild|conservation|nature|biodiversity|reef",
-        Category.Health to "health|vaccine|cancer|disease|patient|hospital|doctor|medic|therapy|treatment|mental",
-        Category.Science to "scientist|research|study|discover|astronom|space|nasa|planet|telescope|fossil|dinosaur|archaeolog",
-        Category.Innovation to "invent|technology|robot|startup|engineer|3d print|battery|prototype|innovation",
-        Category.Community to "community|volunteer|neighbo|donat|charity|school|student|teacher|homeless|kindness|village",
-        Category.Culture to "\\bart\\b|\\barts\\b|music|film|book|museum|festival|artist|concert|theat|poet|dance",
-        Category.Sport to "sport|football|soccer|olympic|paralympic|marathon|athlete|tennis|cricket|rugby|medal|champion",
+    private val categoryWords: Map<Community, Regex> = mapOf(
+        Community.Animals to "animal|wildlife|species|dog|pupp|cats?\\b|kitten|bird|whale|dolphin|turtle|elephant|bees?\\b|sanctuary|otter|koala|penguin",
+        Community.Environment to "climate|emission|renewable|solar|carbon|forest|trees?\\b|ocean|river|plastic|recycl|rewild|conservation|nature|biodiversity|reef",
+        Community.Health to "health|vaccine|cancer|disease|patient|hospital|doctor|medic|therapy|treatment|mental",
+        Community.Science to "scientist|research|study|discover|astronom|space|nasa|planet|telescope|fossil|dinosaur|archaeolog",
+        Community.Innovation to "invent|technology|robot|startup|engineer|3d print|battery|prototype|innovation",
+        Community.Community to "community|volunteer|neighbo|donat|charity|school|student|teacher|homeless|kindness|village",
+        Community.Culture to "\\bart\\b|\\barts\\b|music|film|book|museum|festival|artist|concert|theat|poet|dance",
+        Community.Sport to "sport|football|soccer|olympic|paralympic|marathon|athlete|tennis|cricket|rugby|medal|champion",
     ).mapValues { Regex("\\b(?:${it.value})", RegexOption.IGNORE_CASE) }
 
     private val regionWords: Map<Region, Regex> = mapOf(
@@ -51,8 +51,8 @@ object StoryHeuristics {
         return text.take(limit).substringBeforeLast(' ').trimEnd(',', ';', ':', '-') + "…"
     }
 
-    fun guessCategory(title: String, summary: String): Category =
-        best(categoryWords, title, summary) ?: Category.Community
+    fun guessCategory(title: String, summary: String): Community =
+        best(categoryWords, title, summary) ?: Community.Community
 
     fun guessRegion(title: String, summary: String): Region =
         best(regionWords, title, summary) ?: Region.Global

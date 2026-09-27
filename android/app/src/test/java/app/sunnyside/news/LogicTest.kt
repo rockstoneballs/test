@@ -1,6 +1,9 @@
 package app.sunnyside.news
 
-import app.sunnyside.news.data.Category
+import app.sunnyside.news.data.Community
+import app.sunnyside.news.data.Ranking
+import app.sunnyside.news.data.SortMode
+import app.sunnyside.news.data.Story
 import app.sunnyside.news.data.Region
 import app.sunnyside.news.data.remote.PetNames
 import app.sunnyside.news.data.remote.RssParser
@@ -36,7 +39,7 @@ class LogicTest {
 
     @Test
     fun guessesTopicAndRegion() {
-        assertEquals(Category.Animals, StoryHeuristics.guessCategory("Baby elephant born at Kenyan sanctuary", ""))
+        assertEquals(Community.Animals, StoryHeuristics.guessCategory("Baby elephant born at Kenyan sanctuary", ""))
         assertEquals(Region.Africa, StoryHeuristics.guessRegion("Baby elephant born in Kenya", ""))
         assertEquals(Region.Global, StoryHeuristics.guessRegion("Scientists find a new way to recycle plastic", ""))
     }
@@ -51,5 +54,32 @@ class LogicTest {
     fun petNamesAreStablePerDay() {
         val day = LocalDate.of(2026, 9, 26)
         assertEquals(PetNames.pick(PetNames.kittenNames, day, 1), PetNames.pick(PetNames.kittenNames, day, 1))
+    }
+
+    private fun post(id: String, hoursAgo: Int, score: Int? = null, uplift: Int = 7) = Story(
+        id = id, title = id, summary = "", url = "https://x/$id", imageUrl = null, source = "s",
+        publishedAtMillis = NOW - hoursAgo * 3_600_000L, community = Community.Aww, region = Region.Global,
+        uplift = uplift, score = score,
+    )
+
+    @Test
+    fun hotBalancesVotesAndFreshness() {
+        val fresh = post("fresh", hoursAgo = 1)
+        val popularButOld = post("old", hoursAgo = 40, score = 50_000)
+        val popularAndRecent = post("hit", hoursAgo = 3, score = 20_000)
+        val sorted = Ranking.sort(listOf(popularButOld, fresh, popularAndRecent), SortMode.Hot, emptyMap(), NOW)
+        assertEquals(listOf("hit", "fresh", "old"), sorted.map { it.id })
+    }
+
+    @Test
+    fun myVotesCount() {
+        val a = post("a", hoursAgo = 1, score = 10)
+        val b = post("b", hoursAgo = 1, score = 10)
+        assertEquals(listOf("b", "a"), Ranking.sort(listOf(a, b), SortMode.Top, mapOf("b" to 1), NOW).map { it.id })
+        assertEquals(11, Ranking.points(b, 1))
+    }
+
+    private companion object {
+        const val NOW = 1_790_000_000_000L
     }
 }

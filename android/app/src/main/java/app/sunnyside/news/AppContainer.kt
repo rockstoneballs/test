@@ -32,6 +32,7 @@ class AppContainer(context: Context) {
     private val database = AppDatabase.create(context)
 
     val newsRepository = NewsRepository(
+        context = context,
         db = database,
         feedApi = FeedApi(http, json, BuildConfig.FEED_URL),
         direct = DirectSources(http, json),

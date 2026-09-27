@@ -18,6 +18,7 @@ import json
 import logging
 import re
 import sys
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
@@ -30,13 +31,17 @@ import requests
 from . import keywords
 from .classifier import ClaudeClassifier
 from .pets import pets_for_today
-from .sources import SOURCES, Source
+from .social import RedditClient, fetch_lemmy, fetch_reddit
+from .sources import SOCIAL_COMMUNITIES, SOCIAL_SOURCES, SOURCES, Source
 
 log = logging.getLogger("goodnews")
 
-FEED_VERSION = 1
-USER_AGENT = "SunnysideGoodNewsBot/1.0 (+https://github.com/rockstoneballs/test)"
-MAX_OG_IMAGE_LOOKUPS = 60
+FEED_VERSION = 2
+USER_AGENT = "SunnysideGoodNewsBot/1.1 (+https://github.com/rockstoneballs/test)"
+MAX_OG_IMAGE_LOOKUPS = 80
+SOCIAL_UPLIFT = 7
+SOCIAL_MAX_AGE_DAYS = 3
+MAX_PER_SOCIAL_COMMUNITY = 150
 MIN_UPLIFT_MAINSTREAM = 6
 MIN_UPLIFT_TRUSTED = 3
 
@@ -139,29 +144,76 @@ def fetch_source(session: requests.Session, source: Source, fixtures: Path | Non
         log.warning("%s: fetch failed: %s", source.name, e)
         return []
 
+    is_google = "news.google.com" in source.url
     items = []
     for entry in parsed.entries:
         url = entry.get("link")
         title = clean_text(entry.get("title", ""), limit=220)
         if not is_http_url(url) or not title:
             continue
+        name = source.name
+        if is_google:
+            # Google News titles look like "Headline - Publisher"; credit the publisher.
+            publisher = (entry.get("source") or {}).get("title")
+            if publisher:
+                name = publisher
+                title = re.sub(r"\s+[-–—]\s+" + re.escape(publisher) + r"$", "", title)
         summary_raw = entry.get("summary") or ""
         if not summary_raw and entry.get("content"):
             summary_raw = entry["content"][0].get("value", "")
         image = find_image(entry)
-        items.append({
-            "id": story_id(url),
-            "title": title,
-            "summary": clean_text(summary_raw),
-            "url": url,
-            "imageUrl": image if is_http_url(image) else None,
-            "source": source.name,
-            "sourceHomepage": source.homepage,
-            "publishedAt": parse_time(entry),
-            "_trusted": source.trusted,
-        })
+        items.append(_item(
+            title=title,
+            summary="" if is_google else clean_text(summary_raw),
+            url=url,
+            imageUrl=image if is_http_url(image) else None,
+            source=name,
+            sourceHomepage=source.homepage,
+            publishedAt=parse_time(entry),
+            trusted=source.trusted,
+        ))
     log.info("%s: %d items", source.name, len(items))
     return items
+
+
+def _item(*, title, url, source, sourceHomepage, publishedAt, trusted, summary="", imageUrl=None,
+          kind="article", community=None, author=None, score=None, comments=None, discussionUrl=None,
+          imageWidth=None, imageHeight=None) -> dict:
+    return {
+        "id": story_id(discussionUrl if kind != "article" and discussionUrl else url),
+        "title": title,
+        "summary": summary,
+        "url": url,
+        "imageUrl": imageUrl,
+        "imageWidth": imageWidth,
+        "imageHeight": imageHeight,
+        "source": source,
+        "sourceHomepage": sourceHomepage,
+        "publishedAt": publishedAt,
+        "kind": kind,
+        "community": community,
+        "author": author or source,
+        "score": score,
+        "comments": comments,
+        "discussionUrl": discussionUrl,
+        "_trusted": trusted,
+    }
+
+
+def fetch_social(session: requests.Session) -> list[dict]:
+    reddit = RedditClient(session)
+    results: list[dict] = []
+    # Reddit sequentially (polite, and lets us stop at the first block); Lemmy in parallel.
+    for src in (s for s in SOCIAL_SOURCES if s.platform == "reddit"):
+        got = fetch_reddit(reddit, src)
+        log.info("r/%s: %d posts", src.name, len(got))
+        results += got
+    lemmy = [s for s in SOCIAL_SOURCES if s.platform == "lemmy"]
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        for src, got in zip(lemmy, pool.map(lambda s: fetch_lemmy(session, s), lemmy)):
+            log.info("lemmy %s: %d posts", src.name, len(got))
+            results += got
+    return [_item(trusted=True, **r) for r in results]
 
 
 def og_image(session: requests.Session, url: str) -> str | None:
@@ -180,15 +232,28 @@ def og_image(session: requests.Session, url: str) -> str | None:
 
 
 def select_good_news(candidates: list[dict], use_claude: bool) -> list[dict]:
-    """Filter candidates down to good news and tag category/region/uplift."""
+    """Filter candidates down to good news and tag community/region/uplift.
+
+    Posts from the fixed social communities (memes, cute animals) are already
+    curated by their communities; they only get the hard-block check. Articles
+    go through Claude or the keyword filter.
+    """
+    articles = [c for c in candidates if c["community"] is None]
     verdicts = {}
-    if use_claude and candidates:
-        log.info("Classifying %d new stories with Claude", len(candidates))
-        verdicts = ClaudeClassifier().classify(candidates)
-        log.info("Claude classified %d/%d", len(verdicts), len(candidates))
+    if use_claude and articles:
+        log.info("Classifying %d new stories with Claude", len(articles))
+        verdicts = ClaudeClassifier().classify(articles)
+        log.info("Claude classified %d/%d", len(verdicts), len(articles))
 
     selected = []
-    for i, story in enumerate(candidates):
+    for story in candidates:
+        if keywords.is_hard_blocked(story["title"]):
+            continue
+        if story["community"] is not None:
+            story.update(region="Global", uplift=SOCIAL_UPLIFT)
+            selected.append(story)
+
+    for i, story in enumerate(articles):
         trusted = story["_trusted"]
         if keywords.is_hard_blocked(story["title"]):
             continue
@@ -197,14 +262,14 @@ def select_good_news(candidates: list[dict], use_claude: bool) -> list[dict]:
             threshold = MIN_UPLIFT_TRUSTED if trusted else MIN_UPLIFT_MAINSTREAM
             if not verdict.good_news or verdict.uplift < threshold:
                 continue
-            story.update(category=verdict.category, region=verdict.region, uplift=verdict.uplift)
+            story.update(community=verdict.category, region=verdict.region, uplift=verdict.uplift)
             if verdict.summary:
                 story["summary"] = verdict.summary
         else:
             if not keywords.passes_keyword_filter(story["title"], story["summary"], trusted):
                 continue
             story.update(
-                category=keywords.guess_category(story["title"], story["summary"]),
+                community=keywords.guess_category(story["title"], story["summary"]),
                 region=keywords.guess_region(story["title"], story["summary"]),
                 uplift=max(3, min(10, 5 + keywords.positivity(story["title"], story["summary"]) // 2)),
             )
@@ -232,7 +297,42 @@ def load_previous(ref: str | None, session: requests.Session) -> dict:
     except (requests.RequestException, ValueError) as e:
         log.warning("Could not load previous feed (%s); starting fresh", e)
         return empty
-    return {"stories": data.get("stories", []), "pets": data.get("pets", [])}
+    stories = data.get("stories", [])
+    for s in stories:  # upgrade v1 feeds
+        s.setdefault("community", s.get("category", "Community"))
+        s.setdefault("kind", "article")
+    return {"stories": stories, "pets": data.get("pets", [])}
+
+
+def _merge_social_fields(target: dict, other: dict) -> None:
+    """Copy votes/comments/discussion from a Reddit/Lemmy copy of the same story."""
+    if other.get("score") is not None and (target.get("score") or 0) < other["score"]:
+        for key in ("score", "comments", "discussionUrl"):
+            target[key] = other[key]
+
+
+def _output(s: dict) -> dict:
+    return {
+        "id": s["id"],
+        "kind": s["kind"],
+        "title": s["title"],
+        "summary": s["summary"],
+        "url": s["url"],
+        "imageUrl": s["imageUrl"],
+        "imageWidth": s.get("imageWidth"),
+        "imageHeight": s.get("imageHeight"),
+        "source": s["source"],
+        "sourceHomepage": s["sourceHomepage"],
+        "author": s.get("author") or s["source"],
+        "publishedAt": iso(s["publishedAt"]),
+        "community": s["community"],
+        "category": s["community"],  # v1 apps read this field
+        "region": s["region"],
+        "uplift": s["uplift"],
+        "score": s.get("score"),
+        "comments": s.get("comments"),
+        "discussionUrl": s.get("discussionUrl"),
+    }
 
 
 def build_feed(
@@ -243,58 +343,83 @@ def build_feed(
     use_claude: bool = False,
     fetch_images: bool = True,
     fetch_pets: bool = True,
+    fetch_social_posts: bool = True,
     max_age_days: int = 7,
-    max_stories: int = 300,
+    max_stories: int = 900,
 ) -> dict:
-    with ThreadPoolExecutor(max_workers=8) as pool:
+    with ThreadPoolExecutor(max_workers=12) as pool:
         batches = list(pool.map(lambda s: fetch_source(session, s, fixtures), SOURCES))
     scraped = [item for batch in batches for item in batch]
+    if fetch_social_posts and fixtures is None:
+        # Social posts first, so an article shared on Reddit keeps its RSS copy's summary
+        # but picks up the Reddit votes (see _merge_social_fields).
+        scraped = fetch_social(session) + scraped
 
     cutoff = now - timedelta(days=max_age_days)
-    prev_stories = [s for s in previous["stories"] if s.get("publishedAt", "") >= iso(cutoff)]
-    seen_ids = {s["id"] for s in prev_stories}
-    seen_titles = {title_key(s["title"]) for s in prev_stories}
+    social_cutoff = now - timedelta(days=SOCIAL_MAX_AGE_DAYS)
+    prev_stories = [
+        s for s in previous["stories"]
+        if s.get("publishedAt", "") >= iso(social_cutoff if s.get("kind", "article") != "article" else cutoff)
+    ]
+    by_id = {s["id"]: s for s in prev_stories}
+    by_title = {title_key(s["title"]): s for s in prev_stories}
 
-    candidates = []
+    candidates: list[dict] = []
+    cand_by_id: dict[str, dict] = {}
+    cand_by_title: dict[str, dict] = {}
     for item in scraped:
         published = item["publishedAt"] or now
         if published < cutoff or published > now + timedelta(hours=6):
             continue
         key = title_key(item["title"])
-        if item["id"] in seen_ids or key in seen_titles:
+        existing = by_id.get(item["id"]) or by_title.get(key)
+        if existing is not None:
+            _merge_social_fields(existing, item)  # keeps vote counts fresh on every run
             continue
-        seen_ids.add(item["id"])
-        seen_titles.add(key)
+        dup = cand_by_id.get(item["id"]) or cand_by_title.get(key)
+        if dup is not None:
+            if dup["kind"] == "article" and item["kind"] == "article":
+                # Prefer the copy with a summary/image, keep the social stats from either.
+                if not dup["summary"] and item["summary"]:
+                    for field in ("summary", "source", "sourceHomepage", "author"):
+                        dup[field] = item[field]
+                    dup["_trusted"] = dup["_trusted"] or item["_trusted"]
+                if not dup["imageUrl"]:
+                    dup["imageUrl"] = item["imageUrl"]
+                _merge_social_fields(dup, item)
+            continue
         item["publishedAt"] = min(published, now)
         candidates.append(item)
+        cand_by_id[item["id"]] = item
+        cand_by_title[key] = item
     log.info("%d scraped, %d new candidates", len(scraped), len(candidates))
 
     fresh = select_good_news(candidates, use_claude)
-    log.info("%d new good-news stories", len(fresh))
+    log.info("%d new posts (%s)", len(fresh), ", ".join(
+        f"{c}: {n}" for c, n in sorted(Counter(s["community"] for s in fresh).items())))
 
     if fetch_images:
-        missing = [s for s in fresh if not s["imageUrl"]][:MAX_OG_IMAGE_LOOKUPS]
+        missing = [
+            s for s in fresh
+            if not s["imageUrl"] and s["kind"] == "article" and "news.google.com" not in s["url"]
+        ][:MAX_OG_IMAGE_LOOKUPS]
         with ThreadPoolExecutor(max_workers=8) as pool:
             for story, image in zip(missing, pool.map(lambda s: og_image(session, s["url"]), missing)):
                 story["imageUrl"] = image
 
-    new_stories = [{
-        "id": s["id"],
-        "title": s["title"],
-        "summary": s["summary"],
-        "url": s["url"],
-        "imageUrl": s["imageUrl"],
-        "source": s["source"],
-        "sourceHomepage": s["sourceHomepage"],
-        "publishedAt": iso(s["publishedAt"]),
-        "category": s["category"],
-        "region": s["region"],
-        "uplift": s["uplift"],
-    } for s in fresh]
-
-    stories = new_stories + prev_stories
+    stories = [_output(s) for s in fresh] + prev_stories
     stories.sort(key=lambda s: s["publishedAt"], reverse=True)
-    stories = stories[:max_stories]
+
+    # Keep each social community from crowding out the news.
+    per_community: Counter[str] = Counter()
+    kept = []
+    for s in stories:
+        if s["kind"] != "article":
+            per_community[s["community"]] += 1
+            if per_community[s["community"]] > MAX_PER_SOCIAL_COMMUNITY:
+                continue
+        kept.append(s)
+    stories = kept[:max_stories]
 
     pets = previous["pets"]
     if fetch_pets:
@@ -304,20 +429,11 @@ def build_feed(
         "version": FEED_VERSION,
         "generatedAt": iso(now),
         "categories": keywords.CATEGORIES,
+        "communities": keywords.CATEGORIES + SOCIAL_COMMUNITIES,
         "regions": keywords.REGIONS,
         "stories": stories,
         "pets": pets,
     }
-
-
-INDEX_HTML = """<!doctype html>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sunnyside feed</title>
-<style>body{font:16px/1.5 system-ui,sans-serif;max-width:40rem;margin:3rem auto;padding:0 1rem;color:#3b2f1e;background:#fffaf0}</style>
-<h1>☀️ Sunnyside</h1>
-<p>This is the data feed behind the Sunnyside good-news app. The app reads
-<a href="feed.json">feed.json</a>, which is refreshed every couple of hours.</p>
-"""
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -328,8 +444,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--no-claude", action="store_true", help="use keyword filtering even if an API key is set")
     ap.add_argument("--no-images", action="store_true", help="skip og:image lookups")
     ap.add_argument("--no-pets", action="store_true", help="skip kitten/puppy of the day")
+    ap.add_argument("--no-social", action="store_true", help="skip Reddit and Lemmy")
     ap.add_argument("--max-age-days", type=int, default=7)
-    ap.add_argument("--max-stories", type=int, default=300)
+    ap.add_argument("--max-stories", type=int, default=900)
     args = ap.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -347,16 +464,18 @@ def main(argv: list[str] | None = None) -> int:
         use_claude=use_claude,
         fetch_images=not args.no_images,
         fetch_pets=not args.no_pets,
+        fetch_social_posts=not args.no_social,
         max_age_days=args.max_age_days,
         max_stories=args.max_stories,
     )
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    (out / "feed.json").write_text(json.dumps(feed, ensure_ascii=False, indent=1))
-    (out / "index.html").write_text(INDEX_HTML)
+    (out / "feed.json").write_text(json.dumps(feed, ensure_ascii=False, separators=(",", ":")))
     (out / ".nojekyll").write_text("")
-    log.info("Wrote %s with %d stories and %d pets", out / "feed.json", len(feed["stories"]), len(feed["pets"]))
+    counts = Counter(s["community"] for s in feed["stories"])
+    log.info("Wrote %s with %d posts and %d pets", out / "feed.json", len(feed["stories"]), len(feed["pets"]))
+    log.info("Posts per community: %s", ", ".join(f"{c}: {n}" for c, n in sorted(counts.items())))
     if not feed["stories"]:
         log.error("Feed is empty — every source failed?")
         return 1

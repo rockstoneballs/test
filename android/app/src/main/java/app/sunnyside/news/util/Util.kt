@@ -25,6 +25,21 @@ fun timeAgo(millis: Long, now: Long = System.currentTimeMillis()): String {
     }
 }
 
+/** 1234 -> "1.2k", 18400 -> "18k", like Reddit. */
+fun compactCount(n: Int): String {
+    val abs = kotlin.math.abs(n)
+    fun one(v: Double) = String.format(Locale.US, "%.1f", v).removeSuffix(".0")
+    return when {
+        abs >= 1_000_000 -> one(n / 1_000_000.0) + "m"
+        abs >= 10_000 -> "${Math.round(n / 1000.0)}k"
+        abs >= 1_000 -> one(n / 1000.0) + "k"
+        else -> n.toString()
+    }
+}
+
+fun domainOf(url: String): String =
+    runCatching { Uri.parse(url).host.orEmpty().removePrefix("www.") }.getOrDefault("")
+
 fun greeting(now: LocalTime = LocalTime.now()): String = when (now.hour) {
     in 4..11 -> "Good morning"
     in 12..16 -> "Good afternoon"
