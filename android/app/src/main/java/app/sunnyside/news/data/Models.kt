@@ -162,12 +162,31 @@ object Ranking {
         return story.uplift + social + (if (story.imageUrl != null) 0.5 else 0.0) + 2 * myVote - ageHours / 6
     }
 
-    fun sort(stories: List<Story>, mode: SortMode, votes: Map<String, Int>, now: Long = System.currentTimeMillis()): List<Story> =
-        when (mode) {
-            SortMode.New -> stories.sortedByDescending { it.publishedAtMillis }
-            SortMode.Top -> stories.sortedWith(
-                compareByDescending<Story> { points(it, votes[it.id] ?: 0) }.thenByDescending { it.uplift },
-            )
-            SortMode.Hot -> stories.sortedByDescending { hot(it, votes[it.id] ?: 0, now) }
+    /** Hot and Top show this many news stories for every meme / cute-animal post. */
+    const val NEWS_PER_SOCIAL = 3
+
+    fun sort(stories: List<Story>, mode: SortMode, votes: Map<String, Int>, now: Long = System.currentTimeMillis()): List<Story> {
+        if (mode == SortMode.New) return stories.sortedByDescending { it.publishedAtMillis }
+        val comparator: Comparator<Story> = when (mode) {
+            // News has no upvotes of its own, so it ranks by uplift, then freshness.
+            SortMode.Top -> compareByDescending<Story> { points(it, votes[it.id] ?: 0) }
+                .thenByDescending { it.uplift }
+                .thenByDescending { it.publishedAtMillis }
+            else -> compareByDescending { hot(it, votes[it.id] ?: 0, now) }
         }
+        val (news, social) = stories.partition { it.kind == PostKind.Article }
+        return blend(news.sortedWith(comparator), social.sortedWith(comparator))
+    }
+
+    /** News leads the feed; the fun stuff is sprinkled through it. */
+    fun blend(news: List<Story>, social: List<Story>): List<Story> {
+        val out = ArrayList<Story>(news.size + social.size)
+        var n = 0
+        var s = 0
+        while (n < news.size || s < social.size) {
+            repeat(NEWS_PER_SOCIAL) { if (n < news.size) out += news[n++] }
+            if (s < social.size) out += social[s++]
+        }
+        return out
+    }
 }

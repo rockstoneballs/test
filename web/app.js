@@ -165,12 +165,31 @@ function hotScore(p) {
   return (p.uplift || 5) + social + (p.imageUrl ? 0.5 : 0) + 2 * myVote(p) - ageHours / 6;
 }
 
+// Hot and Top show NEWS_PER_SOCIAL news stories for every meme / cute-animal post, so the
+// world's good news leads the feed and the fun stuff is sprinkled through it.
+const NEWS_PER_SOCIAL = 3;
+
+function isSocial(p) {
+  return (p.kind || "article") !== "article";
+}
+
+function blend(news, social) {
+  const out = [];
+  let n = 0, s = 0;
+  while (n < news.length || s < social.length) {
+    for (let i = 0; i < NEWS_PER_SOCIAL && n < news.length; i++) out.push(news[n++]);
+    if (s < social.length) out.push(social[s++]);
+  }
+  return out;
+}
+
 function sortPosts(posts, sort) {
-  const list = posts.slice();
-  if (sort === "new") list.sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
-  else if (sort === "top") list.sort((a, b) => points(b) - points(a) || (b.uplift || 0) - (a.uplift || 0));
-  else list.sort((a, b) => hotScore(b) - hotScore(a));
-  return list;
+  if (sort === "new") return posts.slice().sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
+  const compare = sort === "top"
+    // News has no upvotes of its own, so it ranks by uplift, then freshness.
+    ? (a, b) => points(b) - points(a) || (b.uplift || 0) - (a.uplift || 0) || Date.parse(b.publishedAt) - Date.parse(a.publishedAt)
+    : (a, b) => hotScore(b) - hotScore(a);
+  return blend(posts.filter((p) => !isSocial(p)).sort(compare), posts.filter(isSocial).sort(compare));
 }
 
 /* ------------------------------------------------------------------ actions */
