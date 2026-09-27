@@ -554,6 +554,8 @@ def main(argv: list[str] | None = None) -> int:
     counts = Counter(s["community"] for s in feed["stories"])
     log.info("Wrote %s with %d posts and %d pets", out / "feed.json", len(feed["stories"]), len(feed["pets"]))
     log.info("Posts per community: %s", ", ".join(f"{c}: {n}" for c, n in sorted(counts.items())))
+    regions = Counter(s.get("region", "Global") for s in feed["stories"] if s.get("kind") == "article")
+    log.info("News by region: %s", ", ".join(f"{r}: {n}" for r, n in regions.most_common()))
     clips = [s for s in feed["stories"] if s.get("kind") == "video"]
     log.info("Clips: %d (%d playable). Example: %s", len(clips), sum(1 for s in clips if s.get("videoUrl")),
              next((s["videoUrl"] for s in clips if s.get("videoUrl")), "none"))
