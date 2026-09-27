@@ -187,3 +187,10 @@ def test_photo_credits_and_sad_turns():
     assert articles.excerpt(["A leopardus cat, the first new wild feline species in 100 years. Photograph: Fernando Faciole/Reuters"]) == ""
     assert grim_inside({"source": "Good Good Good", "checkedBy": "keywords",
                         "body": "Rangers woke up to devastating news: their colleague had passed away."})
+
+
+def test_excerpts_about_a_different_story_are_dropped():
+    other = ["A year after leaving her job as a nurse, Maddy Henderson is pursuing a vocation as a missionary."]
+    assert articles.excerpt(other, title="Hudson Volunteer Fire Department marks 30th anniversary") == ""
+    same = ["A dog stranded on a narrow ledge at the bottom of a 40ft cliff has been safely retrieved."]
+    assert articles.excerpt(same, title="Dog rescued from cliff ledge at landmark waterfall") == same[0]

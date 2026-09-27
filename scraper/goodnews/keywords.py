@@ -472,13 +472,13 @@ def is_sport(title: str, summary: str = "") -> bool:
     return bool(CATEGORY_KEYWORDS["Sport"].search(title)) or len(CATEGORY_KEYWORDS["Sport"].findall(summary)) >= 2
 
 
-def passes_keyword_filter(title: str, summary: str, trusted: bool) -> bool:
+def passes_keyword_filter(title: str, summary: str, trusted: bool, min_positivity: int = 3) -> bool:
     if trusted:
         return not is_hard_blocked(title)
     text = f"{title}\n{summary}"
     if is_hard_blocked(text) or DOOM.search(text):
         return False
-    return positivity(title, summary) >= 3
+    return positivity(title, summary) >= min_positivity
 
 
 def guess_category(title: str, summary: str) -> str:

@@ -97,7 +97,22 @@ def excerpt(paragraphs: list[str], max_words: int = EXCERPT_WORDS, title: str = 
         words += n
         if len(out) >= MAX_PARAGRAPHS:
             break
-    return "\n\n".join(out)
+    text = "\n\n".join(out)
+    return text if about(title, text) else ""
+
+
+_STOP = {"with", "from", "that", "this", "their", "they", "have", "after", "over", "into", "more", "than",
+         "will", "what", "when", "your", "first", "year", "years", "time", "people", "about", "just", "back"}
+
+
+def about(title: str, text: str) -> bool:
+    """Does the excerpt share at least one key word with the headline? (A page's main
+    text is sometimes a different story, e.g. a listing.) Words match on their first
+    five letters, so "rescue" matches "rescued"."""
+    words = {w[:5] for w in re.findall(r"[a-z]{4,}", title.lower()) if w not in _STOP}
+    if not words or not text:
+        return True
+    return bool(words & {w[:5] for w in re.findall(r"[a-z]{4,}", text.lower())})
 
 
 def paragraphs_from_html(fragment: str) -> list[str]:

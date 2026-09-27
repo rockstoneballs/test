@@ -314,3 +314,13 @@ def test_second_uk_review_live_cases():
     # No swearing, memes included.
     assert unwanted(dict(base, kind="image", title="F**k you all, this is love,"))
     assert not unwanted(dict(base, kind="image", title="Scunthorpe choir hits the high notes"))
+
+
+def test_uk_and_irish_headlines_need_one_positive_word():
+    from goodnews import scrape
+    title = "Seal pup rescued from Cornish beach"   # one uplifting word
+    assert not keywords.passes_keyword_filter(title.replace("Cornish", "Oregon"), "", trusted=False)
+    assert scrape.min_positivity({"title": title, "source": "X"}) == 2
+    assert keywords.passes_keyword_filter(title, "", False, scrape.min_positivity({"title": title, "source": "X"}))
+    assert scrape.min_positivity({"title": "Seal pup rescued", "source": "BBC Wales"}) == 2
+    assert scrape.min_positivity({"title": "Seal pup rescued", "source": "NPR"}) == 3
