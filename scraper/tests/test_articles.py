@@ -180,3 +180,10 @@ def test_pages_without_a_declared_charset_are_read_as_utf8():
     raw = "The Solar System\u2019s first solid bodies".encode("utf-8")
     assert articles.decode_page(raw, "ISO-8859-1") == "The Solar System\u2019s first solid bodies"
     assert articles.decode_page("caf\xe9".encode("cp1252"), None) == "caf\xe9"
+
+
+def test_photo_credits_and_sad_turns():
+    from goodnews.scrape import grim_inside
+    assert articles.excerpt(["A leopardus cat, the first new wild feline species in 100 years. Photograph: Fernando Faciole/Reuters"]) == ""
+    assert grim_inside({"source": "Good Good Good", "checkedBy": "keywords",
+                        "body": "Rangers woke up to devastating news: their colleague had passed away."})

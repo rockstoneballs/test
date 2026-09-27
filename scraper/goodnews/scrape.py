@@ -463,7 +463,7 @@ def grim_inside(story: dict) -> bool:
     if story.get("checkedBy") == "claude":
         return False
     body = story.get("body") or ""
-    if keywords.is_hard_blocked(body) or keywords.POLITICIANS.search(body):
+    if keywords.is_hard_blocked(body) or keywords.POLITICIANS.search(body) or keywords.GRIM_TEXT.search(body):
         return True
     return story.get("source") not in TRUSTED_NAMES and bool(keywords.DOOM.search(body.split("\n\n", 1)[0]))
 

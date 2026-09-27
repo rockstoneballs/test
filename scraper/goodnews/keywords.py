@@ -93,6 +93,12 @@ POLITICIANS = _rx([
     "poilievre", "luxon!", "republicans", "democrats", "maga!", "labour party", "tory", "tories",
 ])
 
+# Sad turns that show up in a story's text rather than its headline.
+GRIM_TEXT = _rx([
+    "passed away", "devastating news", "tragically", "lost her life", "lost his life", "lost their lives",
+    "funeral", "was diagnosed with terminal", "terminally ill", "memorial service",
+])
+
 UPLIFT = _rx([
     "breakthrough", "cure", "cured", "rescue", "saved", "saves", "save!", "restor",
     "recover", "reunit", "donat", "volunteer", "celebrat", "first-ever", "first ever",

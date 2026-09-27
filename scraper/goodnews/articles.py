@@ -38,7 +38,8 @@ _BOILERPLATE_RX = re.compile(
     r"|\b(originally|first) (published|written|appeared|ran|posted)\b|\brepublished\b|"
     r"(sign up|subscribe) (for|to) .{0,40}newsletter|we use cookies|accept (all )?cookies|"
     r"enable javascript|your browser (is|does)|all rights reserved|©|subscribe (now|today)|"
-    r"support (our|independent) journalism|become a (member|subscriber)|appeared first on",
+    r"support (our|independent) journalism|become a (member|subscriber)|appeared first on|"
+    r"\bphotograph: |\bphoto(graph)? (credit|by|courtesy)\b|getty images|shutterstock|\bap photo\b",
     re.IGNORECASE,
 )
 _BULLET_RX = re.compile(r"^[-•*–]\s+")
