@@ -4,7 +4,6 @@ import android.content.Context
 import app.sunnyside.news.data.local.AppDatabase
 import app.sunnyside.news.data.local.PetEntity
 import app.sunnyside.news.data.local.StoryEntity
-import app.sunnyside.news.data.local.VoteEntity
 import app.sunnyside.news.data.local.toPet
 import app.sunnyside.news.data.local.toSavedEntity
 import app.sunnyside.news.data.local.toStory
@@ -41,8 +40,6 @@ class NewsRepository(
 
     val savedIds: Flow<Set<String>> = db.saved().observeIds().map { it.toSet() }
 
-    val votes: Flow<Map<String, Int>> = db.votes().observeAll().map { list -> list.associate { it.id to it.value } }
-
     /** All pets, newest first. The first kitten/puppy are the pets of the day. */
     val pets: Flow<List<Pet>> = db.pets().observeAll().map { list -> list.map { it.toPet() } }
 
@@ -54,11 +51,6 @@ class NewsRepository(
 
     suspend fun toggleSaved(story: Story, currentlySaved: Boolean) {
         if (currentlySaved) db.saved().remove(story.id) else db.saved().save(story.toSavedEntity(System.currentTimeMillis()))
-    }
-
-    /** Up (1) or down (-1); voting the same way again clears the vote, like Reddit. */
-    suspend fun vote(id: String, direction: Int, current: Int) {
-        if (current == direction || direction == 0) db.votes().clear(id) else db.votes().set(VoteEntity(id, direction))
     }
 
     /**

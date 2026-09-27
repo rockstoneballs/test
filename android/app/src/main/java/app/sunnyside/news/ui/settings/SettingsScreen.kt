@@ -147,8 +147,7 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
             Text(
                 "New posts are gathered every half hour. Dedicated good-news publications and " +
                     "wholesome meme and cute-animal pages are included as-is; stories from general news outlets are " +
-                    "only included when they pass our positivity filter. Scores on memes and photos are " +
-                    "their Reddit/Lemmy upvotes; your own votes stay on this phone.",
+                    "only included when they pass our positivity filter.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
