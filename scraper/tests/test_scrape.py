@@ -24,7 +24,7 @@ def fixtures(tmp_path):
 
 def test_build_feed_keeps_only_good_news(fixtures):
     feed = build_feed(requests.Session(), {"stories": [], "pets": []}, NOW,
-                      fixtures=fixtures, fetch_images=False, fetch_pets=False)
+                      fixtures=fixtures, fetch_pages=False, fetch_pets=False)
     titles = [s["title"] for s in feed["stories"]]
     assert "Rescued Sea Turtles Return to the Ocean After Months of Rehab in Florida" in titles
     assert "Village in Kenya Gets Clean Water for the First Time Thanks to Solar Pumps" in titles
@@ -50,9 +50,9 @@ def test_build_feed_keeps_only_good_news(fixtures):
 
 def test_previous_stories_are_carried_forward_and_not_duplicated(fixtures):
     first = build_feed(requests.Session(), {"stories": [], "pets": []}, NOW,
-                       fixtures=fixtures, fetch_images=False, fetch_pets=False)
+                       fixtures=fixtures, fetch_pages=False, fetch_pets=False)
     second = build_feed(requests.Session(), first, NOW,
-                        fixtures=fixtures, fetch_images=False, fetch_pets=False)
+                        fixtures=fixtures, fetch_pages=False, fetch_pets=False)
     assert [s["id"] for s in second["stories"]] == [s["id"] for s in first["stories"]]
 
 
@@ -117,7 +117,7 @@ def test_sport_is_removed_entirely(fixtures):
              category="Environment"),
     ]
     feed = build_feed(requests.Session(), {"stories": previous, "pets": []}, NOW,
-                      fixtures=fixtures, fetch_images=False, fetch_pets=False)
+                      fixtures=fixtures, fetch_pages=False, fetch_pets=False)
     ids = {s["id"] for s in feed["stories"]}
     assert "ok" in ids
     assert not ids & {"sp", "sp2", "royal", "de"}
@@ -139,12 +139,12 @@ def test_english_only():
 def test_rejected_stories_are_not_rechecked(fixtures, monkeypatch):
     from goodnews import scrape
     first = build_feed(requests.Session(), {"stories": [], "pets": []}, NOW,
-                       fixtures=fixtures, fetch_images=False, fetch_pets=False)
+                       fixtures=fixtures, fetch_pages=False, fetch_pets=False)
     assert first["rejected"]  # e.g. the missile-attack headline
     seen = []
     real = scrape.select_good_news
     monkeypatch.setattr(scrape, "select_good_news", lambda c, u: seen.extend(c) or real(c, u))
-    build_feed(requests.Session(), first, NOW, fixtures=fixtures, fetch_images=False, fetch_pets=False)
+    build_feed(requests.Session(), first, NOW, fixtures=fixtures, fetch_pages=False, fetch_pets=False)
     assert seen == []
 
 
@@ -158,7 +158,7 @@ def test_feed_focuses_on_the_west(fixtures):
     indian = [dict(base, id=f"i{i}", title=f"Bengaluru volunteers plant trees {i}", url=f"https://x/i{i}",
                    source="Hindustan Times", region="Global", uplift=5 + i % 5) for i in range(10)]
     feed = build_feed(requests.Session(), {"stories": western + indian, "pets": []}, NOW,
-                      fixtures=fixtures, fetch_images=False, fetch_pets=False)
+                      fixtures=fixtures, fetch_pages=False, fetch_pets=False)
     news = [s for s in feed["stories"] if s["kind"] == "article"]
     kept_indian = [s for s in news if s["id"].startswith("i")]
     assert len([s for s in news if s["id"].startswith("w")]) == 20
@@ -208,7 +208,7 @@ def test_live_bad_headlines_never_lead(fixtures):
                  source="Good News Network", sourceHomepage="https://www.goodnewsnetwork.org", region="Europe")
             for i in range(10)]
     feed = build_feed(requests.Session(), {"stories": bad + good, "pets": []}, NOW,
-                      fixtures=fixtures, fetch_images=False, fetch_pets=False)
+                      fixtures=fixtures, fetch_pages=False, fetch_pets=False)
     kept = {s["id"]: s for s in feed["stories"]}
     # Politics, conflict, detentions, money stories and dropped sources are gone entirely...
     for i in (0, 2, 3, 4, 5, 6):
@@ -246,3 +246,21 @@ def test_sport_from_anywhere_is_caught():
     assert keywords.is_sport("Matildas book their spot in the semifinal")
     assert not keywords.is_sport("Volunteers restore Derby canal")
     assert not keywords.is_sport("Scientists coach bees to recognise flowers")
+
+
+def test_feeds_with_full_text_give_stories_an_excerpt(fixtures):
+    feed = build_feed(requests.Session(), {"stories": [], "pets": []}, NOW,
+                      fixtures=fixtures, fetch_pages=False, fetch_pets=False)
+    kenya = next(s for s in feed["stories"] if "Kenya" in s["title"])
+    assert kenya["body"].startswith("Solar-powered pumps now bring clean water")
+    assert kenya["body"].count("\n\n") == 2  # three paragraphs; the caption and newsletter plug are dropped
+    assert "newsletter" not in kenya["body"] and "Photo:" not in kenya["body"]
+
+
+def test_grim_articles_behind_harmless_headlines_are_dropped(fixtures):
+    from goodnews import scrape
+    story = {"kind": "article", "source": "WPDE", "checkedBy": "keywords",
+             "body": "Volunteers gathered after two people were killed in a crash on Friday."}
+    assert scrape.grim_inside(story)
+    assert not scrape.grim_inside(dict(story, source="Good News Network"))
+    assert not scrape.grim_inside(dict(story, checkedBy="claude"))

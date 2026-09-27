@@ -29,7 +29,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 import feedparser
 import requests
 
-from . import keywords
+from . import articles, keywords
 from .classifier import ClaudeClassifier
 from .pets import pets_for_today
 from .social import RedditClient, fetch_imgur, fetch_lemmy, fetch_ninegag, fetch_reddit
@@ -39,7 +39,8 @@ log = logging.getLogger("goodnews")
 
 FEED_VERSION = 2
 USER_AGENT = "SunnysideGoodNewsBot/1.1 (+https://github.com/rockstoneballs/test)"
-MAX_OG_IMAGE_LOOKUPS = 80
+# Article pages read per run for excerpts, images and Google News links (newest first).
+MAX_ARTICLE_FETCHES = 120
 SOCIAL_UPLIFT = 7
 MAX_PER_SOCIAL_COMMUNITY = 150
 # Sunnyside focuses on the West: at most this share of news stories may come from
@@ -56,11 +57,6 @@ _TAG_RX = re.compile(r"<[^>]+>")
 _WS_RX = re.compile(r"\s+")
 _WP_FOOTER_RX = re.compile(r"The post .{0,300}? appeared first on .{0,200}?\.?$", re.IGNORECASE | re.DOTALL)
 _IMG_SRC_RX = re.compile(r"<img[^>]+src=[\"']([^\"']+)[\"']", re.IGNORECASE)
-_OG_IMAGE_RX = re.compile(
-    r"<meta[^>]+(?:property|name)=[\"'](?:og:image|twitter:image)[\"'][^>]+content=[\"']([^\"']+)[\"']"
-    r"|<meta[^>]+content=[\"']([^\"']+)[\"'][^>]+(?:property|name)=[\"'](?:og:image|twitter:image)[\"']",
-    re.IGNORECASE,
-)
 
 
 # --------------------------------------------------------------------------- helpers
@@ -171,8 +167,9 @@ def fetch_source(session: requests.Session, source: Source, fixtures: Path | Non
                 name = publisher
                 title = re.sub(r"\s+[-–—]\s+" + re.escape(publisher) + r"$", "", title)
         summary_raw = entry.get("summary") or ""
-        if not summary_raw and entry.get("content"):
-            summary_raw = entry["content"][0].get("value", "")
+        full_text = (entry.get("content") or [{}])[0].get("value", "")
+        if not summary_raw:
+            summary_raw = full_text
         image = find_image(entry)
         items.append(_item(
             title=title,
@@ -184,6 +181,10 @@ def fetch_source(session: requests.Session, source: Source, fixtures: Path | Non
             publishedAt=parse_time(entry),
             trusted=source.trusted,
         ))
+        # Many outlets put the whole article in their feed: keep its opening as the excerpt.
+        body = articles.excerpt(articles.paragraphs_from_html(full_text)) if not is_google else ""
+        if body and ("\n\n" in body or len(body) > len(items[-1]["summary"]) + 80):
+            items[-1]["body"] = body
     log.info("%s: %d items", source.name, len(items))
     return items
 
@@ -231,21 +232,6 @@ def fetch_social(session: requests.Session) -> list[dict]:
     return [_item(trusted=True, **r) for r in results]
 
 
-def og_image(session: requests.Session, url: str) -> str | None:
-    try:
-        r = session.get(url, timeout=10, stream=True)
-        r.raise_for_status()
-        head = r.raw.read(200_000, decode_content=True).decode("utf-8", "ignore")
-        r.close()
-    except (requests.RequestException, OSError):
-        return None
-    m = _OG_IMAGE_RX.search(head)
-    if not m:
-        return None
-    found = html.unescape(m.group(1) or m.group(2))
-    return found if is_http_url(found) else None
-
-
 def top_stories(stories: list[dict], now: datetime, n: int = 15) -> list[dict]:
     """The first ``n`` posts under "Top stories", as the website and app rank them
     (web/app.js hotScore + blend). Used to log what readers see first."""
@@ -275,7 +261,7 @@ def keyword_uplift(title: str, summary: str, trusted: bool) -> int:
 
 TRUSTED_NAMES = {s.name for s in SOURCES if s.trusted}
 # Sources we've dropped; their old posts are cleared from the feed too.
-REMOVED_SOURCES = {"Upworthy", "The Better India", "AllAfrica", "Al Jazeera"}
+REMOVED_SOURCES = {"Upworthy", "The Better India", "AllAfrica", "Al Jazeera", "Inspire More", "Sunny Skyz"}
 
 
 def still_good(story: dict) -> bool:
@@ -312,13 +298,16 @@ def is_western(story: dict) -> bool:
 
 def unwanted(story: dict) -> bool:
     """Content Sunnyside leaves out whatever its tone: non-English posts, celebrity and
-    royalty news, politics, money and markets, and sport. Memes and animal photos are checked by their title."""
+    royalty news, politics, money and markets, sport, and
+    clickbait (teaser headlines, listicles, advice pieces, tabloids). Memes and animal photos are checked by their title."""
     title, summary = story["title"], story.get("summary") or ""
     article = story.get("kind", "article") == "article"
     text = f"{title}\n{summary}" if article else title
     if not keywords.is_english(text) or keywords.is_off_topic(title, summary if article else ""):
         return True
     if keywords.POLITICS.search(text) or keywords.MONEY.search(title):
+        return True
+    if article and (keywords.is_clickbait(title) or keywords.is_tabloid(story.get("source", ""), story.get("sourceHomepage", ""))):
         return True
     if not article:
         # Meme and animal titles: nothing sad or grim either.
@@ -437,7 +426,42 @@ def _output(s: dict) -> dict:
         "score": s.get("score"),
         "comments": s.get("comments"),
         "discussionUrl": s.get("discussionUrl"),
+        **({"body": s["body"]} if "body" in s else {}),
     }
+
+
+def add_article_text(session: requests.Session, stories: list[dict]) -> None:
+    """Give news stories the opening of the article (``body``), a picture if they lack
+    one, and the publisher's own link instead of a Google News redirect.
+
+    Stories that already have a ``body`` (from their feed, or an earlier run; "" means
+    the page had nothing usable) aren't fetched again. Failed fetches are retried on
+    later runs."""
+    todo = [s for s in stories if s.get("kind", "article") == "article" and "body" not in s][:MAX_ARTICLE_FETCHES]
+    if not todo:
+        return
+    stats: Counter[str] = Counter()
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        for story, art in zip(todo, pool.map(lambda s: articles.fetch_article(session, s["url"]), todo)):
+            if art is None:
+                stats["unreachable" if not articles.is_google_news(story["url"]) else "google link not decoded"] += 1
+                continue
+            story["url"] = art.url
+            story["body"] = art.body
+            if art.body and not story.get("summary"):
+                story["summary"] = clean_text(art.body.split("\n\n", 1)[0], limit=300)
+            if not story.get("imageUrl") and art.image:
+                story["imageUrl"] = art.image
+            stats["with excerpt" if art.body else "no usable text"] += 1
+    log.info("Article pages: %d read (%s)", len(todo), ", ".join(f"{k}: {v}" for k, v in stats.most_common()))
+
+
+def grim_inside(story: dict) -> bool:
+    """For stories that only passed the keyword filter on their headline: is the
+    article itself about something grim?"""
+    if story.get("checkedBy") == "claude" or story.get("source") in TRUSTED_NAMES:
+        return False
+    return keywords.is_hard_blocked(story.get("body") or "")
 
 
 def build_feed(
@@ -446,7 +470,7 @@ def build_feed(
     now: datetime,
     fixtures: Path | None = None,
     use_claude: bool = False,
-    fetch_images: bool = True,
+    fetch_pages: bool = True,
     fetch_pets: bool = True,
     fetch_social_posts: bool = True,
     max_age_days: int = 7,
@@ -502,6 +526,8 @@ def build_feed(
                     dup["_trusted"] = dup["_trusted"] or item["_trusted"]
                 if not dup["imageUrl"]:
                     dup["imageUrl"] = item["imageUrl"]
+                if item.get("body") and len(item["body"]) > len(dup.get("body", "")):
+                    dup["body"] = item["body"]
                 _merge_social_fields(dup, item)
             continue
         item["publishedAt"] = min(published, now)
@@ -518,23 +544,24 @@ def build_feed(
     unseen = [c for c in candidates if c["id"] not in rejected_before]
     log.info("%d already rejected on an earlier run, %d to check", len(candidates) - len(unseen), len(unseen))
     candidates = unseen
+    if use_claude and fetch_pages:
+        # Claude judges and summarises better with the article in front of it.
+        add_article_text(session, [c for c in candidates if c["kind"] == "article" and not unwanted(c)])
     fresh = select_good_news(candidates, use_claude)
     kept_ids = {s["id"] for s in fresh}
     rejected = [c["id"] for c in candidates if c["id"] not in kept_ids] + list(previous.get("rejected", []))
     log.info("%d new posts (%s)", len(fresh), ", ".join(
         f"{c}: {n}" for c, n in sorted(Counter(s["community"] for s in fresh).items())))
 
-    if fetch_images:
-        missing = [
-            s for s in fresh
-            if not s["imageUrl"] and s["kind"] == "article" and "news.google.com" not in s["url"]
-        ][:MAX_OG_IMAGE_LOOKUPS]
-        with ThreadPoolExecutor(max_workers=8) as pool:
-            for story, image in zip(missing, pool.map(lambda s: og_image(session, s["url"]), missing)):
-                story["imageUrl"] = image
-
     stories = [_output(s) for s in fresh] + prev_stories
     stories.sort(key=lambda s: s["publishedAt"], reverse=True)
+    if fetch_pages:
+        add_article_text(session, stories)
+    grim = [s for s in stories if grim_inside(s)]
+    if grim:
+        log.info("Dropped %d stories whose article turned out grim", len(grim))
+        rejected += [s["id"] for s in grim]
+        stories = [s for s in stories if not grim_inside(s)]
 
     # Focus on the West: only a small share of non-Western news, and it never leads the
     # feed (its uplift is capped, which is what "Top stories" ranks by).
@@ -584,9 +611,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--previous", help="URL or path of the last published feed.json")
     ap.add_argument("--fixtures", type=Path, help="read feeds from local XML files instead of the network")
     ap.add_argument("--no-claude", action="store_true", help="use keyword filtering even if an API key is set")
-    ap.add_argument("--no-images", action="store_true", help="skip og:image lookups")
+    ap.add_argument("--no-pages", "--no-images", dest="no_pages", action="store_true",
+                    help="don't read article pages (excerpts, images, Google News links)")
     ap.add_argument("--no-pets", action="store_true", help="skip kitten/puppy of the day")
     ap.add_argument("--no-social", action="store_true", help="skip Reddit and Lemmy")
+    ap.add_argument("--list-news", action="store_true", help="log every news headline (for reviewing a dry run)")
     ap.add_argument("--max-age-days", type=int, default=7)
     ap.add_argument("--max-stories", type=int, default=900)
     args = ap.parse_args(argv)
@@ -604,7 +633,7 @@ def main(argv: list[str] | None = None) -> int:
         datetime.now(timezone.utc).replace(microsecond=0),
         fixtures=args.fixtures,
         use_claude=use_claude,
-        fetch_images=not args.no_images,
+        fetch_pages=not args.no_pages,
         fetch_pets=not args.no_pets,
         fetch_social_posts=not args.no_social,
         max_age_days=args.max_age_days,
@@ -621,6 +650,12 @@ def main(argv: list[str] | None = None) -> int:
     log.info("Top stories right now:")
     for i, st in enumerate(top_stories(feed["stories"], datetime.now(timezone.utc)), 1):
         log.info("  %2d. [%s | %s | uplift %s] %s", i, st["source"], st.get("region"), st.get("uplift"), st["title"][:110])
+    news = [s for s in feed["stories"] if s.get("kind") == "article"]
+    log.info("News with an excerpt: %d of %d", sum(1 for s in news if s.get("body")), len(news))
+    if args.list_news:
+        for st in news:
+            words = len((st.get("body") or "").split())
+            log.info("  - [%s | %s | %d words] %s", st["source"], st.get("region"), words, st["title"][:120])
     regions = Counter(s.get("region", "Global") for s in feed["stories"] if s.get("kind") == "article")
     log.info("News by region: %s", ", ".join(f"{r}: {n}" for r, n in regions.most_common()))
     clips = [s for s in feed["stories"] if s.get("kind") == "video"]
