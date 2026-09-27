@@ -17,8 +17,8 @@ CATEGORIES = [
 ]
 
 REGIONS = [
-    "Africa", "Asia", "Europe", "Latin America",
-    "Middle East", "North America", "Oceania", "Global",
+    "UK & Ireland", "Europe", "North America", "Oceania",
+    "Africa", "Asia", "Latin America", "Middle East", "Global",
 ]
 
 
@@ -207,15 +207,26 @@ _REGION_PLACES: dict[str, list[str]] = {
         "andhra pradesh", "madhya pradesh", "himachal", "uttarakhand", "jharkhand", "goa",
         "rupee", "rupees", "lakh", "crore", "iit", "isro", "modi",
     ],
+    # Before Europe, so a story naming both counts as UK & Ireland.
+    "UK & Ireland": [
+        "uk", "u.k.", "britain", "british", "england", "scotland", "scottish", "wales", "welsh",
+        "ireland", "irish", "northern ireland", "nhs", "rnli", "national trust", "london", "manchester",
+        "birmingham", "liverpool", "leeds", "sheffield", "bristol", "newcastle", "nottingham", "leicester",
+        "brighton", "oxford", "cambridge", "yorkshire", "lancashire", "cumbria", "lake district",
+        "cornwall", "cornish", "devon", "dorset", "somerset", "kent", "sussex", "essex", "norfolk", "suffolk",
+        "hampshire", "surrey", "cotswolds", "peak district", "snowdonia", "eryri", "glasgow", "edinburgh",
+        "aberdeen", "dundee", "inverness", "scottish highlands", "hebrides", "orkney", "shetland", "cardiff",
+        "swansea", "belfast", "derry", "dublin", "cork", "galway", "limerick", "waterford", "kilkenny",
+        "county kerry", "county mayo", "donegal", "wicklow", "connemara", "sligo",
+    ],
     "Europe": [
-        "europe", "european", "uk", "u.k.", "britain", "british", "england", "english",
-        "scotland", "scottish", "wales", "welsh", "ireland", "irish", "france", "french",
+        "europe", "european", "france", "french",
         "germany", "german", "spain", "spanish", "italy", "italian", "portugal", "netherlands",
         "dutch", "belgium", "switzerland", "swiss", "austria", "sweden", "swedish", "norway",
         "norwegian", "denmark", "danish", "finland", "finnish", "iceland", "poland", "polish",
         "czech", "slovakia", "hungary", "romania", "bulgaria", "greece", "greek", "croatia",
         "serbia", "slovenia", "estonia", "latvia", "lithuania", "london", "paris", "berlin",
-        "madrid", "rome", "amsterdam", "copenhagen", "stockholm", "dublin", "edinburgh",
+        "madrid", "rome", "amsterdam", "copenhagen", "stockholm",
     ],
     "Latin America": [
         "latin america", "south america", "mexico", "mexican", "brazil", "brazilian",
@@ -262,7 +273,9 @@ def positivity(title: str, summary: str) -> int:
     return score
 
 
-WESTERN_REGIONS = {"Europe", "North America", "Oceania"}
+WESTERN_REGIONS = {"UK & Ireland", "Europe", "North America", "Oceania"}
+# Most readers are here, so their stories get a small boost in "Top stories".
+HOME_REGION = "UK & Ireland"
 
 # Outlets whose stories are almost always about one non-Western region, matched on the
 # publisher's name or web domain (Google News gives us both).
@@ -316,6 +329,11 @@ _TLD_REGION = {
     **dict.fromkeys(["ae", "qa", "sa", "kw", "om", "bh", "jo", "lb", "il", "tr", "ir", "iq"], "Middle East"),
     **dict.fromkeys(["br", "ar", "mx", "co", "cl", "pe", "ve", "ec", "uy", "py", "bo", "cr", "cu"], "Latin America"),
 }
+
+
+def is_uk_ie_site(homepage: str) -> bool:
+    host = urlsplit(homepage).netloc.lower() if homepage else ""
+    return host.endswith((".uk", ".ie"))
 
 
 def region_for_source(source: str, homepage: str = "") -> str | None:

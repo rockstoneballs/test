@@ -7,6 +7,11 @@ plugins {
 }
 
 val feedUrl = providers.gradleProperty("sunnyside.feedUrl").get()
+// Where feedback is sent (a form service that accepts JSON, e.g. Formspree). CI passes the
+// FEEDBACK_URL Actions variable; when empty, feedback opens a pre-filled GitHub issue.
+val feedbackUrl = providers.environmentVariable("SUNNYSIDE_FEEDBACK_URL")
+    .orElse(providers.gradleProperty("sunnyside.feedbackUrl")).getOrElse("")
+val repo = providers.gradleProperty("sunnyside.repo").get()
 
 android {
     namespace = "app.sunnyside.news"
@@ -16,9 +21,11 @@ android {
         applicationId = "app.sunnyside.news"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
         buildConfigField("String", "FEED_URL", "\"$feedUrl\"")
+        buildConfigField("String", "FEEDBACK_URL", "\"$feedbackUrl\"")
+        buildConfigField("String", "REPO", "\"$repo\"")
     }
 
     // Release signing comes from environment variables (see .github/workflows/ci.yml). Without them the

@@ -270,3 +270,26 @@ def test_grim_articles_behind_harmless_headlines_are_dropped(fixtures):
     political = dict(story, source="Good Good Good",
                      body="President Donald Trump's second term has been a nightmare for climate policy.")
     assert scrape.grim_inside(political)
+
+
+def test_uk_and_ireland_stories_are_recognised():
+    from goodnews import scrape
+    def region(title, source, homepage="", start="Global"):
+        s = {"kind": "article", "title": title, "summary": "", "source": source, "sourceHomepage": homepage,
+             "region": start}
+        scrape.refine_region(s)
+        return s["region"]
+    assert keywords.guess_region("Volunteers restore canal in Yorkshire", "") == "UK & Ireland"
+    assert keywords.guess_region("New York library opens late", "") == "North America"
+    assert region("Otters return to the river", "BBC Scotland") == "UK & Ireland"      # a local feed
+    assert region("Otters return to the river", "BBC News") == "Global"                # the world feed
+    assert region("Otters return to the river", "Kent Online", "https://www.kentonline.co.uk") == "UK & Ireland"
+    assert region("Dublin choir wins award", "Positive News", start="Europe") == "UK & Ireland"
+    assert region("Rhinos return to Kenyan park", "BBC Scotland", start="Africa") == "Africa"
+
+
+def test_home_stories_get_a_small_boost():
+    from goodnews import scrape
+    base = {"kind": "article", "publishedAt": "2026-09-26T10:00:00Z", "uplift": 5, "imageUrl": None}
+    uk, us = dict(base, id="uk", region="UK & Ireland"), dict(base, id="us", region="North America")
+    assert [s["id"] for s in scrape.top_stories([us, uk], NOW)] == ["uk", "us"]

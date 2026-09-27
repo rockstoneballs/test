@@ -49,11 +49,17 @@ stories, then one meme or animal post. **Latest** is simply newest first.
   Positive News, Reasons to be Cheerful, The Optimist Daily, YES!, The Guardian's
   *The Upside*, Good Good Good, Nice News and Squirrel News.
 * **World and science news** only gets in if it passes the positivity filter.
-  Sources: BBC (world, science, England), NPR, The Guardian (UK, environment,
-  science), Sky News, DW, France 24, CBC, ABC Australia, RNZ, RTÉ, ScienceDaily,
+  Sources: BBC (world, science, England, Scotland, Wales, Northern Ireland, Newsround),
+  The Guardian (UK, Scotland, Wales, environment, science), Sky News, RTÉ, TheJournal.ie,
+  BreakingNews.ie, the Irish Examiner, The Independent's *Happy News*, NPR, DW,
+  France 24, CBC, ABC Australia, RNZ, ScienceDaily,
   Phys.org, ScienceAlert, New Atlas, NASA, Smithsonian, Mongabay, and Google News
   searches ("conservation success", "charity raises", "volunteers"…) in its US, UK,
   Canadian, Australian, Irish and New Zealand editions.
+* **UK & Ireland first.** Most readers are in the UK and Ireland. Stories from there get
+  their own 📍 UK & Ireland tag (from the places they mention, a UK or Irish local feed,
+  or a `.uk`/`.ie` website) and a small boost in **Top stories**, worth six hours of
+  freshness. Google News is also searched in its UK and Irish editions.
 * **Western focus.** Most readers are in the UK, Europe, North America and Oceania,
   so at most about 10% of news stories come from Asia, Africa, Latin America or the
   Middle East, and they rank below Western stories in **Top stories**. A story's
@@ -102,11 +108,30 @@ Optional repository secrets (**Settings → Secrets and variables → Actions**)
 | `ANTHROPIC_API_KEY` | Claude decides what counts as good news. Model `claude-opus-5`; override with `GOODNEWS_MODEL`. |
 | `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET` | Reliable Reddit access. Reddit often blocks anonymous requests from GitHub's servers. Create a free "script" app at <https://www.reddit.com/prefs/apps>. Without these, Lemmy and 9GAG still supply memes and cute animals. |
 | `IMGUR_CLIENT_ID` | Turns on Imgur as a source. Register a free app at <https://api.imgur.com/oauth2/addclient> ("anonymous usage"). Note: Imgur isn't available to visitors in the UK, so its images won't load there. |
+| `FEEDBACK_URL` (an Actions **variable**, not a secret) | Where the website's and app's feedback form sends messages. See [Feedback](#feedback). |
 | `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` | Signs release APKs with your own key, so updates install over the previous version. |
 
 On branches other than `main`, the scrape runs as a dry run. The result is
 uploaded as a `site-preview` artifact, so you can check source changes before
 merging.
+
+### Feedback
+
+The website (💬 in the top bar, and **Report** on every post) and the app (**Settings →
+Send feedback**, and 🚩 on every post) have a feedback form. Readers can send an idea, a
+problem or a source to add, or report a post as not good news, clickbait, wrong or broken.
+
+Until a form service is set up, the form opens a pre-filled GitHub issue (labelled
+`feedback`), which needs a GitHub account. To take feedback from anyone:
+
+1. Create a free form at <https://formspree.io> (any service that accepts a JSON `POST`
+   works). Copy its URL, e.g. `https://formspree.io/f/abcdwxyz`.
+2. In **Settings → Secrets and variables → Actions → Variables**, add `FEEDBACK_URL`
+   with that URL.
+
+The next website publish picks it up. The app needs a rebuild (any push to `main`).
+Messages then arrive by email. They include the reported post, and a reply address if
+the reader gave one. A hidden honeypot field filters out most spam bots.
 
 ### 2. Get the Android app
 

@@ -45,8 +45,9 @@ listicles, advice and how-to pieces, quizzes, deals, notices and appeals.
 - uplift: 0-10, how much this would brighten a reader's morning (10 = pure joy).
 - category: the best fit from {CATEGORIES}.
 - region: where the story happens, from {REGIONS}. Use "Global" for worldwide or \
-unclear stories. Sunnyside's readers are mainly in the UK, Europe, North America \
-and Oceania, so be a little stricter about uplift for stories from elsewhere unless \
+unclear stories, and "UK & Ireland" for anything in the UK or Ireland. Sunnyside's \
+readers are mainly in the UK and Ireland, then Europe, North America and Oceania, so be a \
+little stricter about uplift for stories from elsewhere unless \
 they're remarkable.
 - summary: two or three plain sentences (max 70 words) telling the reader what \
 happened, who was involved and why it matters, from the article text when given. \

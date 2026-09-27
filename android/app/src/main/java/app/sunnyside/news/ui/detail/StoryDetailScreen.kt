@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -32,6 +33,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -48,6 +52,7 @@ import app.sunnyside.news.data.Region
 import app.sunnyside.news.data.Story
 import app.sunnyside.news.ui.DetailViewModel
 import app.sunnyside.news.ui.components.EmptyState
+import app.sunnyside.news.ui.feedback.FeedbackDialog
 import app.sunnyside.news.ui.components.PostCallbacks
 import app.sunnyside.news.ui.components.PostHeader
 import app.sunnyside.news.ui.components.PostMedia
@@ -68,6 +73,8 @@ fun StoryDetailScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val user by viewModel.user.collectAsStateWithLifecycle()
     val story = state.story
+    var reporting by remember { mutableStateOf(false) }
+    if (reporting && story != null) FeedbackDialog(story = story, onDismiss = { reporting = false })
 
     Scaffold(
         topBar = {
@@ -79,6 +86,7 @@ fun StoryDetailScreen(
                 actions = {
                     if (story != null) {
                         val saved = story.id in user.savedIds
+                        IconButton(onClick = { reporting = true }) { Icon(Icons.Outlined.Flag, contentDescription = "Report this post") }
                         IconButton(onClick = { callbacks.share(story) }) { Icon(Icons.Filled.Share, contentDescription = "Share") }
                         IconButton(onClick = { callbacks.toggleSave(story) }) {
                             Icon(

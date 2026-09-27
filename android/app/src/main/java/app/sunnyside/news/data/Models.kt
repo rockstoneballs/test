@@ -146,6 +146,7 @@ enum class Topic(val key: String, val label: String, val emoji: String, val colo
 }
 
 enum class Region(val label: String, val emoji: String) {
+    UkIreland("UK & Ireland", "🌍"),
     Africa("Africa", "🌍"),
     Asia("Asia", "🌏"),
     Europe("Europe", "🌍"),
@@ -170,8 +171,12 @@ object Ranking {
         val ageHours = (now - story.publishedAtMillis) / 3_600_000.0
         // For memes and animal photos, popularity on the source site picks the best ones (never shown).
         val popular = min(3.0, 0.75 * log10(1.0 + max(story.score ?: 0, 0)))
-        return story.uplift + popular + (if (story.imageUrl != null) 0.5 else 0.0) - ageHours / 6
+        // Most readers are in the UK and Ireland: their stories get a small nudge up.
+        val home = if (story.region == Region.UkIreland) HOME_BONUS else 0.0
+        return story.uplift + popular + (if (story.imageUrl != null) 0.5 else 0.0) + home - ageHours / 6
     }
+
+    const val HOME_BONUS = 1.0
 
     /** "Top stories" shows this many news stories for every meme / cute-animal post. */
     const val NEWS_PER_SOCIAL = 3

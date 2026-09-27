@@ -43,6 +43,9 @@ USER_AGENT = "SunnysideGoodNewsBot/1.1 (+https://github.com/rockstoneballs/test)
 MAX_ARTICLE_FETCHES = 120
 SOCIAL_UPLIFT = 7
 MAX_PER_SOCIAL_COMMUNITY = 150
+# "Top stories" nudges UK & Ireland stories up (worth six hours of freshness), as the
+# website and app do.
+HOME_BONUS = 1.0
 # Sunnyside focuses on the West: at most this share of news stories may come from
 # Asia, Africa, Latin America or the Middle East (the most uplifting ones are kept).
 MAX_NON_WESTERN_SHARE = 0.10
@@ -238,7 +241,8 @@ def top_stories(stories: list[dict], now: datetime, n: int = 15) -> list[dict]:
     def hot(s: dict) -> float:
         age_h = (now - datetime.fromisoformat(s["publishedAt"].replace("Z", "+00:00"))).total_seconds() / 3600
         popular = min(3.0, 0.75 * math.log10(1 + max(s.get("score") or 0, 0)))
-        return (s.get("uplift") or 5) + popular + (0.5 if s.get("imageUrl") else 0) - age_h / 6
+        home = HOME_BONUS if s.get("region") == keywords.HOME_REGION else 0
+        return (s.get("uplift") or 5) + popular + (0.5 if s.get("imageUrl") else 0) + home - age_h / 6
 
     news = sorted((s for s in stories if s.get("kind", "article") == "article"), key=hot, reverse=True)
     social = sorted((s for s in stories if s.get("kind", "article") != "article"), key=hot, reverse=True)
@@ -282,13 +286,28 @@ def still_good(story: dict) -> bool:
     return True
 
 
+SOURCE_REGION = {s.name: s.region for s in SOURCES if s.region}
+SOURCE_NAMES = {s.name for s in SOURCES}
+
+
 def refine_region(story: dict) -> None:
-    """Outlets like Indian newspapers tell us the region even when the headline doesn't."""
+    """Outlets tell us the region even when the headline doesn't: an Indian newspaper,
+    BBC Scotland, or (for Google News results) a .uk or .ie website."""
     if story.get("kind", "article") != "article":
         return
-    outlet_region = keywords.region_for_source(story.get("source", ""), story.get("sourceHomepage", ""))
-    if outlet_region and story.get("region") in keywords.WESTERN_REGIONS | {"Global", None}:
+    source, homepage = story.get("source", ""), story.get("sourceHomepage", "")
+    region = story.get("region")
+    outlet_region = keywords.region_for_source(source, homepage)
+    if outlet_region and region in keywords.WESTERN_REGIONS | {"Global", None}:
         story["region"] = outlet_region
+        return
+    home = keywords.HOME_REGION
+    if region in (None, "Global", "Europe") and keywords.guess_region(story["title"], story.get("summary") or "") == home:
+        story["region"] = home
+    elif region in (None, "Global") and (
+        SOURCE_REGION.get(source) == home or (source not in SOURCE_NAMES and keywords.is_uk_ie_site(homepage))
+    ):
+        story["region"] = home
 
 
 def is_western(story: dict) -> bool:
