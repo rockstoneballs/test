@@ -1,6 +1,7 @@
 package app.sunnyside.news
 
 import app.sunnyside.news.data.Topic
+import app.sunnyside.news.data.PostKind
 import app.sunnyside.news.data.Ranking
 import app.sunnyside.news.data.SortMode
 import app.sunnyside.news.data.Story
@@ -56,10 +57,21 @@ class LogicTest {
         assertEquals(PetNames.pick(PetNames.kittenNames, day, 1), PetNames.pick(PetNames.kittenNames, day, 1))
     }
 
-    private fun post(id: String, hoursAgo: Int, score: Int? = null, uplift: Int = 7) = Story(
+    @Test
+    fun newsLeadsAndSocialIsSprinkledIn() {
+        val cats = (1..5).map { post("cat$it", hoursAgo = 1, score = 5000, kind = PostKind.Image) }
+        val news = (1..6).map { post("news$it", hoursAgo = it) }
+        val sorted = Ranking.sort(cats + news, SortMode.Hot, emptyMap(), NOW).map { it.id }
+        assertEquals(
+            listOf("news1", "news2", "news3", "cat1", "news4", "news5", "news6", "cat2", "cat3", "cat4", "cat5"),
+            sorted,
+        )
+    }
+
+    private fun post(id: String, hoursAgo: Int, score: Int? = null, uplift: Int = 7, kind: PostKind = PostKind.Article) = Story(
         id = id, title = id, summary = "", url = "https://x/$id", imageUrl = null, source = "s",
         publishedAtMillis = NOW - hoursAgo * 3_600_000L, topic = Topic.Aww, region = Region.Global,
-        uplift = uplift, score = score,
+        uplift = uplift, score = score, kind = kind,
     )
 
     @Test
