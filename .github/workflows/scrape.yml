@@ -41,10 +41,11 @@ jobs:
         env:
           # All optional. With an Anthropic key, Claude judges which stories are genuinely good
           # news (otherwise keyword filtering is used). Reddit credentials make Reddit reliable
-          # from GitHub's servers; without them Lemmy still supplies memes.
+          # from GitHub's servers; an Imgur Client-ID turns on Imgur. 9GAG and Lemmy need nothing.
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          IMGUR_CLIENT_ID: ${{ secrets.IMGUR_CLIENT_ID }}
         run: python -m goodnews.scrape --out ../site --previous "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/feed.json"
       - name: Preview (non-main branches)
         if: github.ref != 'refs/heads/main'

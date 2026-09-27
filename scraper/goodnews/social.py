@@ -8,8 +8,13 @@ Reddit:
   * Without credentials we try the public JSON endpoints and stop at the first
     block, so we never hammer Reddit.
 
-Lemmy and Mastodon: open APIs, no key needed. Mastodon hashtags like
-#CatsOfMastodon are a steady source of cute animals with real favourite counts.
+Lemmy: open API, no key needed.
+
+9GAG: no official API; we read the same JSON its website loads for tag pages
+(e.g. /tag/wholesome). NSFW posts are skipped. If 9GAG blocks us it's skipped.
+
+Imgur: official API, needs a free Client-ID (IMGUR_CLIENT_ID from
+https://api.imgur.com/oauth2/addclient). Skipped without one.
 """
 
 from __future__ import annotations
@@ -226,64 +231,111 @@ def fetch_lemmy(session: requests.Session, src: SocialSource) -> list[dict]:
     return items[:src.limit]
 
 
-_TAG_RX = re.compile(r"<[^>]+>")
-_HASHTAG_RX = re.compile(r"(?:^|\s)#\w+")
-_URL_RX = re.compile(r"https?://\S+")
+
+BROWSER_UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
 
 
-def _toot_title(content_html: str, fallback: str) -> str:
-    """First sentence-ish of a toot, without HTML, links or trailing hashtags."""
-    text = html.unescape(_TAG_RX.sub(" ", content_html.replace("<br>", "\n").replace("</p>", "\n")))
-    text = _URL_RX.sub("", text)
-    text = _HASHTAG_RX.sub("", text)
-    text = re.sub(r"\s+", " ", text).strip(" .-–—:")
-    if len(text) > 160:
-        text = text[:160].rsplit(" ", 1)[0] + "…"
-    return text or fallback
-
-
-def fetch_mastodon(session: requests.Session, src: SocialSource) -> list[dict]:
-    """``src.name`` is "tag@instance", e.g. "CatsOfMastodon@mastodon.social"."""
-    tag, _, instance = src.name.partition("@")
+def fetch_ninegag(session: requests.Session, src: SocialSource) -> list[dict]:
+    """``src.name`` is a 9GAG tag, e.g. "wholesome"."""
     try:
-        r = session.get(f"https://{instance}/api/v1/timelines/tag/{tag}", params={"limit": 40, "only_media": "true"}, timeout=20)
+        r = session.get(
+            f"https://9gag.com/v1/tag-posts/tag/{src.name}/type/hot",
+            headers={"User-Agent": BROWSER_UA, "Accept": "application/json"},
+            timeout=20,
+        )
         r.raise_for_status()
-        statuses = r.json()
-    except (requests.RequestException, ValueError) as e:
-        log.warning("mastodon #%s: %s", tag, e)
+        posts = r.json()["data"]["posts"]
+    except (requests.RequestException, ValueError, KeyError, TypeError) as e:
+        log.warning("9gag #%s: %s", src.name, e)
         return []
 
     items = []
-    for st in statuses if isinstance(statuses, list) else []:
-        if st.get("sensitive") or st.get("spoiler_text") or st.get("reblog"):
+    for p in posts:
+        if p.get("nsfw") or p.get("type") not in ("Photo", "Animated"):
             continue
-        if st.get("language") and not str(st["language"]).startswith("en"):
-            continue
-        score = int(st.get("favourites_count", 0)) + int(st.get("reblogs_count", 0))
+        score = int(p.get("upVoteCount", 0))
         if score < src.min_score:
             continue
-        media = next((m for m in st.get("media_attachments", []) if m.get("type") in ("image", "gifv")), None)
-        if not media or not str(media.get("url", "")).startswith("https://"):
+        img = (p.get("images") or {}).get("image700") or {}
+        if not str(img.get("url", "")).startswith("https://"):
             continue
-        meta = (media.get("meta") or {}).get("original") or {}
-        account = st.get("account", {})
-        fallback = "Today's cute animal" if src.community == "Aww" else "A little bit of joy"
+        title = html.unescape(p.get("title") or "").strip()
+        if not title:
+            continue
+        url = p.get("url") or f"https://9gag.com/gag/{p.get('id')}"
         items.append({
-            "title": _toot_title(st.get("content", ""), media.get("description") or fallback),
+            "title": title,
             "summary": "",
-            "url": st.get("url") or st.get("uri"),
-            "imageUrl": media.get("preview_url") if media.get("type") == "gifv" else media["url"],
-            "imageWidth": meta.get("width"),
-            "imageHeight": meta.get("height"),
-            "source": f"#{tag}",
-            "sourceHomepage": f"https://{instance}/tags/{tag}",
-            "publishedAt": _parse_lemmy_time(st.get("created_at", "")),
-            "kind": "video" if media.get("type") == "gifv" else "image",
+            "url": url,
+            "imageUrl": img["url"],
+            "imageWidth": img.get("width"),
+            "imageHeight": img.get("height"),
+            "source": f"9GAG · {src.name}",
+            "sourceHomepage": f"https://9gag.com/tag/{src.name}",
+            "publishedAt": datetime.fromtimestamp(int(p.get("creationTs", 0)), tz=timezone.utc),
+            "kind": "video" if p.get("type") == "Animated" else "image",
             "community": src.community,
-            "author": "@" + account.get("acct", "unknown"),
+            "author": "9GAG",
             "score": score,
-            "comments": int(st.get("replies_count", 0)),
-            "discussionUrl": st.get("url") or st.get("uri"),
+            "comments": int(p.get("commentsCount", 0)),
+            "discussionUrl": url,
+        })
+    items.sort(key=lambda i: i["score"], reverse=True)
+    return items[:src.limit]
+
+
+def fetch_imgur(session: requests.Session, src: SocialSource) -> list[dict]:
+    """``src.name`` is an Imgur gallery tag, e.g. "wholesome". Needs IMGUR_CLIENT_ID."""
+    client_id = os.environ.get("IMGUR_CLIENT_ID")
+    if not client_id:
+        return []
+    try:
+        r = session.get(
+            f"https://api.imgur.com/3/gallery/t/{src.name}/viral/week/0",
+            headers={"Authorization": f"Client-ID {client_id}"},
+            timeout=20,
+        )
+        r.raise_for_status()
+        entries = r.json()["data"]["items"]
+    except (requests.RequestException, ValueError, KeyError, TypeError) as e:
+        log.warning("imgur #%s: %s", src.name, e)
+        return []
+
+    items = []
+    for e in entries:
+        if e.get("nsfw"):
+            continue
+        score = int(e.get("points") or e.get("ups") or 0)
+        if score < src.min_score:
+            continue
+        image = (e.get("images") or [e])[0] if e.get("is_album") else e
+        link = image.get("link") or ""
+        animated = bool(image.get("animated"))
+        if animated:
+            # Use a still frame for GIF/MP4 posts; the post link plays it.
+            link = f"https://i.imgur.com/{image.get('id')}h.jpg" if image.get("id") else ""
+        if not link.startswith("https://") or not _image_like(link):
+            continue
+        title = (e.get("title") or "").strip()
+        if not title:
+            continue
+        url = e.get("link") if e.get("is_album") else f"https://imgur.com/gallery/{e.get('id')}"
+        items.append({
+            "title": title,
+            "summary": "",
+            "url": url,
+            "imageUrl": link,
+            "imageWidth": image.get("width"),
+            "imageHeight": image.get("height"),
+            "source": f"Imgur · {src.name}",
+            "sourceHomepage": f"https://imgur.com/t/{src.name}",
+            "publishedAt": datetime.fromtimestamp(int(e.get("datetime", 0)), tz=timezone.utc),
+            "kind": "video" if animated else "image",
+            "community": src.community,
+            "author": e.get("account_url") or "Imgur",
+            "score": score,
+            "comments": int(e.get("comment_count") or 0),
+            "discussionUrl": url,
         })
     items.sort(key=lambda i: i["score"], reverse=True)
     return items[:src.limit]

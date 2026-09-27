@@ -85,16 +85,17 @@ data class Story(
             null
         }
 
-    /** Where it came from in plain words: "Good News Network", "Reddit", "Mastodon"… */
+    /** Where it came from in plain words: "Good News Network", "Reddit", "9GAG"… */
     val platform: String
         get() = when {
             source.startsWith("r/") -> "Reddit"
             source.startsWith("Lemmy") -> "Lemmy"
-            source.startsWith("#") -> "Mastodon"
+            source.startsWith("9GAG") -> "9GAG"
+            source.startsWith("Imgur") -> "Imgur"
             else -> source
         }
 
-    /** "u/someone" for Reddit/Lemmy/Mastodon posts; null for articles. */
+    /** "u/someone" for Reddit/Lemmy/Imgur posts; null for articles. */
     val poster: String? get() = author?.takeIf { platform != source && it != source }
 }
 

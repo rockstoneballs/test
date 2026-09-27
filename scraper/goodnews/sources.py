@@ -10,8 +10,8 @@ Three kinds of source:
 * Reddit communities: good-news link posts (r/UpliftingNews) plus wholesome
   memes, cute animals and "made me smile" posts. These carry real upvote and
   comment counts, which drive the Hot/Top sorting in the apps.
-* Lemmy communities and Mastodon hashtags: the fediverse equivalents, with
-  open APIs. They keep memes and cute animals flowing if Reddit blocks us.
+* Lemmy communities (open API), 9GAG tags and Imgur tags: more memes and cute
+  animals, which keep things flowing if Reddit blocks us.
 
 A dead or blocked source is logged and skipped; it never fails the run.
 """
@@ -43,8 +43,8 @@ class SocialSource:
     articles, classified like any other story); otherwise it's the fixed
     community image posts are filed under.
     """
-    platform: str  # "reddit" | "lemmy" | "mastodon"
-    name: str  # subreddit; community@instance for Lemmy; hashtag@instance for Mastodon
+    platform: str  # "reddit" | "lemmy" | "9gag" | "imgur"
+    name: str  # subreddit; community@instance for Lemmy; tag for 9GAG and Imgur
     community: str | None
     min_score: int = 50
     limit: int = 15
@@ -124,13 +124,18 @@ SOCIAL_SOURCES: list[SocialSource] = [
     SocialSource("lemmy", "upliftingnews@lemmy.world", None, min_score=10, limit=10),
     SocialSource("lemmy", "cats@lemmy.world", AWW, min_score=5, limit=8),
     SocialSource("lemmy", "dogs@lemmy.world", AWW, min_score=20, limit=8),
-    # Mastodon hashtags (open API). Score = favourites + boosts.
-    SocialSource("mastodon", "CatsOfMastodon@mastodon.social", AWW, min_score=30, limit=10),
-    SocialSource("mastodon", "DogsOfMastodon@mastodon.social", AWW, min_score=30, limit=10),
-    SocialSource("mastodon", "Caturday@mastodon.social", AWW, min_score=30, limit=6),
-    SocialSource("mastodon", "wholesome@mastodon.social", SMILES, min_score=5, limit=6),
-    SocialSource("mastodon", "WholesomeMemes@mastodon.social", MEMES, min_score=5, limit=10),
-    SocialSource("mastodon", "GoodNews@mastodon.social", SMILES, min_score=10, limit=6),
+    # 9GAG tags (the JSON its site uses; skipped if blocked).
+    SocialSource("9gag", "wholesome", MEMES, min_score=200, limit=20),
+    SocialSource("9gag", "wholesome-memes", MEMES, min_score=100, limit=10),
+    SocialSource("9gag", "cute", AWW, min_score=200, limit=12),
+    SocialSource("9gag", "aww", AWW, min_score=100, limit=10),
+    SocialSource("9gag", "dogs", AWW, min_score=200, limit=8),
+    SocialSource("9gag", "cats", AWW, min_score=200, limit=8),
+    # Imgur tags (official API; needs IMGUR_CLIENT_ID).
+    SocialSource("imgur", "wholesome", MEMES, min_score=100, limit=15),
+    SocialSource("imgur", "aww", AWW, min_score=100, limit=12),
+    SocialSource("imgur", "cats", AWW, min_score=100, limit=8),
+    SocialSource("imgur", "dogs", AWW, min_score=100, limit=8),
 ]
 
 # How long posts stay. Memes are evergreen, so a meme community that posts slowly still fills up.
