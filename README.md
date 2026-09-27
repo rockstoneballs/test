@@ -61,6 +61,10 @@ The cap keeps news, which has no Reddit votes, from being buried under memes.
 * **Memes and cute animals** come from Reddit, Lemmy and Mastodon. NSFW and spoiler posts
   are dropped, and so are posts below a per-source upvote threshold. Cute
   animals stay for 3 days, news for 7, and memes for up to 30 (they don't go stale).
+* **Left out on purpose:** celebrity and showbiz news, and anything about royalty or
+  monarchies, are filtered from every source (`OFF_TOPIC` in `scraper/goodnews/keywords.py`).
+  Sport is kept to a minimum: at most a handful of the most uplifting sports stories are
+  in the feed at any time, and never results or transfer news.
 * A dead source is logged and skipped. It never breaks a run.
 
 ## Setup
