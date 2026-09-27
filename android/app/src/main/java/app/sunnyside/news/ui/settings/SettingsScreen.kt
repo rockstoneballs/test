@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BrightnessAuto
 import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.Feedback
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.NotificationsActive
@@ -34,6 +35,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
@@ -43,6 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.sunnyside.news.BuildConfig
 import app.sunnyside.news.data.ThemeMode
 import app.sunnyside.news.ui.SettingsViewModel
+import app.sunnyside.news.ui.feedback.FeedbackDialog
 import app.sunnyside.news.work.Notifications
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -50,10 +55,11 @@ import java.time.format.FormatStyle
 
 private val SOURCES = listOf(
     "Good News Network", "Positive News", "Reasons to be Cheerful", "The Optimist Daily",
-    "YES! Magazine", "The Guardian — The Upside", "Good Good Good", "Nice News", "The Better India",
-    "BBC", "NPR", "Al Jazeera", "DW", "France 24", "CBC", "ABC Australia", "AllAfrica",
+    "YES! Magazine", "The Guardian — The Upside", "Good Good Good", "Nice News", "Squirrel News",
+    "BBC", "The Guardian", "Sky News", "RTÉ", "TheJournal.ie", "Irish Examiner", "BreakingNews.ie",
+    "NPR", "DW", "France 24", "CBC", "ABC Australia", "RNZ",
     "ScienceDaily", "Phys.org", "NASA", "Mongabay", "Google News",
-    "r/UpliftingNews", "r/wholesomememes", "r/aww", "r/MadeMeSmile", "r/HumansBeingBros", "Lemmy",
+    "Reddit", "Lemmy", "9GAG", "Imgur",
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -165,6 +171,14 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
             )
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            var showFeedback by remember { mutableStateOf(false) }
+            ListItem(
+                headlineContent = { Text("Send feedback") },
+                supportingContent = { Text("Ideas, problems, or a source we should add") },
+                leadingContent = { Icon(Icons.Outlined.Feedback, contentDescription = null) },
+                modifier = Modifier.clickable(onClickLabel = "Send feedback") { showFeedback = true },
+            )
+            if (showFeedback) FeedbackDialog(story = null, onDismiss = { showFeedback = false })
             ListItem(
                 headlineContent = { Text("Sunnyside ${BuildConfig.VERSION_NAME}") },
                 supportingContent = { Text("Only good news. Every morning. ☀️") },

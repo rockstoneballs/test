@@ -57,6 +57,7 @@ jobs:
           SUNNYSIDE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           SUNNYSIDE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           SUNNYSIDE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          SUNNYSIDE_FEEDBACK_URL: ${{ vars.FEEDBACK_URL }}
         run: ./gradlew --no-daemon assembleDebug assembleRelease
       - uses: actions/upload-artifact@v4
         with:

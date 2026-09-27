@@ -27,7 +27,8 @@ object StoryHeuristics {
     private val regionWords: Map<Region, Regex> = mapOf(
         Region.Africa to "africa|nigeria|kenya|ethiopia|ghana|uganda|tanzania|rwanda|senegal|egypt|morocco|zimbabwe|zambia|malawi|botswana|namibia|madagascar",
         Region.Asia to "asia|china|japan|india|pakistan|bangladesh|indonesia|philippines|vietnam|thailand|malaysia|singapore|korea|nepal|sri lanka|taiwan",
-        Region.Europe to "europe|uk|britain|british|england|scotland|wales|ireland|france|germany|spain|italy|portugal|netherlands|dutch|sweden|norway|denmark|finland|poland|greece|london|paris",
+        Region.UkIreland to "uk|britain|british|england|scotland|scottish|wales|welsh|ireland|irish|london|manchester|birmingham|glasgow|edinburgh|cardiff|belfast|dublin|cork|galway|yorkshire|cornwall|devon",
+        Region.Europe to "europe|france|germany|spain|italy|portugal|netherlands|dutch|sweden|norway|denmark|finland|poland|greece|paris",
         Region.LatinAmerica to "latin america|south america|mexico|brazil|argentina|chile|colombia|peru|ecuador|bolivia|costa rica|caribbean|cuba",
         Region.MiddleEast to "middle east|saudi|emirates|dubai|qatar|oman|jordan|lebanon|iraq|iran|turkey|yemen",
         Region.NorthAmerica to "united states|u\\.s\\.|usa|american|canada|canadian|california|texas|new york|florida|chicago|alaska|hawaii|toronto",

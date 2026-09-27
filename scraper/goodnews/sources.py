@@ -33,6 +33,12 @@ class Source:
     url: str
     trusted: bool
     homepage: str
+    # Set for feeds that only cover one region (e.g. BBC Scotland): their stories are
+    # tagged with it unless the story itself names somewhere else.
+    region: str | None = None
+
+
+UK_IE = "UK & Ireland"
 
 
 @dataclass(frozen=True)
@@ -83,11 +89,22 @@ SOURCES: list[Source] = [
     Source("France 24", "https://www.france24.com/en/rss", False, "https://www.france24.com"),
     Source("CBC", "https://www.cbc.ca/webfeed/rss/rss-world", False, "https://www.cbc.ca/news"),
     Source("ABC News (Australia)", "https://www.abc.net.au/news/feed/51120/rss.xml", False, "https://www.abc.net.au/news"),
-    Source("BBC England", "https://feeds.bbci.co.uk/news/england/rss.xml", False, "https://www.bbc.co.uk/news/england"),
-    Source("The Guardian UK", "https://www.theguardian.com/uk-news/rss", False, "https://www.theguardian.com/uk-news"),
-    Source("Sky News UK", "https://feeds.skynews.com/feeds/rss/uk.xml", False, "https://news.sky.com/uk"),
+    Source("BBC England", "https://feeds.bbci.co.uk/news/england/rss.xml", False, "https://www.bbc.co.uk/news/england", UK_IE),
+    Source("The Guardian UK", "https://www.theguardian.com/uk-news/rss", False, "https://www.theguardian.com/uk-news", UK_IE),
+    Source("Sky News UK", "https://feeds.skynews.com/feeds/rss/uk.xml", False, "https://news.sky.com/uk", UK_IE),
+    Source("BBC Scotland", "https://feeds.bbci.co.uk/news/scotland/rss.xml", False, "https://www.bbc.co.uk/news/scotland", UK_IE),
+    Source("BBC Wales", "https://feeds.bbci.co.uk/news/wales/rss.xml", False, "https://www.bbc.co.uk/news/wales", UK_IE),
+    Source("BBC Northern Ireland", "https://feeds.bbci.co.uk/news/northern_ireland/rss.xml", False,
+           "https://www.bbc.co.uk/news/northern_ireland", UK_IE),
+    Source("BBC Newsround", "https://feeds.bbci.co.uk/newsround/rss.xml", False, "https://www.bbc.co.uk/newsround"),
+    Source("The Guardian Scotland", "https://www.theguardian.com/uk/scotland/rss", False,
+           "https://www.theguardian.com/uk/scotland", UK_IE),
+    Source("The Guardian Wales", "https://www.theguardian.com/uk/wales/rss", False, "https://www.theguardian.com/uk/wales", UK_IE),
+    Source("TheJournal.ie", "https://www.thejournal.ie/feed/", False, "https://www.thejournal.ie", UK_IE),
+    Source("BreakingNews.ie", "https://feeds.breakingnews.ie/bnireland", False, "https://www.breakingnews.ie", UK_IE),
+    Source("Irish Examiner", "https://www.irishexaminer.com/feed/35-top_news.xml", False, "https://www.irishexaminer.com", UK_IE),
     Source("RNZ", "https://www.rnz.co.nz/rss/national.xml", False, "https://www.rnz.co.nz"),
-    Source("RTÉ", "https://www.rte.ie/feeds/rss/?index=/news/", False, "https://www.rte.ie/news"),
+    Source("RTÉ", "https://www.rte.ie/feeds/rss/?index=/news/", False, "https://www.rte.ie/news", UK_IE),
     Source("ScienceDaily", "https://www.sciencedaily.com/rss/top.xml", False, "https://www.sciencedaily.com"),
     Source("Phys.org", "https://phys.org/rss-feed/", False, "https://phys.org"),
     Source("ScienceAlert", "https://www.sciencealert.com/feed", False, "https://www.sciencealert.com"),
@@ -108,10 +125,19 @@ SOURCES: list[Source] = [
     _google_news("charity raises", "GB"),
     _google_news("conservation success", "GB"),
     _google_news("wildlife returns", "GB"),
+    _google_news("rewilding", "GB"),
+    _google_news("animal rescue", "GB"),
+    _google_news("raises money for", "GB"),
+    _google_news("community garden", "GB"),
+    _google_news("new species", "GB"),
     _google_news("volunteers", "CA"),
     _google_news("volunteers", "AU"),
     _google_news("conservation success", "AU"),
     _google_news("volunteers", "IE"),
+    _google_news("charity", "IE"),
+    _google_news("animal rescue", "IE"),
+    _google_news("community", "IE"),
+    _google_news("conservation", "IE"),
     _google_news("volunteers", "NZ"),
 ]
 

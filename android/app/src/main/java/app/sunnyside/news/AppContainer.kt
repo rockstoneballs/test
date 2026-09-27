@@ -1,6 +1,8 @@
 package app.sunnyside.news
 
 import android.content.Context
+import android.os.Build
+import app.sunnyside.news.data.FeedbackSender
 import app.sunnyside.news.data.NewsRepository
 import app.sunnyside.news.data.SettingsRepository
 import app.sunnyside.news.data.local.AppDatabase
@@ -39,4 +41,13 @@ class AppContainer(context: Context) {
     )
 
     val settingsRepository = SettingsRepository(context)
+
+    val feedbackSender = FeedbackSender(
+        http = http,
+        json = json,
+        endpoint = BuildConfig.FEEDBACK_URL,
+        repo = BuildConfig.REPO,
+        appVersion = BuildConfig.VERSION_NAME,
+        androidVersion = Build.VERSION.RELEASE,
+    )
 }

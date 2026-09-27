@@ -270,3 +270,68 @@ def test_grim_articles_behind_harmless_headlines_are_dropped(fixtures):
     political = dict(story, source="Good Good Good",
                      body="President Donald Trump's second term has been a nightmare for climate policy.")
     assert scrape.grim_inside(political)
+
+
+def test_uk_and_ireland_stories_are_recognised():
+    from goodnews import scrape
+    def region(title, source, homepage="", start="Global"):
+        s = {"kind": "article", "title": title, "summary": "", "source": source, "sourceHomepage": homepage,
+             "region": start}
+        scrape.refine_region(s)
+        return s["region"]
+    assert keywords.guess_region("Volunteers restore canal in Yorkshire", "") == "UK & Ireland"
+    assert keywords.guess_region("New York library opens late", "") == "North America"
+    assert region("Otters return to the river", "BBC Scotland") == "UK & Ireland"      # a local feed
+    assert region("Otters return to the river", "BBC News") == "Global"                # the world feed
+    assert region("Otters return to the river", "Kent Online", "https://www.kentonline.co.uk") == "UK & Ireland"
+    assert region("Dublin choir wins award", "Positive News", start="Europe") == "UK & Ireland"
+    assert region("Rhinos return to Kenyan park", "BBC Scotland", start="Africa") == "Africa"
+
+
+def test_home_stories_get_a_small_boost():
+    from goodnews import scrape
+    base = {"kind": "article", "publishedAt": "2026-09-26T10:00:00Z", "uplift": 5, "imageUrl": None}
+    uk, us = dict(base, id="uk", region="UK & Ireland"), dict(base, id="us", region="North America")
+    assert [s["id"] for s in scrape.top_stories([us, uk], NOW)] == ["uk", "us"]
+
+
+def test_second_uk_review_live_cases():
+    # Look-alike places elsewhere aren't the UK or Ireland.
+    assert keywords.guess_region("Volunteers turn out for East Laurinburg cleanup",
+                                 "SCOTLAND COUNTY S.C. (WPDE) — Volunteers spent Saturday") == "Global"
+    assert keywords.guess_region("Library opens in Dublin, Ohio", "") == "North America"
+    assert keywords.guess_region("Fall colours across New England", "") != "UK & Ireland"
+    # Grim, political, hunting, legal and notice stories that slipped through.
+    from goodnews.scrape import unwanted
+    base = {"kind": "article", "summary": "", "community": "Community", "source": "X", "sourceHomepage": ""}
+    for title in ["Chief Whip Emphasizes Research and Innovation in Zoology",
+                  "A group of formerly incarcerated women sued to get air conditioning in every Texas prison — and won",
+                  "Redwood Research Grants: Advancing Conservation and Restoration Science"]:
+        assert unwanted(dict(base, title=title)), title
+    for title in ["Two bodies recovered from landslide in Ghiwang, two others rescued",
+                  "Utah Wildlife Board Approves Changes to Elk Hunting Rules"]:
+        assert not keywords.passes_keyword_filter(title, "", trusted=False), title
+    # No swearing, memes included.
+    assert unwanted(dict(base, kind="image", title="F**k you all, this is love,"))
+    assert not unwanted(dict(base, kind="image", title="Scunthorpe choir hits the high notes"))
+
+
+def test_uk_and_irish_headlines_need_one_positive_word():
+    from goodnews import scrape
+    title = "Seal pup rescued from Cornish beach"   # one uplifting word
+    assert not keywords.passes_keyword_filter(title.replace("Cornish", "Oregon"), "", trusted=False)
+    assert scrape.min_positivity({"title": title, "source": "X"}) == 2
+    assert keywords.passes_keyword_filter(title, "", False, scrape.min_positivity({"title": title, "source": "X"}))
+    assert scrape.min_positivity({"title": "Seal pup rescued", "source": "BBC Wales"}) == 2
+    assert scrape.min_positivity({"title": "Seal pup rescued", "source": "NPR"}) == 3
+
+
+def test_third_uk_review_live_cases():
+    from goodnews.scrape import unwanted
+    base = {"kind": "article", "summary": "", "community": "Community", "sourceHomepage": ""}
+    for title, source in [("Georgia Bulldogs vs. Tennessee Volunteers: Game Highlights", "ESPN"),
+                          ("Alaska Animal Rescue on National Geographic WILD HD: full details and when it's on", "TVGuide.co.uk"),
+                          ("U2 celebrate 50th anniversary at the school where they formed", "BBC Northern Ireland")]:
+        assert unwanted(dict(base, title=title, source=source)), title
+    assert not unwanted(dict(base, title="Meet Grumpygran1948 - Fortnite's record-breaking streamer", source="BBC Scotland"))
+    assert keywords.guess_region("Irish Road Bowling raises money for charities in Wheeling", "") == "Global"

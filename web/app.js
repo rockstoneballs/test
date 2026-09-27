@@ -73,6 +73,7 @@ function h(tag, attrs, ...children) {
 }
 
 function safeUrl(url) {
+  if (!url) return null;
   try {
     const u = new URL(url, location.href);
     return u.protocol === "https:" || u.protocol === "http:" ? u.href : null;
@@ -136,6 +137,7 @@ const ICON = {
   out: '<svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M11 3h6v6M17 3l-8 8M8 5H4v11h11v-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   back: '<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M12 4 6 10l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   sun: '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  flag: '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M5 17V3.5M5 4h9l-2 3.5 2 3.5H5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   moon: '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="currentColor"/></svg>',
 };
 
@@ -146,8 +148,13 @@ function hotScore(p) {
   const ageHours = (Date.now() - Date.parse(p.publishedAt)) / 3.6e6;
   // For memes and animal photos, popularity on the source site picks the best ones (never shown).
   const popular = Math.min(3, 0.75 * Math.log10(1 + Math.max(p.score || 0, 0)));
-  return (p.uplift || 5) + popular + (p.imageUrl ? 0.5 : 0) - ageHours / 6;
+  // Most readers are in the UK and Ireland: their stories get a small nudge up.
+  const home = p.region === HOME_REGION ? HOME_BONUS : 0;
+  return (p.uplift || 5) + popular + (p.imageUrl ? 0.5 : 0) + home - ageHours / 6;
 }
+
+const HOME_REGION = "UK & Ireland";
+const HOME_BONUS = 1;
 
 // "Top stories" shows NEWS_PER_SOCIAL news stories for every meme / cute-animal post, so the
 // world's good news leads the feed and the fun stuff is sprinkled through it.
@@ -211,11 +218,113 @@ function saveButton(p) {
   }, h("span", { html: saved ? ICON.saved : ICON.save }), saved ? "Saved" : "Save");
 }
 
-function actions(p) {
+function actions(p, withReport = false) {
   return h("div", { class: "actions" },
     h("button", { class: "pill", onclick: (e) => { e.preventDefault(); share(p); } }, h("span", { html: ICON.share }), "Share"),
     saveButton(p),
+    withReport ? h("button", { class: "pill", onclick: (e) => { e.preventDefault(); openFeedback(p); } },
+      h("span", { html: ICON.flag }), "Report") : null,
   );
+}
+
+/* ------------------------------------------------------------------ feedback */
+
+const CONFIG = window.SUNNYSIDE_CONFIG || {};
+const FEEDBACK_KINDS = [
+  ["idea", "💡 An idea or suggestion"],
+  ["bug", "🐞 Something isn't working"],
+  ["source", "📰 A source we should add"],
+  ["other", "💬 Something else"],
+];
+const REPORT_REASONS = [
+  ["not-good-news", "It isn't good news"],
+  ["clickbait", "It's clickbait"],
+  ["wrong", "It's wrong or misleading"],
+  ["broken", "Broken link, picture or video"],
+  ["other", "Something else"],
+];
+
+/** Where feedback goes: the configured form service, or else a pre-filled GitHub issue. */
+async function sendFeedback(data) {
+  if (CONFIG.feedbackUrl) {
+    const r = await fetch(CONFIG.feedbackUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return "sent";
+  }
+  const body = [
+    data.message,
+    data.story ? `\n**Story:** [${data.story.title}](${data.story.url}) (${data.story.source}, id \`${data.story.id}\`)` : "",
+    `\n_Sent from the Sunnyside website: ${data.page}_`,
+  ].join("\n");
+  const url = `https://github.com/${CONFIG.repo || "rockstoneballs/test"}/issues/new?` + new URLSearchParams({
+    title: data._subject, body, labels: "feedback",
+  });
+  window.open(url, "_blank", "noopener");
+  return "github";
+}
+
+/** The feedback form. With a post, it's a report about that post. */
+function openFeedback(story) {
+  const old = document.getElementById("feedback");
+  if (old) old.remove();
+  const options = story ? REPORT_REASONS : FEEDBACK_KINDS;
+  const status = h("p", { class: "fb-status", role: "status" });
+  const submit = h("button", { class: "btn btn-primary", type: "submit" }, "Send");
+  const form = h("form", { class: "fb-form" },
+    h("div", { class: "fb-head" },
+      h("h2", { id: "fb-title" }, story ? "Report this post" : "Send us feedback"),
+      h("button", { class: "icon-btn", type: "button", "aria-label": "Close", onclick: () => dialog.close() }, "✕"),
+    ),
+    story ? h("p", { class: "fb-story" }, story.title) : h("p", { class: "fb-intro" }, "Ideas, problems, sources we're missing: we read everything."),
+    h("fieldset", null,
+      h("legend", null, story ? "What's wrong with it?" : "What's it about?"),
+      options.map(([value, label], i) => h("label", { class: "fb-option" },
+        h("input", { type: "radio", name: "kind", value, required: true, checked: i === 0 }), label)),
+    ),
+    h("label", { class: "fb-field" }, story ? "Anything else? (optional)" : "Your message",
+      h("textarea", { name: "message", rows: 4, maxlength: 2000, required: !story })),
+    h("label", { class: "fb-field" }, "Your email, if you'd like a reply (optional)",
+      h("input", { type: "email", name: "email", autocomplete: "email" })),
+    // A field people never see: bots fill it in, so the form service can drop them.
+    h("input", { class: "fb-trap", type: "text", name: "_gotcha", tabindex: "-1", autocomplete: "off", "aria-hidden": "true" }),
+    h("div", { class: "fb-actions" }, status, submit),
+  );
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const f = new FormData(form);
+    if (f.get("_gotcha")) return dialog.close();
+    const kind = f.get("kind");
+    const label = options.find(([v]) => v === kind)[1];
+    const data = {
+      _subject: story ? `Report: ${label} — ${story.title}`.slice(0, 120) : `Feedback: ${label.replace(/^\S+ /, "")}`,
+      kind: story ? "report" : kind,
+      reason: story ? kind : undefined,
+      message: String(f.get("message") || "").trim(),
+      email: String(f.get("email") || "").trim() || undefined,
+      story: story ? { id: story.id, title: story.title, url: story.url, source: story.source } : undefined,
+      page: location.href,
+      platform: "web",
+    };
+    submit.disabled = true;
+    status.textContent = "Sending…";
+    try {
+      const how = await sendFeedback(data);
+      dialog.close();
+      toast(how === "sent" ? "Thanks! Your feedback was sent." : "Thanks! Finish sending it on GitHub.");
+    } catch (err) {
+      status.textContent = "Couldn't send that. Please try again in a moment.";
+      submit.disabled = false;
+    }
+  });
+  const dialog = h("dialog", { id: "feedback", class: "fb-dialog", "aria-labelledby": "fb-title" }, form);
+  dialog.addEventListener("close", () => dialog.remove());
+  dialog.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); }); // click outside
+  document.body.append(dialog);
+  dialog.showModal();
 }
 
 function postHead(p) {
@@ -346,6 +455,7 @@ function renderRightRail() {
         h("p", null, "Only good news. Every story is picked from dedicated good-news outlets, or checked for positivity before it gets here."),
         h("p", null, "Sprinkled in: wholesome memes and cute animals, credited to where they were first posted."),
         h("a", { class: "btn btn-primary btn-block", href: document.getElementById("get-app").href }, "📱 Get the Android app"),
+        h("button", { class: "btn btn-block rail-feedback", onclick: () => openFeedback() }, "💬 Send feedback"),
       ),
     ),
     h("div", { class: "rail-links" },
@@ -368,7 +478,7 @@ function sortBar() {
       class: "sort-btn", "aria-label": state.view === "card" ? "Switch to compact view" : "Switch to card view",
       title: state.view === "card" ? "Compact view" : "Card view",
       onclick: () => { state.view = state.view === "card" ? "compact" : "card"; store.set("view", state.view); render(); },
-    }, state.view === "card" ? "☰ Compact" : "▦ Cards"),
+    }, state.view === "card" ? "☰" : "▦", h("span", { class: "view-label" }, state.view === "card" ? " Compact" : " Cards")),
   );
 }
 
@@ -487,7 +597,7 @@ function pagePost(route) {
         !article && discussion ? h("a", { class: "btn btn-primary btn-block", href: discussion, target: "_blank", rel: "noopener" },
           p.kind === "video" ? "▶ Watch it on " : "View the original post on ", domain(discussion)) : null,
       ),
-      actions(p),
+      actions(p, true),
     ),
     related.length ? h("h2", { class: "section-title" }, "More good news like this") : null,
     related.length ? h("div", { class: "feed compact" }, related.map(postRow)) : null,
@@ -574,6 +684,7 @@ async function loadFeed(background) {
 /* ------------------------------------------------------------------ boot */
 
 function setupChrome() {
+  document.getElementById("feedback-btn").addEventListener("click", () => openFeedback());
   const themeBtn = document.getElementById("theme-btn");
   const isDark = () => document.documentElement.dataset.theme
     ? document.documentElement.dataset.theme === "dark"

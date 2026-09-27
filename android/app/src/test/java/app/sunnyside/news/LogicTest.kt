@@ -1,5 +1,7 @@
 package app.sunnyside.news
 
+import app.sunnyside.news.data.FeedbackDraft
+import app.sunnyside.news.data.FeedbackSender
 import app.sunnyside.news.data.Topic
 import app.sunnyside.news.data.PostKind
 import app.sunnyside.news.data.Ranking
@@ -13,6 +15,8 @@ import app.sunnyside.news.work.Scheduler
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import kotlinx.serialization.json.Json
+import okhttp3.OkHttpClient
 import org.junit.Test
 import java.time.Duration
 import java.time.LocalDate
@@ -43,6 +47,8 @@ class LogicTest {
         assertEquals(Topic.Animals, StoryHeuristics.guessCategory("Baby elephant born at Kenyan sanctuary", ""))
         assertEquals(Region.Africa, StoryHeuristics.guessRegion("Baby elephant born in Kenya", ""))
         assertEquals(Region.Global, StoryHeuristics.guessRegion("Scientists find a new way to recycle plastic", ""))
+        assertEquals(Region.UkIreland, StoryHeuristics.guessRegion("Otters return to Scottish rivers", ""))
+        assertEquals(Region.UkIreland, Region.from("UK & Ireland"))
     }
 
     @Test
@@ -55,6 +61,32 @@ class LogicTest {
     fun blocksDarkHeadlines() {
         assertTrue(StoryHeuristics.isHardBlocked("Two killed in crash"))
         assertFalse(StoryHeuristics.isHardBlocked("Volunteers plant a million trees"))
+    }
+
+    @Test
+    fun homeStoriesGetANudge() {
+        val uk = post("uk", hoursAgo = 2).copy(region = Region.UkIreland)
+        val us = post("us", hoursAgo = 2).copy(region = Region.NorthAmerica)
+        assertEquals(listOf("uk", "us"), Ranking.sort(listOf(us, uk), SortMode.Hot, NOW).map { it.id })
+    }
+
+    @Test
+    fun feedbackReportsCarryTheStoryAndFallBackToGitHub() {
+        val sender = FeedbackSender(OkHttpClient(), Json, endpoint = "", repo = "owner/repo", appVersion = "0.4.0", androidVersion = "15")
+        val story = post("otters", hoursAgo = 1).copy(title = "Otters return")
+        val payload = sender.payload(FeedbackDraft("clickbait", "It's clickbait", "  ", "", story))
+        assertEquals("report", payload.kind)
+        assertEquals("clickbait", payload.reason)
+        assertEquals("Report: It's clickbait — Otters return", payload.subject)
+        assertEquals(null, payload.email)
+        assertEquals("otters", payload.story?.id)
+        val url = sender.githubIssueUrl(payload)
+        assertTrue(url.startsWith("https://github.com/owner/repo/issues/new?title=Report%3A+It%27s+clickbait"))
+        assertTrue("Sunnyside+app+0.4.0" in url)
+        val general = sender.payload(FeedbackDraft("idea", "An idea or suggestion", "More UK news", "me@example.com"))
+        assertEquals("idea", general.kind)
+        assertEquals("Feedback: An idea or suggestion", general.subject)
+        assertEquals("me@example.com", general.email)
     }
 
     @Test

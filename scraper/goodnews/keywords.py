@@ -17,8 +17,8 @@ CATEGORIES = [
 ]
 
 REGIONS = [
-    "Africa", "Asia", "Europe", "Latin America",
-    "Middle East", "North America", "Oceania", "Global",
+    "UK & Ireland", "Europe", "North America", "Oceania",
+    "Africa", "Asia", "Latin America", "Middle East", "Global",
 ]
 
 
@@ -47,7 +47,7 @@ _MONEY_WORDS = [
     "epfo", "tax!", "taxes", "budget", "loan", "emi!", "gold price", "petrol price", "fuel price",
     "lottery", "jackpot", "crypto", "bitcoin", "profits!", "revenue", "earnings", "billion-dollar",
     "settlement", "lawsuit", "refund", "compensation", "payout", "unfair", "underpaid", "wage theft",
-    "landlord", "renters", "house prices", "rent!", "rents!",
+    "landlord", "renters", "house prices", "rent!", "rents!", "sued", "sues!", "sue!",
     "admit card", "exam result", "board result", "recruitment", "vacancy", "vacancies", "scheme",
 ]
 MONEY = _rx(_MONEY_WORDS)
@@ -71,7 +71,8 @@ DOOM = _rx([
     "outrage", "slams", "criticis", "feud", "spat", "suffer", "struggl", "poverty", "grief", "mourn",
     "tragic", "tragedy", "funeral", "abandoned", "starv", "hunger", "refugee", "migrant", "deport",
     "shooting", "gun!", "guns!", "stabbed", "killed", "murder", "assault", "cyberattack", "scam",
-    "fined", "die!", "bleach", "heatwave", "heat wave", "warming", "worsen", "loss!", "losses", "losing",
+    "fined", "die!", "bodies", "body of", "landslide", "mudslide", "avalanche", "drown", "hunting", "hunter!",
+    "hunters", "bleach", "heatwave", "heat wave", "warming", "worsen", "loss!", "losses", "losing",
     "lose!", "shrink", "less time", "nightmare",
 ] + _MONEY_WORDS)
 
@@ -82,7 +83,7 @@ POLITICS = _rx([
     "parliament", "senate!", "senator", "congressman", "congresswoman", "prime minister", "chief minister",
     "union minister", "minister!", "ministers!", "ministry", "government", "govt!", "election", "politic",
     "republican", "democrat", "labour party", "conservative party", "tory", "tories",
-    "governor", "lawmaker", "legislat",
+    "governor", "lawmaker", "legislat", "chief whip",
 ])
 
 # Named politicians and parties: a story whose text is about them is politics, whatever
@@ -163,6 +164,7 @@ CATEGORY_KEYWORDS: dict[str, re.Pattern[str]] = {
         "lpga", "ryder cup", "six nations", "tour de france", "grand final", "semifinal",
         "innings", "wicket", "halftime", "half-time", "off the mark", "win over", "matildas",
         "socceroos", "wallabies", "all blacks", "lionesses", "gymnast", "sprinter", "skier", "snowboard",
+        "vs!", "vs.", "game highlights", "match highlights", "espn",
     ]),
 }
 
@@ -183,6 +185,8 @@ OFF_TOPIC = _rx([
     "britain's got talent", "america's got talent", "showbiz", "pop star", "popstar", "movie star",
     "film star", "singer", "rapper", "actress", "actor!", "actors!", "star-studded",
     "royal ascot", "engaged to", "wedding of", "baby bump", "net worth",
+    "bafta", "rock star", "rockstar", "boy band", "girl band", "frontman", "gig!", "gigs!", "world tour",
+    "u2!", "bono!", "coldplay", "ed sheeran", "oasis!", "bafta-nominated",
 ])
 
 # Country / place names -> region. Order matters only for readability.
@@ -207,15 +211,26 @@ _REGION_PLACES: dict[str, list[str]] = {
         "andhra pradesh", "madhya pradesh", "himachal", "uttarakhand", "jharkhand", "goa",
         "rupee", "rupees", "lakh", "crore", "iit", "isro", "modi",
     ],
+    # Before Europe, so a story naming both counts as UK & Ireland.
+    "UK & Ireland": [
+        "uk", "u.k.", "britain", "british", "england", "scotland", "scottish", "wales", "welsh",
+        "ireland", "northern ireland", "nhs", "rnli", "national trust", "london", "manchester",
+        "birmingham", "liverpool", "leeds", "sheffield", "bristol", "newcastle", "nottingham", "leicester",
+        "brighton", "oxford", "cambridge", "yorkshire", "lancashire", "cumbria", "lake district",
+        "cornwall", "cornish", "devon", "dorset", "somerset", "kent", "sussex", "essex", "norfolk", "suffolk",
+        "hampshire", "surrey", "cotswolds", "peak district", "snowdonia", "eryri", "glasgow", "edinburgh",
+        "aberdeen", "dundee", "inverness", "scottish highlands", "hebrides", "orkney", "shetland", "cardiff",
+        "swansea", "belfast", "derry", "dublin", "cork", "galway", "limerick", "waterford", "kilkenny",
+        "county kerry", "county mayo", "donegal", "wicklow", "connemara", "sligo",
+    ],
     "Europe": [
-        "europe", "european", "uk", "u.k.", "britain", "british", "england", "english",
-        "scotland", "scottish", "wales", "welsh", "ireland", "irish", "france", "french",
+        "europe", "european", "france", "french",
         "germany", "german", "spain", "spanish", "italy", "italian", "portugal", "netherlands",
         "dutch", "belgium", "switzerland", "swiss", "austria", "sweden", "swedish", "norway",
         "norwegian", "denmark", "danish", "finland", "finnish", "iceland", "poland", "polish",
         "czech", "slovakia", "hungary", "romania", "bulgaria", "greece", "greek", "croatia",
         "serbia", "slovenia", "estonia", "latvia", "lithuania", "london", "paris", "berlin",
-        "madrid", "rome", "amsterdam", "copenhagen", "stockholm", "dublin", "edinburgh",
+        "madrid", "rome", "amsterdam", "copenhagen", "stockholm",
     ],
     "Latin America": [
         "latin america", "south america", "mexico", "mexican", "brazil", "brazilian",
@@ -262,7 +277,9 @@ def positivity(title: str, summary: str) -> int:
     return score
 
 
-WESTERN_REGIONS = {"Europe", "North America", "Oceania"}
+WESTERN_REGIONS = {"UK & Ireland", "Europe", "North America", "Oceania"}
+# Most readers are here, so their stories get a small boost in "Top stories".
+HOME_REGION = "UK & Ireland"
 
 # Outlets whose stories are almost always about one non-Western region, matched on the
 # publisher's name or web domain (Google News gives us both).
@@ -318,6 +335,11 @@ _TLD_REGION = {
 }
 
 
+def is_uk_ie_site(homepage: str) -> bool:
+    host = urlsplit(homepage).netloc.lower() if homepage else ""
+    return host.endswith((".uk", ".ie"))
+
+
 def region_for_source(source: str, homepage: str = "") -> str | None:
     """Region implied by the outlet itself (e.g. an Indian newspaper), if any."""
     host = urlsplit(homepage).netloc.lower() if homepage else ""
@@ -354,12 +376,21 @@ _CLICKBAIT_RX = re.compile(
     r"\b(?:blows|blew|blowing) (?:up|away)\b|\bslays\b|\bslayed\b|\bnails it\b|\bwins the internet|"
     r"\b(?:volunteers?|help|helpers|donations?) (?:are |is )?(?:needed|wanted)\b|\bappeal for\b|\blooking for volunteers|"
     r"\bwhat to do (?:with|about|if|when)\b|\bsee the (?:winning|best|photos|pictures|images|shots)\b|"
-    r"^good news in history\b",
+    r"\bwhen it'?s on\b|\bhow to watch\b|\bwhere to watch\b|\bfull details\b|\bepisode\b|\bseason \d|"
+    r"^good news in history\b|\bgrants?\s*:|\bfunding opportunit|\bcall for proposals|\bapply now\b",
     re.IGNORECASE,
 )
 _LISTICLE_RX = re.compile(
     r"^(?:the )?\d+\s+(?:\w+\s+){0,2}(?:things|ways|reasons|tips|times|signs|photos|pictures|pics|facts|places|"
     r"books|ideas|moments|stories|habits|foods|lessons|secrets|tricks|products|gifts)\b",
+    re.IGNORECASE,
+)
+
+
+# Swearing, in any source (memes included): Sunnyside is a family-friendly morning read.
+PROFANITY = re.compile(
+    r"\bf[\*u@#]{1,3}c?k|\bfck|\bsh[\*i]t|\bb[\*i]tch|\bc[\*u]nt|\bwtf\b|\bassh[o0]le|\bdick(?:head)?\b|"
+    r"\bbastard|\bpiss(?:ed)?\b|\bcrap\b|\bdamn\b|\bslut|\bwhore|\bnsfw\b",
     re.IGNORECASE,
 )
 
@@ -382,7 +413,7 @@ _TABLOID_RX = re.compile(
     r"boredpanda|bored panda|distractify|upworthy|inspiremore|inspire more|twistedsifter|someecards|"
     r"buzzfeed|\bparade\b|parade\.com|whimsy|shared\.com|diply|viralnova|the dodo|thedodo|"
     r"animalsaroundtheglobe|dogtime|pawtracks|countryliving|"
-    r"yahoo|\bmsn\b|aol\.com|newsbreak|dailyhunt|\bnews18|wionews|\bzee ?news|\bindia\.com",
+    r"fundsforngos|tvguide|tv guide|radiotimes|radio times|espn|sky sports|bbc sport|the athletic|yahoo|\bmsn\b|aol\.com|newsbreak|dailyhunt|\bnews18|wionews|\bzee ?news|\bindia\.com",
     re.IGNORECASE,
 )
 
@@ -445,13 +476,13 @@ def is_sport(title: str, summary: str = "") -> bool:
     return bool(CATEGORY_KEYWORDS["Sport"].search(title)) or len(CATEGORY_KEYWORDS["Sport"].findall(summary)) >= 2
 
 
-def passes_keyword_filter(title: str, summary: str, trusted: bool) -> bool:
+def passes_keyword_filter(title: str, summary: str, trusted: bool, min_positivity: int = 3) -> bool:
     if trusted:
         return not is_hard_blocked(title)
     text = f"{title}\n{summary}"
     if is_hard_blocked(text) or DOOM.search(text):
         return False
-    return positivity(title, summary) >= 3
+    return positivity(title, summary) >= min_positivity
 
 
 def guess_category(title: str, summary: str) -> str:
@@ -463,7 +494,19 @@ def guess_category(title: str, summary: str) -> str:
     return best
 
 
+# Places elsewhere that share a UK or Irish name.
+_NOT_UK = re.compile(
+    r"new england|new london|\bscotland(?=,? county| county|,? (?:s\.?d|ct|conn|pa|tx|ga)\b)|"
+    r"\b(?:dublin|london|birmingham|manchester|cambridge|oxford|kent|cork|belfast|newcastle|brighton|"
+    r"bristol|leeds|glasgow|aberdeen|sheffield|norfolk|essex|devon|cornwall|durham)(?=\s*,\s*"
+    r"(?:ohio|oh|calif|california|ca|ga|georgia|va|virginia|ky|kentucky|tx|texas|al|ala|alabama|nh|mass|"
+    r"massachusetts|ma|conn|ct|ontario|ont|ms|miss|mississippi|wash|wa|me|maine|ny|pa|nc|sc|tn|fl|nsw|n\.s\.w)\b)",
+    re.IGNORECASE,
+)
+
+
 def guess_region(title: str, summary: str) -> str:
+    title, summary = _NOT_UK.sub(" ", title), _NOT_UK.sub(" ", summary)
     best, best_hits = "Global", 0
     for region, rx in _REGION_RX.items():
         hits = 2 * len(rx.findall(title)) + len(rx.findall(summary))
