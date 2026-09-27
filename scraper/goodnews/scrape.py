@@ -523,6 +523,9 @@ def main(argv: list[str] | None = None) -> int:
     counts = Counter(s["community"] for s in feed["stories"])
     log.info("Wrote %s with %d posts and %d pets", out / "feed.json", len(feed["stories"]), len(feed["pets"]))
     log.info("Posts per community: %s", ", ".join(f"{c}: {n}" for c, n in sorted(counts.items())))
+    clips = [s for s in feed["stories"] if s.get("kind") == "video"]
+    log.info("Clips: %d (%d playable). Example: %s", len(clips), sum(1 for s in clips if s.get("videoUrl")),
+             next((s["videoUrl"] for s in clips if s.get("videoUrl")), "none"))
     if not feed["stories"]:
         log.error("Feed is empty — every source failed?")
         return 1
