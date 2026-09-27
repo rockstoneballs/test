@@ -117,6 +117,10 @@ CLICKBAIT = [
     "Heartwarming moment toddler meets his baby sister goes viral",
     "The internet is loving this grandma's garden",
     "You won't believe what this farmer found",
+    "Volunteers needed to help deliver life-saving training",
+    "From fire starters to compost: what to do with dryer lint",
+    "Good News in History September 24",
+    "Maryland's Natural Beauty Showcased in State Calendar Photo Contest: See the Winning Images",
 ]
 REAL_NEWS = [
     "Dog rescued from cliff ledge at landmark waterfall",
@@ -146,3 +150,18 @@ def test_clickbait_and_tabloids_are_unwanted():
     assert not unwanted(dict(base, title="Otters return to every county in England"))
     # Memes are allowed to be silly.
     assert not unwanted(dict(base, kind="image", title="You won't believe this cat"))
+
+
+def test_gloomy_stories_found_in_the_live_feed_are_caught():
+    from goodnews.scrape import grim_inside
+    base = {"kind": "article", "summary": "", "community": "Community", "sourceHomepage": ""}
+    assert unwanted(dict(base, title="Radio signals heard from planet beyond Earth's solar system", source="the-sun.com",
+                         sourceHomepage="https://www.the-sun.com"))
+    assert unwanted(dict(base, title="Governor urges graduates to become job creators", source="The Hindu"))
+    assert unwanted(dict(base, title="Landlords quitting 'in droves' since Renters' Rights Act", source="Lemmy"))
+    for t in ["All seven baby rabbits rescued in Singapore's Seletar die",
+              "Global coral reefs get less time to recover as oceans heat up, report finds"]:
+        assert not keywords.passes_keyword_filter(t, "", trusted=False), t
+    story = {"source": "KSWO", "checkedBy": "keywords",
+             "body": "Wildfire smoke forced volunteers to cut the clean-up short.\n\nThey will return next week."}
+    assert grim_inside(story)

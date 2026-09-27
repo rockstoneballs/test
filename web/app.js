@@ -281,11 +281,9 @@ function media(p, detail) {
   );
 }
 
-function linkChip(p) {
-  const url = safeUrl(p.url);
-  if (!url || (p.kind || "article") !== "article") return null;
-  return h("a", { class: "link-chip", href: url, target: "_blank", rel: "noopener" },
-    h("span", null, domain(url)), h("span", { html: ICON.out }));
+// A story's opening paragraphs, as stored by the scraper ("" if none).
+function paragraphs(p) {
+  return (p.body || "").split(/\n\s*\n/).map((t) => t.trim()).filter(Boolean);
 }
 
 function postCard(p) {
@@ -295,7 +293,8 @@ function postCard(p) {
     h("h2", { class: "post-title" }, h("a", { href }, p.title), flair(p)),
     media(p, false),
     p.summary ? h("p", { class: "post-summary" }, p.summary) : null,
-    linkChip(p),
+    // News opens on Sunnyside first; the original is one tap further, on the post page.
+    p.body ? h("a", { class: "read-more", href }, "Read the story →") : null,
     actions(p),
   );
 }
@@ -453,6 +452,19 @@ function pageSearch(route) {
   ];
 }
 
+// The story itself: Claude's summary (when there is one) and the article's opening
+// paragraphs, credited to the outlet. Without an excerpt, just the summary.
+function storyText(p) {
+  const paras = paragraphs(p);
+  if (!paras.length) return p.summary ? h("p", { class: "post-summary" }, p.summary) : null;
+  const written = p.checkedBy === "claude" && p.summary;
+  return h("div", { class: "story" },
+    written ? h("p", { class: "story-lede" }, h("strong", null, "In short: "), p.summary) : null,
+    h("div", { class: "story-body" }, paras.map((t) => h("p", null, t))),
+    h("p", { class: "story-credit" }, `The opening of the story, from ${p.source}.`),
+  );
+}
+
 function pagePost(route) {
   const p = state.byId.get(route.arg) || state.saved[route.arg];
   if (!p) return empty("🍃", "Post not found", "It may have drifted out of the feed. Posts stay for about a week.");
@@ -468,9 +480,10 @@ function pagePost(route) {
       h("h1", { class: "post-title" }, p.title, flair(p),
         p.region && p.region !== "Global" ? h("span", { class: "flair", style: "background:var(--surface-2)" }, "📍 " + p.region) : null),
       media(p, true),
-      p.summary ? h("p", { class: "post-summary" }, p.summary) : null,
+      storyText(p),
       h("div", { class: "detail-cta" },
-        article && url ? h("a", { class: "btn btn-primary btn-block", href: url, target: "_blank", rel: "noopener" }, `Read the full story on ${domain(url)} `, h("span", { html: ICON.out })) : null,
+        article && url ? h("a", { class: "btn btn-primary btn-block", href: url, target: "_blank", rel: "noopener" },
+          `${p.body ? "Continue reading" : "Read the full story"} on ${domain(url)} `, h("span", { html: ICON.out })) : null,
         !article && discussion ? h("a", { class: "btn btn-primary btn-block", href: discussion, target: "_blank", rel: "noopener" },
           p.kind === "video" ? "▶ Watch it on " : "View the original post on ", domain(discussion)) : null,
       ),

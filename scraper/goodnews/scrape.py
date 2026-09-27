@@ -458,10 +458,11 @@ def add_article_text(session: requests.Session, stories: list[dict]) -> None:
 
 def grim_inside(story: dict) -> bool:
     """For stories that only passed the keyword filter on their headline: is the
-    article itself about something grim?"""
+    article itself about something grim? (Anything violent, or a gloomy opening.)"""
     if story.get("checkedBy") == "claude" or story.get("source") in TRUSTED_NAMES:
         return False
-    return keywords.is_hard_blocked(story.get("body") or "")
+    body = story.get("body") or ""
+    return keywords.is_hard_blocked(body) or bool(keywords.DOOM.search(body.split("\n\n", 1)[0]))
 
 
 def build_feed(
@@ -656,6 +657,8 @@ def main(argv: list[str] | None = None) -> int:
         for st in news:
             words = len((st.get("body") or "").split())
             log.info("  - [%s | %s | %d words] %s", st["source"], st.get("region"), words, st["title"][:120])
+            if st.get("body"):
+                log.info("      %s", st["body"][:160].replace("\n\n", " ¶ "))
     regions = Counter(s.get("region", "Global") for s in feed["stories"] if s.get("kind") == "article")
     log.info("News by region: %s", ", ".join(f"{r}: {n}" for r, n in regions.most_common()))
     clips = [s for s in feed["stories"] if s.get("kind") == "video"]

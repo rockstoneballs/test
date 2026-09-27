@@ -58,6 +58,22 @@ class LogicTest {
     }
 
     @Test
+    fun skipsClickbait() {
+        assertTrue(StoryHeuristics.isClickbait("This Dad's Reaction Will Melt Your Heart"))
+        assertTrue(StoryHeuristics.isClickbait("10 Things That Made Us Smile This Week"))
+        assertTrue(StoryHeuristics.isClickbait("Could this new battery change everything?"))
+        assertFalse(StoryHeuristics.isClickbait("400 volunteers plant 10,000 trees in Devon"))
+        assertFalse(StoryHeuristics.isClickbait("Rare white kiwi hatches at Pukaha"))
+    }
+
+    @Test
+    fun storyBodySplitsIntoParagraphs() {
+        val story = post("a", hoursAgo = 1).copy(body = "First paragraph.\n\nSecond paragraph.\n \nThird.")
+        assertEquals(listOf("First paragraph.", "Second paragraph.", "Third."), story.paragraphs)
+        assertEquals(emptyList<String>(), post("b", hoursAgo = 1).paragraphs)
+    }
+
+    @Test
     fun petNamesAreStablePerDay() {
         val day = LocalDate.of(2026, 9, 26)
         assertEquals(PetNames.pick(PetNames.kittenNames, day, 1), PetNames.pick(PetNames.kittenNames, day, 1))

@@ -47,6 +47,7 @@ _MONEY_WORDS = [
     "epfo", "tax!", "taxes", "budget", "loan", "emi!", "gold price", "petrol price", "fuel price",
     "lottery", "jackpot", "crypto", "bitcoin", "profits!", "revenue", "earnings", "billion-dollar",
     "settlement", "lawsuit", "refund", "compensation", "payout", "unfair", "underpaid", "wage theft",
+    "landlord", "renters", "house prices", "rent!", "rents!",
     "admit card", "exam result", "board result", "recruitment", "vacancy", "vacancies", "scheme",
 ]
 MONEY = _rx(_MONEY_WORDS)
@@ -70,7 +71,8 @@ DOOM = _rx([
     "outrage", "slams", "criticis", "feud", "spat", "suffer", "struggl", "poverty", "grief", "mourn",
     "tragic", "tragedy", "funeral", "abandoned", "starv", "hunger", "refugee", "migrant", "deport",
     "shooting", "gun!", "guns!", "stabbed", "killed", "murder", "assault", "cyberattack", "scam",
-    "fined",
+    "fined", "die!", "bleach", "heatwave", "heat wave", "warming", "worsen", "loss!", "losses", "losing",
+    "lose!", "shrink", "less time", "nightmare",
 ] + _MONEY_WORDS)
 
 # Politics and politicians: never Sunnyside material, from any source.
@@ -80,6 +82,7 @@ POLITICS = _rx([
     "parliament", "senate!", "senator", "congressman", "congresswoman", "prime minister", "chief minister",
     "union minister", "minister!", "ministers!", "ministry", "government", "govt!", "election", "politic",
     "republican", "democrat", "labour party", "conservative party", "tory", "tories",
+    "governor", "lawmaker", "legislat",
 ])
 
 UPLIFT = _rx([
@@ -334,7 +337,10 @@ _CLICKBAIT_RX = re.compile(
     r"\bseeks?\b|\bseeking\b|\bsign up\b|\bapplications? (?:are )?(?:now )?open|\bhow to apply|\btickets?\b|"
     r"\bcall for (?:volunteers|entries|applications)|\bwhat to know\b|\beverything (?:we|you) know|"
     r"\bjust (?:obliterated|destroyed|nailed|crushed|schooled|owned|shut down|broke the)\b|^they (?:said|told)\b|"
-    r"\b(?:blows|blew|blowing) (?:up|away)\b|\bslays\b|\bslayed\b|\bnails it\b|\bwins the internet",
+    r"\b(?:blows|blew|blowing) (?:up|away)\b|\bslays\b|\bslayed\b|\bnails it\b|\bwins the internet|"
+    r"\b(?:volunteers?|help|helpers|donations?) (?:are |is )?(?:needed|wanted)\b|\bappeal for\b|\blooking for volunteers|"
+    r"\bwhat to do (?:with|about|if|when)\b|\bsee the (?:winning|best|photos|pictures|images|shots)\b|"
+    r"^good news in history\b",
     re.IGNORECASE,
 )
 _LISTICLE_RX = re.compile(
@@ -356,7 +362,7 @@ def is_clickbait(title: str) -> bool:
 # clickbait. Matched against the outlet's name and website.
 _TABLOID_RX = re.compile(
     r"daily ?mail|mail ?online|mirror\.co\.uk|\bthe mirror\b|daily mirror|\bexpress\.co\.uk|daily express|"
-    r"thesun\.|\bthe sun\b|dailystar\.|daily star|dailyrecord|daily record|\bmetro\.co\.uk|^metro$|"
+    r"thesun\.|the-sun\.com|\bthe sun\b|\bthe us sun\b|dailystar\.|daily star|dailyrecord|daily record|\bmetro\.co\.uk|^metro$|"
     r"ladbible|unilad|\bthe tab\b|newsweek|nypost|new york post|pagesix|\btmz\b|eonline|e! online|"
     r"people\.com|^people$|usmagazine|us weekly|hellomagazine|hello!|ok!|closer ?online|\bheat ?world|"
     r"boredpanda|bored panda|distractify|upworthy|inspiremore|inspire more|twistedsifter|someecards|"

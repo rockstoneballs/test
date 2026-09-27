@@ -47,13 +47,12 @@ stories, then one meme or animal post. **Latest** is simply newest first.
 
 * **Dedicated good-news outlets** are included as-is: Good News Network,
   Positive News, Reasons to be Cheerful, The Optimist Daily, YES!, The Guardian's
-  *The Upside*, Good Good Good, Nice News, Inspire More, Squirrel News and Sunny
-  Skyz.
+  *The Upside*, Good Good Good, Nice News and Squirrel News.
 * **World and science news** only gets in if it passes the positivity filter.
   Sources: BBC (world, science, England), NPR, The Guardian (UK, environment,
   science), Sky News, DW, France 24, CBC, ABC Australia, RNZ, RTÉ, ScienceDaily,
   Phys.org, ScienceAlert, New Atlas, NASA, Smithsonian, Mongabay, and Google News
-  searches ("heartwarming", "act of kindness", "conservation success"…) in its US, UK,
+  searches ("conservation success", "charity raises", "volunteers"…) in its US, UK,
   Canadian, Australian, Irish and New Zealand editions.
 * **Western focus.** Most readers are in the UK, Europe, North America and Oceania,
   so at most about 10% of news stories come from Asia, Africa, Latin America or the
@@ -69,9 +68,18 @@ stories, then one meme or animal post. **Latest** is simply newest first.
   animals stay for 3 days, news for 7, and memes for up to 30 (they don't go stale).
 * **Left out on purpose:** posts not written in English, celebrity and showbiz news,
   anything about royalty or monarchies, politics, money and markets (pay rises, tax,
-  share prices, lawsuits and settlements), and all sport. These rules apply to every
+  share prices, lawsuits and settlements), all sport, and clickbait: teaser and hype
+  headlines ("will melt your heart", "you won't believe"), listicles, questions,
+  advice pieces, appeals and notices, and tabloid or viral-video sites. These rules apply to every
   source, including posts already in the feed (`unwanted()` in `scraper/goodnews/scrape.py`,
   word lists in `scraper/goodnews/keywords.py`).
+* **Read it on Sunnyside first.** Each news story keeps its opening paragraphs (up
+  to 200 words), taken from the outlet's feed when it publishes full text, otherwise
+  from the article page (`scraper/goodnews/articles.py`). The website's post page and
+  the app's story screen show them, credited, with a **Continue reading** button to the
+  original. Pages marked `nosnippet` are respected, and Google News links are resolved
+  to the publisher's own page. With `ANTHROPIC_API_KEY` set, Claude also writes a short
+  "In short" summary from the article.
 * **Clips** (9GAG and Imgur animations, Reddit videos) are stored as direct MP4 links.
   The website plays them inline, muted and looping, while they're on screen; the app plays
   them on the post page, with a button to turn the sound on.
