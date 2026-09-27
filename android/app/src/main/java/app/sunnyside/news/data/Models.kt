@@ -115,7 +115,7 @@ enum class Community(val label: String, val emoji: String, val color: Long, val 
 
     companion object {
         fun from(label: String?): Community =
-            entries.firstOrNull { it.label.equals(label, ignoreCase = true) } ?: Community.Community
+            entries.firstOrNull { it.label.equals(label, ignoreCase = true) } ?: valueOf("Community")
     }
 }
 

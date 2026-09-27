@@ -8,11 +8,13 @@ Reddit:
   * Without credentials we try the public JSON endpoints and stop at the first
     block, so we never hammer Reddit.
 
-Lemmy: open API, no key needed.
+Lemmy and Mastodon: open APIs, no key needed. Mastodon hashtags like
+#CatsOfMastodon are a steady source of cute animals with real favourite counts.
 """
 
 from __future__ import annotations
 
+import html
 import logging
 import os
 import re
@@ -174,7 +176,8 @@ def fetch_lemmy(session: requests.Session, src: SocialSource) -> list[dict]:
     try:
         r = session.get(
             f"https://{instance}/api/v3/post/list",
-            params={"community_name": community, "sort": "Hot", "limit": 50, "type_": "All"},
+            # TopWeek rather than Hot: some communities are quiet, and Hot can surface old posts.
+            params={"community_name": community, "sort": "TopWeek", "limit": 50, "type_": "All"},
             timeout=20,
         )
         r.raise_for_status()
@@ -218,6 +221,67 @@ def fetch_lemmy(session: requests.Session, src: SocialSource) -> list[dict]:
             "score": int(counts.get("score", 0)),
             "comments": int(counts.get("comments", 0)),
             "discussionUrl": discussion,
+        })
+    items.sort(key=lambda i: i["score"], reverse=True)
+    return items[:src.limit]
+
+
+_TAG_RX = re.compile(r"<[^>]+>")
+_HASHTAG_RX = re.compile(r"(?:^|\s)#\w+")
+_URL_RX = re.compile(r"https?://\S+")
+
+
+def _toot_title(content_html: str, fallback: str) -> str:
+    """First sentence-ish of a toot, without HTML, links or trailing hashtags."""
+    text = html.unescape(_TAG_RX.sub(" ", content_html.replace("<br>", "\n").replace("</p>", "\n")))
+    text = _URL_RX.sub("", text)
+    text = _HASHTAG_RX.sub("", text)
+    text = re.sub(r"\s+", " ", text).strip(" .-–—:")
+    if len(text) > 160:
+        text = text[:160].rsplit(" ", 1)[0] + "…"
+    return text or fallback
+
+
+def fetch_mastodon(session: requests.Session, src: SocialSource) -> list[dict]:
+    """``src.name`` is "tag@instance", e.g. "CatsOfMastodon@mastodon.social"."""
+    tag, _, instance = src.name.partition("@")
+    try:
+        r = session.get(f"https://{instance}/api/v1/timelines/tag/{tag}", params={"limit": 40, "only_media": "true"}, timeout=20)
+        r.raise_for_status()
+        statuses = r.json()
+    except (requests.RequestException, ValueError) as e:
+        log.warning("mastodon #%s: %s", tag, e)
+        return []
+
+    items = []
+    for st in statuses if isinstance(statuses, list) else []:
+        if st.get("sensitive") or st.get("spoiler_text") or st.get("reblog"):
+            continue
+        score = int(st.get("favourites_count", 0)) + int(st.get("reblogs_count", 0))
+        if score < src.min_score:
+            continue
+        media = next((m for m in st.get("media_attachments", []) if m.get("type") in ("image", "gifv")), None)
+        if not media or not str(media.get("url", "")).startswith("https://"):
+            continue
+        meta = (media.get("meta") or {}).get("original") or {}
+        account = st.get("account", {})
+        fallback = "Today's cute animal" if src.community == "Aww" else "A little bit of joy"
+        items.append({
+            "title": _toot_title(st.get("content", ""), media.get("description") or fallback),
+            "summary": "",
+            "url": st.get("url") or st.get("uri"),
+            "imageUrl": media.get("preview_url") if media.get("type") == "gifv" else media["url"],
+            "imageWidth": meta.get("width"),
+            "imageHeight": meta.get("height"),
+            "source": f"#{tag}",
+            "sourceHomepage": f"https://{instance}/tags/{tag}",
+            "publishedAt": _parse_lemmy_time(st.get("created_at", "")),
+            "kind": "video" if media.get("type") == "gifv" else "image",
+            "community": src.community,
+            "author": "@" + account.get("acct", "unknown"),
+            "score": score,
+            "comments": int(st.get("replies_count", 0)),
+            "discussionUrl": st.get("url") or st.get("uri"),
         })
     items.sort(key=lambda i: i["score"], reverse=True)
     return items[:src.limit]

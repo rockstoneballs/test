@@ -10,8 +10,8 @@ Three kinds of source:
 * Reddit communities: good-news link posts (r/UpliftingNews) plus wholesome
   memes, cute animals and "made me smile" posts. These carry real upvote and
   comment counts, which drive the Hot/Top sorting in the apps.
-* Lemmy communities: the fediverse equivalents, with an open API. They also
-  keep memes flowing if Reddit rate-limits us.
+* Lemmy communities and Mastodon hashtags: the fediverse equivalents, with
+  open APIs. They keep memes and cute animals flowing if Reddit blocks us.
 
 A dead or blocked source is logged and skipped; it never fails the run.
 """
@@ -43,8 +43,8 @@ class SocialSource:
     articles, classified like any other story); otherwise it's the fixed
     community image posts are filed under.
     """
-    platform: str  # "reddit" | "lemmy"
-    name: str  # subreddit, or community@instance for Lemmy
+    platform: str  # "reddit" | "lemmy" | "mastodon"
+    name: str  # subreddit; community@instance for Lemmy; hashtag@instance for Mastodon
     community: str | None
     min_score: int = 50
     limit: int = 15
@@ -70,7 +70,6 @@ SOURCES: list[Source] = [
     Source("Squirrel News", "https://squirrel-news.net/feed/", True, "https://squirrel-news.net"),
     Source("The Better India", "https://thebetterindia.com/feed/", True, "https://thebetterindia.com"),
     Source("Sunny Skyz", "https://www.sunnyskyz.com/rss_tebow.php", True, "https://www.sunnyskyz.com"),
-    Source("Future Crunch", "https://futurecrunch.com/feed/", True, "https://futurecrunch.com"),
     # Mainstream, regional and science outlets, filtered for positivity.
     Source("BBC News", "https://feeds.bbci.co.uk/news/world/rss.xml", False, "https://www.bbc.co.uk/news"),
     Source("BBC Science", "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml", False,
@@ -122,4 +121,12 @@ SOCIAL_SOURCES: list[SocialSource] = [
     SocialSource("lemmy", "aww@lemmy.world", AWW, min_score=20, limit=10),
     SocialSource("lemmy", "mademesmile@lemmy.world", SMILES, min_score=20, limit=10),
     SocialSource("lemmy", "upliftingnews@lemmy.world", None, min_score=10, limit=10),
+    SocialSource("lemmy", "cats@lemmy.world", AWW, min_score=20, limit=8),
+    SocialSource("lemmy", "dogs@lemmy.world", AWW, min_score=20, limit=8),
+    SocialSource("lemmy", "wholesome@lemmy.world", SMILES, min_score=10, limit=8),
+    # Mastodon hashtags (open API). Score = favourites + boosts.
+    SocialSource("mastodon", "CatsOfMastodon@mastodon.social", AWW, min_score=30, limit=10),
+    SocialSource("mastodon", "DogsOfMastodon@mastodon.social", AWW, min_score=30, limit=10),
+    SocialSource("mastodon", "Caturday@mastodon.social", AWW, min_score=30, limit=6),
+    SocialSource("mastodon", "wholesome@mastodon.social", SMILES, min_score=10, limit=6),
 ]

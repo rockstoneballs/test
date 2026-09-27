@@ -31,7 +31,7 @@ import requests
 from . import keywords
 from .classifier import ClaudeClassifier
 from .pets import pets_for_today
-from .social import RedditClient, fetch_lemmy, fetch_reddit
+from .social import RedditClient, fetch_lemmy, fetch_mastodon, fetch_reddit
 from .sources import SOCIAL_COMMUNITIES, SOCIAL_SOURCES, SOURCES, Source
 
 log = logging.getLogger("goodnews")
@@ -208,10 +208,12 @@ def fetch_social(session: requests.Session) -> list[dict]:
         got = fetch_reddit(reddit, src)
         log.info("r/%s: %d posts", src.name, len(got))
         results += got
-    lemmy = [s for s in SOCIAL_SOURCES if s.platform == "lemmy"]
-    with ThreadPoolExecutor(max_workers=4) as pool:
-        for src, got in zip(lemmy, pool.map(lambda s: fetch_lemmy(session, s), lemmy)):
-            log.info("lemmy %s: %d posts", src.name, len(got))
+    fetchers = {"lemmy": fetch_lemmy, "mastodon": fetch_mastodon}
+    open_apis = [s for s in SOCIAL_SOURCES if s.platform in fetchers]
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        for src, got in zip(open_apis, pool.map(lambda s: fetchers[s.platform](session, s), open_apis)):
+            newest = max((g["publishedAt"] for g in got), default=None)
+            log.info("%s %s: %d posts (newest %s)", src.platform, src.name, len(got), newest and iso(newest))
             results += got
     return [_item(trusted=True, **r) for r in results]
 
@@ -248,6 +250,8 @@ def select_good_news(candidates: list[dict], use_claude: bool) -> list[dict]:
     selected = []
     for story in candidates:
         if keywords.is_hard_blocked(story["title"]):
+            if story["community"] is not None:
+                log.info("Blocked %s post: %s", story["source"], story["title"][:80])
             continue
         if story["community"] is not None:
             story.update(region="Global", uplift=SOCIAL_UPLIFT)
@@ -367,9 +371,11 @@ def build_feed(
     candidates: list[dict] = []
     cand_by_id: dict[str, dict] = {}
     cand_by_title: dict[str, dict] = {}
+    dropped: Counter[str] = Counter()
     for item in scraped:
         published = item["publishedAt"] or now
         if published < cutoff or published > now + timedelta(hours=6):
+            dropped[f"{item['source']}: too old"] += 1
             continue
         key = title_key(item["title"])
         existing = by_id.get(item["id"]) or by_title.get(key)
@@ -393,6 +399,9 @@ def build_feed(
         cand_by_id[item["id"]] = item
         cand_by_title[key] = item
     log.info("%d scraped, %d new candidates", len(scraped), len(candidates))
+    social_drops = {k: v for k, v in dropped.items() if k.startswith(("r/", "Lemmy", "#"))}
+    if social_drops:
+        log.info("Dropped social posts: %s", ", ".join(f"{k} ×{v}" for k, v in sorted(social_drops.items())))
 
     fresh = select_good_news(candidates, use_claude)
     log.info("%d new posts (%s)", len(fresh), ", ".join(

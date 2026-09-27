@@ -161,3 +161,25 @@ def test_social_communities_are_capped(monkeypatch):
     monkeypatch.setattr(scrape, "fetch_social", lambda session: posts)
     feed = scrape.build_feed(requests.Session(), {"stories": [], "pets": []}, NOW, fetch_images=False, fetch_pets=False)
     assert len(feed["stories"]) == 3
+
+
+def test_mastodon_hashtag_posts():
+    from goodnews.social import fetch_mastodon
+    session = FakeSession({"mastodon.social/api/v1/timelines/tag/CatsOfMastodon": FakeResponse([
+        {"url": "https://mastodon.social/@kit/1", "created_at": "2026-09-26T10:00:00.000Z",
+         "content": "<p>Meet Pickle, who has claimed the laundry basket <a href='https://x'>#CatsOfMastodon</a></p>",
+         "favourites_count": 120, "reblogs_count": 30, "replies_count": 4, "sensitive": False, "spoiler_text": "",
+         "account": {"acct": "kit@example.org"},
+         "media_attachments": [{"type": "image", "url": "https://files.mastodon.social/cat.jpg",
+                                "meta": {"original": {"width": 800, "height": 1000}}}]},
+        {"url": "https://mastodon.social/@x/2", "created_at": "2026-09-26T10:00:00Z", "content": "<p>cw</p>",
+         "favourites_count": 999, "reblogs_count": 0, "sensitive": True, "spoiler_text": "",
+         "account": {"acct": "x"}, "media_attachments": [{"type": "image", "url": "https://files/x.jpg"}]},
+    ])})
+    items = fetch_mastodon(session, SocialSource("mastodon", "CatsOfMastodon@mastodon.social", AWW, min_score=10))
+    assert len(items) == 1
+    cat = items[0]
+    assert cat["title"] == "Meet Pickle, who has claimed the laundry basket"
+    assert cat["score"] == 150 and cat["comments"] == 4
+    assert (cat["imageWidth"], cat["imageHeight"]) == (800, 1000)
+    assert cat["author"] == "@kit@example.org" and cat["kind"] == "image"
