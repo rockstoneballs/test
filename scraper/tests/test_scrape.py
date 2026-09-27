@@ -156,7 +156,7 @@ def test_feed_focuses_on_the_west(fixtures):
     western = [dict(base, id=f"w{i}", title=f"Volunteers restore village hall {i}", url=f"https://x/w{i}",
                     source="BBC News", region="Europe", uplift=6) for i in range(20)]
     indian = [dict(base, id=f"i{i}", title=f"Bengaluru volunteers plant trees {i}", url=f"https://x/i{i}",
-                   source="The Better India", region="Global", uplift=5 + i % 5) for i in range(10)]
+                   source="Hindustan Times", region="Global", uplift=5 + i % 5) for i in range(10)]
     feed = build_feed(requests.Session(), {"stories": western + indian, "pets": []}, NOW,
                       fixtures=fixtures, fetch_images=False, fetch_pets=False)
     news = [s for s in feed["stories"] if s["kind"] == "article"]
@@ -190,6 +190,10 @@ LIVE_BAD = [
     ("Ashutosh Ranka, CJP volunteers detained in Assam during peaceful meeting", "", "thehindu.com",
      "https://www.thehindu.com"),
     ("Good news for central government employees: DA hike announced", "", "Moneycontrol", "https://www.moneycontrol.com"),
+    ("New York City Collects $131 Million From DoorDash for Delivery Workers Unfairly Paid After $13 Billion Profit",
+     "", "Good News Network", "https://www.goodnewsnetwork.org"),
+    ("They said there's no English rhyme for \u201csilver.\u201d Eminem just obliterated the challenge.", "", "Upworthy",
+     "https://www.upworthy.com"),
 ]
 
 
@@ -206,8 +210,8 @@ def test_live_bad_headlines_never_lead(fixtures):
     feed = build_feed(requests.Session(), {"stories": bad + good, "pets": []}, NOW,
                       fixtures=fixtures, fetch_images=False, fetch_pets=False)
     kept = {s["id"]: s for s in feed["stories"]}
-    # Politics, conflict, detentions and finance clickbait are gone entirely...
-    for i in (0, 2, 3, 4):
+    # Politics, conflict, detentions, money stories and dropped sources are gone entirely...
+    for i in (0, 2, 3, 4, 5, 6):
         assert f"bad{i}" not in kept, LIVE_BAD[i][0]
     # ...and anything non-Western that's left is ranked well below the good stories.
     top = scrape.top_stories(feed["stories"], NOW, n=5)
@@ -226,3 +230,11 @@ def test_politics_is_unwanted():
     assert scrape.unwanted(story)
     assert not scrape.unwanted({"kind": "article", "title": "Volunteers open new park", "summary": ""})
     assert scrape.unwanted({"kind": "image", "title": "Ugly truths of everyday sufferings", "summary": ""})
+
+
+def test_charity_headlines_are_not_mistaken_for_money_news():
+    from goodnews import scrape
+    story = {"kind": "article", "title": "Nonprofit gives free bikes to 500 kids", "summary": "", "community": "Community"}
+    assert not scrape.unwanted(story)
+    assert not scrape.unwanted(dict(story, title="Non-profit café trains young people for their first jobs"))
+    assert scrape.unwanted(dict(story, title="Shareholders cheer record profits at Nike"))

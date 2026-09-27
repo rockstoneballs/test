@@ -39,6 +39,18 @@ HARD_BLOCK = _rx([
     "war crime", "execution", "executed",
 ])
 
+# Money, markets, disputes and admin notices: not what anyone means by good news, and
+# they often borrow "good news" headlines. Rejected in titles from every source.
+_MONEY_WORDS = [
+    "stock market", "stocks!", "shares!", "shareholder", "investor", "sensex", "nifty", "ipo!", "gdp",
+    "economy", "interest rate", "mortgage", "pension", "salary", "salaries", "da hike", "pay commission",
+    "epfo", "tax!", "taxes", "budget", "loan", "emi!", "gold price", "petrol price", "fuel price",
+    "lottery", "jackpot", "crypto", "bitcoin", "profits!", "revenue", "earnings", "billion-dollar",
+    "settlement", "lawsuit", "refund", "compensation", "payout", "unfair", "underpaid", "wage theft",
+    "admit card", "exam result", "board result", "recruitment", "vacancy", "vacancies", "scheme",
+]
+MONEY = _rx(_MONEY_WORDS)
+
 # Words that make mainstream stories too gloomy for the feed.
 DOOM = _rx([
     "war!", "wars!", "warfare", "attack", "strike", "missile", "drone strike", "invasion", "troops",
@@ -58,13 +70,8 @@ DOOM = _rx([
     "outrage", "slams", "criticis", "feud", "spat", "suffer", "struggl", "poverty", "grief", "mourn",
     "tragic", "tragedy", "funeral", "abandoned", "starv", "hunger", "refugee", "migrant", "deport",
     "shooting", "gun!", "guns!", "stabbed", "killed", "murder", "assault", "cyberattack", "scam",
-    # Money and markets (not what anyone means by good news).
-    "stock market", "shares!", "sensex", "nifty", "ipo!", "gdp", "economy", "interest rate", "mortgage",
-    "pension", "salary", "da hike", "pay commission", "epfo", "tax!", "taxes", "budget", "loan", "emi!",
-    "gold price", "petrol price", "fuel price", "lottery", "jackpot", "crypto", "bitcoin",
-    # Exams and admin notices that often borrow "good news" headlines.
-    "admit card", "exam result", "board result", "recruitment", "vacancy", "vacancies", "scheme",
-])
+    "fined",
+] + _MONEY_WORDS)
 
 # Politics and politicians: never Sunnyside material, from any source.
 POLITICS = _rx([

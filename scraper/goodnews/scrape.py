@@ -274,11 +274,15 @@ def keyword_uplift(title: str, summary: str, trusted: bool) -> int:
 
 
 TRUSTED_NAMES = {s.name for s in SOURCES if s.trusted}
+# Sources we've dropped; their old posts are cleared from the feed too.
+REMOVED_SOURCES = {"Upworthy", "The Better India", "AllAfrica", "Al Jazeera"}
 
 
 def still_good(story: dict) -> bool:
     """Re-check a previously published article against today's keyword rules (filters get
     stricter over time). Stories Claude approved are left alone."""
+    if story.get("source") in REMOVED_SOURCES:
+        return False
     if story.get("kind", "article") != "article" or story.get("checkedBy") == "claude":
         return True
     source = story.get("source", "")
@@ -286,7 +290,7 @@ def still_good(story: dict) -> bool:
     title, summary = story["title"], story.get("summary") or ""
     if not keywords.passes_keyword_filter(title, summary, trusted):
         return False
-    story["uplift"] = min(story.get("uplift", 5), keyword_uplift(title, summary, trusted))
+    story["uplift"] = keyword_uplift(title, summary, trusted)  # re-scored with today's rules
     if story.get("region") in (None, "Global"):
         story["region"] = keywords.guess_region(title, summary)
     return True
@@ -308,13 +312,13 @@ def is_western(story: dict) -> bool:
 
 def unwanted(story: dict) -> bool:
     """Content Sunnyside leaves out whatever its tone: non-English posts, celebrity and
-    royalty news, politics, and sport. Memes and animal photos are checked by their title."""
+    royalty news, politics, money and markets, and sport. Memes and animal photos are checked by their title."""
     title, summary = story["title"], story.get("summary") or ""
     article = story.get("kind", "article") == "article"
     text = f"{title}\n{summary}" if article else title
     if not keywords.is_english(text) or keywords.is_off_topic(title, summary if article else ""):
         return True
-    if keywords.POLITICS.search(text):
+    if keywords.POLITICS.search(text) or keywords.MONEY.search(title):
         return True
     if not article:
         # Meme and animal titles: nothing sad or grim either.

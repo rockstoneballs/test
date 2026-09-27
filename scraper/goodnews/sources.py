@@ -90,7 +90,6 @@ SOURCES: list[Source] = [
     Source("Sky News UK", "https://feeds.skynews.com/feeds/rss/uk.xml", False, "https://news.sky.com/uk"),
     Source("RNZ", "https://www.rnz.co.nz/rss/national.xml", False, "https://www.rnz.co.nz"),
     Source("RTÉ", "https://www.rte.ie/feeds/rss/?index=/news/", False, "https://www.rte.ie/news"),
-    Source("Upworthy", "https://www.upworthy.com/feeds/feed.rss", True, "https://www.upworthy.com"),
     Source("ScienceDaily", "https://www.sciencedaily.com/rss/top.xml", False, "https://www.sciencedaily.com"),
     Source("Phys.org", "https://phys.org/rss-feed/", False, "https://phys.org"),
     Source("ScienceAlert", "https://www.sciencealert.com/feed", False, "https://www.sciencealert.com"),
@@ -99,20 +98,21 @@ SOURCES: list[Source] = [
     Source("Smithsonian", "https://www.smithsonianmag.com/rss/latest_articles/", False, "https://www.smithsonianmag.com"),
     Source("Mongabay", "https://news.mongabay.com/feed/", False, "https://news.mongabay.com"),
     # Google News searches: a wide net across thousands of outlets worldwide.
-    _google_news('"good news"'),
+    # Specific searches only: a plain "good news" search mostly finds clickbait
+    # ("good news for pensioners…").
     _google_news("heartwarming"),
     _google_news("scientists breakthrough"),
     _google_news("conservation success"),
     _google_news("rescued animal"),
     _google_news("record renewable energy"),
-    _google_news('"good news"', "GB"),
+    _google_news("act of kindness"),
     _google_news("heartwarming", "GB"),
     _google_news("volunteers", "GB"),
-    _google_news('"good news"', "CA"),
-    _google_news('"good news"', "AU"),
+    _google_news("act of kindness", "GB"),
+    _google_news("heartwarming", "CA"),
     _google_news("heartwarming", "AU"),
-    _google_news('"good news"', "IE"),
-    _google_news('"good news"', "NZ"),
+    _google_news("heartwarming", "IE"),
+    _google_news("heartwarming", "NZ"),
 ]
 
 SOCIAL_SOURCES: list[SocialSource] = [
