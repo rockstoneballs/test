@@ -51,9 +51,12 @@ class SocialSource:
     sort: str = "TopWeek"  # Lemmy only
 
 
-def _google_news(query: str) -> Source:
-    url = f"https://news.google.com/rss/search?q={quote_plus(query)}+when:1d&hl=en&gl=US&ceid=US:en"
-    return Source(f"Google News: {query}", url, False, "https://news.google.com")
+def _google_news(query: str, country: str = "US") -> Source:
+    """A Google News search in one country's English edition (US, GB, CA, AU, NZ, IE)."""
+    lang = "en-US" if country == "US" else f"en-{country}"
+    url = (f"https://news.google.com/rss/search?q={quote_plus(query)}+when:1d"
+           f"&hl={lang}&gl={country}&ceid={country}:en")
+    return Source(f"Google News ({country}): {query}", url, False, "https://news.google.com")
 
 
 SOURCES: list[Source] = [
@@ -69,14 +72,12 @@ SOURCES: list[Source] = [
     Source("Nice News", "https://nicenews.com/feed/", True, "https://nicenews.com"),
     Source("Inspire More", "https://www.inspiremore.com/feed/", True, "https://www.inspiremore.com"),
     Source("Squirrel News", "https://squirrel-news.net/feed/", True, "https://squirrel-news.net"),
-    Source("The Better India", "https://thebetterindia.com/feed/", True, "https://thebetterindia.com"),
     Source("Sunny Skyz", "https://www.sunnyskyz.com/rss_tebow.php", True, "https://www.sunnyskyz.com"),
     # Mainstream, regional and science outlets, filtered for positivity.
     Source("BBC News", "https://feeds.bbci.co.uk/news/world/rss.xml", False, "https://www.bbc.co.uk/news"),
     Source("BBC Science", "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml", False,
            "https://www.bbc.co.uk/news/science_and_environment"),
     Source("NPR", "https://feeds.npr.org/1001/rss.xml", False, "https://www.npr.org"),
-    Source("Al Jazeera", "https://www.aljazeera.com/xml/rss/all.xml", False, "https://www.aljazeera.com"),
     Source("The Guardian Environment", "https://www.theguardian.com/environment/rss", False,
            "https://www.theguardian.com/environment"),
     Source("The Guardian Science", "https://www.theguardian.com/science/rss", False, "https://www.theguardian.com/science"),
@@ -84,7 +85,12 @@ SOURCES: list[Source] = [
     Source("France 24", "https://www.france24.com/en/rss", False, "https://www.france24.com"),
     Source("CBC", "https://www.cbc.ca/webfeed/rss/rss-world", False, "https://www.cbc.ca/news"),
     Source("ABC News (Australia)", "https://www.abc.net.au/news/feed/51120/rss.xml", False, "https://www.abc.net.au/news"),
-    Source("AllAfrica", "https://allafrica.com/tools/headlines/rdf/latest/headlines.rdf", False, "https://allafrica.com"),
+    Source("BBC England", "https://feeds.bbci.co.uk/news/england/rss.xml", False, "https://www.bbc.co.uk/news/england"),
+    Source("The Guardian UK", "https://www.theguardian.com/uk-news/rss", False, "https://www.theguardian.com/uk-news"),
+    Source("Sky News UK", "https://feeds.skynews.com/feeds/rss/uk.xml", False, "https://news.sky.com/uk"),
+    Source("RNZ", "https://www.rnz.co.nz/rss/national.xml", False, "https://www.rnz.co.nz"),
+    Source("RTÉ", "https://www.rte.ie/feeds/rss/?index=/news/", False, "https://www.rte.ie/news"),
+    Source("Upworthy", "https://www.upworthy.com/feeds/feed.rss", True, "https://www.upworthy.com"),
     Source("ScienceDaily", "https://www.sciencedaily.com/rss/top.xml", False, "https://www.sciencedaily.com"),
     Source("Phys.org", "https://phys.org/rss-feed/", False, "https://phys.org"),
     Source("ScienceAlert", "https://www.sciencealert.com/feed", False, "https://www.sciencealert.com"),
@@ -99,6 +105,14 @@ SOURCES: list[Source] = [
     _google_news("conservation success"),
     _google_news("rescued animal"),
     _google_news("record renewable energy"),
+    _google_news('"good news"', "GB"),
+    _google_news("heartwarming", "GB"),
+    _google_news("volunteers", "GB"),
+    _google_news('"good news"', "CA"),
+    _google_news('"good news"', "AU"),
+    _google_news("heartwarming", "AU"),
+    _google_news('"good news"', "IE"),
+    _google_news('"good news"', "NZ"),
 ]
 
 SOCIAL_SOURCES: list[SocialSource] = [
