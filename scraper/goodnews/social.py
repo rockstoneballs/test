@@ -177,7 +177,7 @@ def fetch_lemmy(session: requests.Session, src: SocialSource) -> list[dict]:
         r = session.get(
             f"https://{instance}/api/v3/post/list",
             # TopWeek rather than Hot: some communities are quiet, and Hot can surface old posts.
-            params={"community_name": community, "sort": "TopWeek", "limit": 50, "type_": "All"},
+            params={"community_name": community, "sort": src.sort, "limit": 50, "type_": "All"},
             timeout=20,
         )
         r.raise_for_status()

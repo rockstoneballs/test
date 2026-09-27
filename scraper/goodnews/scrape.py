@@ -32,7 +32,7 @@ from . import keywords
 from .classifier import ClaudeClassifier
 from .pets import pets_for_today
 from .social import RedditClient, fetch_lemmy, fetch_mastodon, fetch_reddit
-from .sources import SOCIAL_COMMUNITIES, SOCIAL_SOURCES, SOURCES, Source
+from .sources import MAX_AGE_DAYS, SOCIAL_COMMUNITIES, SOCIAL_SOURCES, SOURCES, Source
 
 log = logging.getLogger("goodnews")
 
@@ -40,7 +40,6 @@ FEED_VERSION = 2
 USER_AGENT = "SunnysideGoodNewsBot/1.1 (+https://github.com/rockstoneballs/test)"
 MAX_OG_IMAGE_LOOKUPS = 80
 SOCIAL_UPLIFT = 7
-SOCIAL_MAX_AGE_DAYS = 3
 MAX_PER_SOCIAL_COMMUNITY = 150
 MIN_UPLIFT_MAINSTREAM = 6
 MIN_UPLIFT_TRUSTED = 3
@@ -360,11 +359,11 @@ def build_feed(
         scraped = fetch_social(session) + scraped
 
     cutoff = now - timedelta(days=max_age_days)
-    social_cutoff = now - timedelta(days=SOCIAL_MAX_AGE_DAYS)
-    prev_stories = [
-        s for s in previous["stories"]
-        if s.get("publishedAt", "") >= iso(social_cutoff if s.get("kind", "article") != "article" else cutoff)
-    ]
+
+    def cutoff_for(community: str | None) -> datetime:
+        return now - timedelta(days=MAX_AGE_DAYS.get(community, max_age_days))
+
+    prev_stories = [s for s in previous["stories"] if s.get("publishedAt", "") >= iso(cutoff_for(s.get("community")))]
     by_id = {s["id"]: s for s in prev_stories}
     by_title = {title_key(s["title"]): s for s in prev_stories}
 
@@ -374,7 +373,7 @@ def build_feed(
     dropped: Counter[str] = Counter()
     for item in scraped:
         published = item["publishedAt"] or now
-        if published < cutoff or published > now + timedelta(hours=6):
+        if published < cutoff_for(item["community"]) or published > now + timedelta(hours=6):
             dropped[f"{item['source']}: too old"] += 1
             continue
         key = title_key(item["title"])

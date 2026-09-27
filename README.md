@@ -16,7 +16,7 @@ and a **Puppy of the Day**.
  │ GitHub Actions: scrape.yml       │ ─────────────▶ │ GitHub Pages                 │
  │  • 30+ good-news & world RSS     │   publishes    │  index.html  ← the website   │
  │  • Google News searches          │                │  feed.json   ← the data      │
- │  • Reddit + Lemmy communities    │                └──────┬───────────────┬───────┘
+ │  • Reddit, Lemmy, Mastodon       │                └──────┬───────────────┬───────┘
  │  • positivity filter (Claude)    │                       │               │
  │  • kitten + puppy of the day     │                  Android app      web browsers
  └──────────────────────────────────┘
@@ -27,11 +27,11 @@ and a **Puppy of the Day**.
 | Community | What's in it | Where it comes from |
 |---|---|---|
 | s/WholesomeMemes 😂 | Feel-good memes | r/wholesomememes, r/wholesome, Lemmy |
-| s/Aww 🥹 | Cute animal photos and videos | r/aww, r/Eyebleach, r/rarepuppers, r/IllegallySmolCats, Lemmy |
-| s/MadeMeSmile 😊 | People (and animals) being lovely | r/MadeMeSmile, r/HumansBeingBros, r/AnimalsBeingBros, Lemmy |
+| s/Aww 🥹 | Cute animal photos and videos | r/aww, r/Eyebleach, r/rarepuppers, r/IllegallySmolCats, Lemmy, Mastodon #CatsOfMastodon / #DogsOfMastodon / #Caturday |
+| s/MadeMeSmile 😊 | People (and animals) being lovely | r/MadeMeSmile, r/HumansBeingBros, r/AnimalsBeingBros, Lemmy, Mastodon #wholesome |
 | s/Science, s/Environment, s/Health, s/Animals, s/Community, s/Innovation, s/Culture, s/Sport | Good-news stories, sorted by topic | Good-news outlets, world news filtered for positivity, Google News, r/UpliftingNews, r/goodnews |
 
-Upvote and comment counts on posts from Reddit and Lemmy are real, and they're
+Upvote and comment counts on posts from Reddit, Lemmy and Mastodon are real, and they're
 refreshed on every scrape. When a news story was also shared on r/UpliftingNews, it
 gets that thread's votes and a link to the discussion. Your own votes, saved posts
 and joined communities stay on your device. There are no accounts yet.
@@ -45,7 +45,7 @@ The cap keeps news, which has no Reddit votes, from being buried under memes.
 * **Dedicated good-news outlets** are included as-is: Good News Network,
   Positive News, Reasons to be Cheerful, The Optimist Daily, YES!, The Guardian's
   *The Upside*, Good Good Good, Nice News, Inspire More, Squirrel News, The Better
-  India, Sunny Skyz and Future Crunch.
+  India and Sunny Skyz.
 * **World and science news** only gets in if it passes the positivity filter.
   Sources: BBC, NPR, Al Jazeera, The Guardian, DW, France 24, CBC, ABC Australia,
   AllAfrica, ScienceDaily, Phys.org, ScienceAlert, New Atlas, NASA, Smithsonian,
@@ -55,9 +55,9 @@ The cap keeps news, which has no Reddit votes, from being buried under memes.
   headline, decides whether it's really good news, scores how uplifting it is,
   tags the topic and region, and writes a short summary. Without a key, a strict
   keyword filter is used instead.
-* **Memes and cute animals** come from Reddit and Lemmy. NSFW and spoiler posts
-  are dropped, and so are posts below a per-community upvote threshold. Posts stay
-  for 3 days; news stays for 7.
+* **Memes and cute animals** come from Reddit, Lemmy and Mastodon. NSFW and spoiler posts
+  are dropped, and so are posts below a per-community upvote threshold. Cute
+  animals stay for 3 days, news for 7, and memes for up to 30 (they don't go stale).
 * A dead source is logged and skipped. It never breaks a run.
 
 ## Setup
@@ -73,7 +73,7 @@ Optional repository secrets (**Settings → Secrets and variables → Actions**)
 | Secret | What it does |
 |---|---|
 | `ANTHROPIC_API_KEY` | Claude decides what counts as good news. Model `claude-opus-5`; override with `GOODNEWS_MODEL`. |
-| `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET` | Reliable Reddit access. Reddit often blocks anonymous requests from GitHub's servers. Create a free "script" app at <https://www.reddit.com/prefs/apps>. Without these, Lemmy still supplies memes. |
+| `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET` | Reliable Reddit access. Reddit often blocks anonymous requests from GitHub's servers. Create a free "script" app at <https://www.reddit.com/prefs/apps>. Without these, Lemmy and Mastodon still supply memes and cute animals. |
 | `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` | Signs release APKs with your own key, so updates install over the previous version. |
 
 On branches other than `main`, the scrape runs as a dry run. The result is

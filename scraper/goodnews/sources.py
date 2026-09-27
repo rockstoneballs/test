@@ -48,6 +48,7 @@ class SocialSource:
     community: str | None
     min_score: int = 50
     limit: int = 15
+    sort: str = "TopWeek"  # Lemmy only
 
 
 def _google_news(query: str) -> Source:
@@ -117,16 +118,20 @@ SOCIAL_SOURCES: list[SocialSource] = [
     SocialSource("reddit", "HumansBeingBros", SMILES, min_score=200, limit=15),
     SocialSource("reddit", "AnimalsBeingBros", SMILES, min_score=200, limit=10),
     # Lemmy (open API, no key needed).
-    SocialSource("lemmy", "wholesomememes@lemmy.world", MEMES, min_score=20, limit=15),
+    SocialSource("lemmy", "wholesomememes@lemmy.world", MEMES, min_score=5, limit=15, sort="TopMonth"),
     SocialSource("lemmy", "aww@lemmy.world", AWW, min_score=20, limit=10),
-    SocialSource("lemmy", "mademesmile@lemmy.world", SMILES, min_score=20, limit=10),
+    SocialSource("lemmy", "mademesmile@lemmy.world", SMILES, min_score=5, limit=10, sort="TopMonth"),
     SocialSource("lemmy", "upliftingnews@lemmy.world", None, min_score=10, limit=10),
-    SocialSource("lemmy", "cats@lemmy.world", AWW, min_score=20, limit=8),
+    SocialSource("lemmy", "cats@lemmy.world", AWW, min_score=5, limit=8),
     SocialSource("lemmy", "dogs@lemmy.world", AWW, min_score=20, limit=8),
-    SocialSource("lemmy", "wholesome@lemmy.world", SMILES, min_score=10, limit=8),
     # Mastodon hashtags (open API). Score = favourites + boosts.
     SocialSource("mastodon", "CatsOfMastodon@mastodon.social", AWW, min_score=30, limit=10),
     SocialSource("mastodon", "DogsOfMastodon@mastodon.social", AWW, min_score=30, limit=10),
     SocialSource("mastodon", "Caturday@mastodon.social", AWW, min_score=30, limit=6),
-    SocialSource("mastodon", "wholesome@mastodon.social", SMILES, min_score=10, limit=6),
+    SocialSource("mastodon", "wholesome@mastodon.social", SMILES, min_score=5, limit=6),
+    SocialSource("mastodon", "WholesomeMemes@mastodon.social", MEMES, min_score=5, limit=10),
+    SocialSource("mastodon", "GoodNews@mastodon.social", SMILES, min_score=10, limit=6),
 ]
+
+# How long posts stay. Memes are evergreen, so a meme community that posts slowly still fills up.
+MAX_AGE_DAYS = {MEMES: 30, AWW: 3, SMILES: 7}
