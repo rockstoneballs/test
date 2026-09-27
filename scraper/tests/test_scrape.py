@@ -262,5 +262,11 @@ def test_grim_articles_behind_harmless_headlines_are_dropped(fixtures):
     story = {"kind": "article", "source": "WPDE", "checkedBy": "keywords",
              "body": "Volunteers gathered after two people were killed in a crash on Friday."}
     assert scrape.grim_inside(story)
-    assert not scrape.grim_inside(dict(story, source="Good News Network"))
+    assert scrape.grim_inside(dict(story, source="Good News Network"))  # violence: never
     assert not scrape.grim_inside(dict(story, checkedBy="claude"))
+    gloomy_start = dict(story, body="Years of drought left the wetland dry.\n\nNow volunteers have brought it back.")
+    assert scrape.grim_inside(gloomy_start)
+    assert not scrape.grim_inside(dict(gloomy_start, source="Good News Network"))  # good-news outlets tell comebacks
+    political = dict(story, source="Good Good Good",
+                     body="President Donald Trump's second term has been a nightmare for climate policy.")
+    assert scrape.grim_inside(political)

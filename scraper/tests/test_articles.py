@@ -165,3 +165,18 @@ def test_gloomy_stories_found_in_the_live_feed_are_caught():
     story = {"source": "KSWO", "checkedBy": "keywords",
              "body": "Wildfire smoke forced volunteers to cut the clean-up short.\n\nThey will return next week."}
     assert grim_inside(story)
+
+
+def test_excerpts_drop_repeated_headlines_syndication_notes_and_bullets():
+    paras = ["Stem cells reverse stroke damage in mice",
+             "This story was originally published by Grist. Sign up for Grist's weekly newsletter here.",
+             "This article was originally written by Kate Pounds for SWNS, the UK's largest news agency.",
+             "- Stem cell transplants helped regenerate stroke-damaged brain tissue in mice, researchers said."]
+    assert articles.excerpt(paras, title="Stem cells reverse stroke damage in mice") == (
+        "Stem cell transplants helped regenerate stroke-damaged brain tissue in mice, researchers said.")
+
+
+def test_pages_without_a_declared_charset_are_read_as_utf8():
+    raw = "The Solar System\u2019s first solid bodies".encode("utf-8")
+    assert articles.decode_page(raw, "ISO-8859-1") == "The Solar System\u2019s first solid bodies"
+    assert articles.decode_page("caf\xe9".encode("cp1252"), None) == "caf\xe9"

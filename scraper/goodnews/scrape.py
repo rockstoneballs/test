@@ -182,7 +182,7 @@ def fetch_source(session: requests.Session, source: Source, fixtures: Path | Non
             trusted=source.trusted,
         ))
         # Many outlets put the whole article in their feed: keep its opening as the excerpt.
-        body = articles.excerpt(articles.paragraphs_from_html(full_text)) if not is_google else ""
+        body = articles.excerpt(articles.paragraphs_from_html(full_text), title=title) if not is_google else ""
         if body and ("\n\n" in body or len(body) > len(items[-1]["summary"]) + 80):
             items[-1]["body"] = body
     log.info("%s: %d items", source.name, len(items))
@@ -442,7 +442,7 @@ def add_article_text(session: requests.Session, stories: list[dict]) -> None:
         return
     stats: Counter[str] = Counter()
     with ThreadPoolExecutor(max_workers=8) as pool:
-        for story, art in zip(todo, pool.map(lambda s: articles.fetch_article(session, s["url"]), todo)):
+        for story, art in zip(todo, pool.map(lambda s: articles.fetch_article(session, s["url"], s.get("title", "")), todo)):
             if art is None:
                 stats["unreachable" if not articles.is_google_news(story["url"]) else "google link not decoded"] += 1
                 continue
@@ -457,12 +457,15 @@ def add_article_text(session: requests.Session, stories: list[dict]) -> None:
 
 
 def grim_inside(story: dict) -> bool:
-    """For stories that only passed the keyword filter on their headline: is the
-    article itself about something grim? (Anything violent, or a gloomy opening.)"""
-    if story.get("checkedBy") == "claude" or story.get("source") in TRUSTED_NAMES:
+    """For stories that only passed the keyword filter on their headline: is the article
+    itself about something grim or political? (Violence or a named politician anywhere in
+    the excerpt; for outlets that aren't dedicated to good news, a gloomy opening too.)"""
+    if story.get("checkedBy") == "claude":
         return False
     body = story.get("body") or ""
-    return keywords.is_hard_blocked(body) or bool(keywords.DOOM.search(body.split("\n\n", 1)[0]))
+    if keywords.is_hard_blocked(body) or keywords.POLITICIANS.search(body):
+        return True
+    return story.get("source") not in TRUSTED_NAMES and bool(keywords.DOOM.search(body.split("\n\n", 1)[0]))
 
 
 def build_feed(

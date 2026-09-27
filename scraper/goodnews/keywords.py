@@ -85,6 +85,14 @@ POLITICS = _rx([
     "governor", "lawmaker", "legislat",
 ])
 
+# Named politicians and parties: a story whose text is about them is politics, whatever
+# its headline says. (Unlike POLITICS, fine to check in article text.)
+POLITICIANS = _rx([
+    "trump!", "biden!", "kamala harris", "vance!", "obama!", "starmer!", "sunak!", "farage!", "badenoch", "reform uk",
+    "putin!", "netanyahu", "zelensky", "xi jinping", "modi!", "bjp!", "macron!", "merz!", "albanese!", "carney!",
+    "poilievre", "luxon!", "republicans", "democrats", "maga!", "labour party", "tory", "tories",
+])
+
 UPLIFT = _rx([
     "breakthrough", "cure", "cured", "rescue", "saved", "saves", "save!", "restor",
     "recover", "reunit", "donat", "volunteer", "celebrat", "first-ever", "first ever",

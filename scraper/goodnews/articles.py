@@ -34,13 +34,14 @@ _WS_RX = re.compile(r"\s+")
 _DROP_BLOCKS_RX = re.compile(r"<(script|style|figure|figcaption|noscript)\b.*?</\1\s*>", re.IGNORECASE | re.DOTALL)
 _BOILERPLATE_RX = re.compile(
     r"^(advertisement|related:|read more|read next|sign up|subscribe|share this|click here|photo:|image:|"
-    r"credit:|watch:|listen:|follow us|this article (was|is) (originally )?(published|republished)|"
-    r"the post .* appeared first on)"
-    r"|(sign up|subscribe) (for|to) (our|the|my) .*newsletter|we use cookies|accept (all )?cookies|"
+    r"credit:|watch:|listen:|follow us|the post .* appeared first on)"
+    r"|\b(originally|first) (published|written|appeared|ran|posted)\b|\brepublished\b|"
+    r"(sign up|subscribe) (for|to) .{0,40}newsletter|we use cookies|accept (all )?cookies|"
     r"enable javascript|your browser (is|does)|all rights reserved|©|subscribe (now|today)|"
     r"support (our|independent) journalism|become a (member|subscriber)|appeared first on",
     re.IGNORECASE,
 )
+_BULLET_RX = re.compile(r"^[-•*–]\s+")
 _ROBOTS_RX = re.compile(r"<meta[^>]+name=[\"'](?:robots|googlebot)[\"'][^>]*>", re.IGNORECASE)
 _NOSNIPPET_RX = re.compile(r"nosnippet|max-snippet\s*:\s*0\b", re.IGNORECASE)
 _OG_IMAGE_RX = re.compile(
@@ -65,13 +66,19 @@ def usable(paragraph: str) -> bool:
     return len(paragraph) >= MIN_PARAGRAPH_CHARS and not _BOILERPLATE_RX.search(paragraph)
 
 
-def excerpt(paragraphs: list[str], max_words: int = EXCERPT_WORDS) -> str:
+def _key(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", text.lower())
+
+
+def excerpt(paragraphs: list[str], max_words: int = EXCERPT_WORDS, title: str = "") -> str:
     """The first few real paragraphs, stopping at ``max_words`` (a paragraph that would
-    go over is cut at a sentence end, or left out)."""
+    go over is cut at a sentence end, or left out). A paragraph that just repeats the
+    headline is skipped."""
     out: list[str] = []
     words = 0
-    for p in (p.strip() for p in paragraphs):
-        if not usable(p):
+    title_key = _key(title)
+    for p in (_BULLET_RX.sub("", p.strip()) for p in paragraphs):
+        if not usable(p) or (title_key and _key(p) == title_key):
             continue
         n = len(p.split())
         if words + n > max_words:
@@ -111,7 +118,7 @@ def og_image_in(page: str) -> str | None:
     return found if found.startswith(("https://", "http://")) else None
 
 
-def extract_page(page: str) -> str:
+def extract_page(page: str, title: str = "") -> str:
     """The story's opening paragraphs from a full article page ("" if none)."""
     if blocks_snippets(page):
         return ""
@@ -121,7 +128,7 @@ def extract_page(page: str) -> str:
         page, include_comments=False, include_tables=False, include_images=False,
         include_links=False, favor_precision=True, deduplicate=True,
     ) or ""
-    return excerpt(text.split("\n"))
+    return excerpt(text.split("\n"), title=title)
 
 
 def _get(session: requests.Session, url: str, timeout: float = 12) -> requests.Response | None:
@@ -182,7 +189,16 @@ def decode_google_news(session: requests.Session, url: str) -> str | None:
     return decoded if isinstance(decoded, str) and decoded.startswith(("https://", "http://")) else None
 
 
-def fetch_article(session: requests.Session, url: str) -> Article | None:
+def decode_page(raw: bytes, declared: str | None) -> str:
+    """Page bytes to text. Most pages are UTF-8 even when the server doesn't say so
+    (requests then guesses Latin-1, which garbles curly quotes), so try UTF-8 first."""
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return raw.decode(declared or "cp1252", "replace")
+
+
+def fetch_article(session: requests.Session, url: str, title: str = "") -> Article | None:
     """Resolve Google News links, then read the page's opening paragraphs and image.
     None if the page couldn't be reached."""
     if is_google_news(url):
@@ -193,9 +209,9 @@ def fetch_article(session: requests.Session, url: str) -> Article | None:
     r = _get(session, url)
     if r is None:
         return None
-    page = r.content.decode(r.encoding or "utf-8", "ignore")
+    page = decode_page(r.content, r.encoding)
     try:
-        body = extract_page(page)
+        body = extract_page(page, title)
     except Exception as e:  # noqa: BLE001 - a bad page must never break a run
         log.debug("Could not extract %s: %s", url, e)
         body = ""
