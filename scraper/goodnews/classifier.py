@@ -35,7 +35,8 @@ delightful animal news, uplifting culture. Mark false if the story centres on \
 death, violence, war, crime, disaster, political conflict, scandal, economic pain or \
 fear, even if it contains a silver lining. Mark false for adverts, listicles of \
 products, opinion pieces without news, and anything mainly about a single \
-controversial politician. Also mark false for celebrity and showbiz stories \
+controversial politician, and anything about politics, government, politicians, \
+elections, markets or personal finance. Also mark false for celebrity and showbiz stories \
 (film/TV/music stars, influencers, awards shows) and anything about royalty or \
 monarchies, anything about sport or athletes, and anything not written in \
 English.

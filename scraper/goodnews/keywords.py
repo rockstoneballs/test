@@ -9,6 +9,7 @@ job instead (see classifier.py) and these functions are only used as a fallback.
 from __future__ import annotations
 
 import re
+from urllib.parse import urlsplit
 
 CATEGORIES = [
     "Science", "Environment", "Health", "Animals",
@@ -51,21 +52,42 @@ DOOM = _rx([
     "cancer risk", "decline", "plunge", "slump", "worst", "fail", "shortage",
     "controvers", "row over", "backlash", "condemn", "accus", "fraud", "hacked", "explos", "bomb",
     "leak", "extinct", "toxic", "pollut", "poison", "overdose", "missing",
+    # Conflict, crime and hardship.
+    "fighting", "fight!", "detain", "amid!", "conflict", "tension", "militant", "rebel", "unrest",
+    "curfew", "evacuat", "court case", "court ruling", "judge rules", "judge orders", "banned", "boycott",
+    "outrage", "slams", "criticis", "feud", "spat", "suffer", "struggl", "poverty", "grief", "mourn",
+    "tragic", "tragedy", "funeral", "abandoned", "starv", "hunger", "refugee", "migrant", "deport",
+    "shooting", "gun!", "guns!", "stabbed", "killed", "murder", "assault", "cyberattack", "scam",
+    # Money and markets (not what anyone means by good news).
+    "stock market", "shares!", "sensex", "nifty", "ipo!", "gdp", "economy", "interest rate", "mortgage",
+    "pension", "salary", "da hike", "pay commission", "epfo", "tax!", "taxes", "budget", "loan", "emi!",
+    "gold price", "petrol price", "fuel price", "lottery", "jackpot", "crypto", "bitcoin",
+    # Exams and admin notices that often borrow "good news" headlines.
+    "admit card", "exam result", "board result", "recruitment", "vacancy", "vacancies", "scheme",
+])
+
+# Politics and politicians: never Sunnyside material, from any source.
+POLITICS = _rx([
+    "modi!", "bjp!", "mann ki baat", "trump!", "biden!", "kamala harris", "starmer!", "sunak!", "farage!",
+    "putin!", "netanyahu", "zelensky", "xi jinping", "white house", "downing street", "kremlin",
+    "parliament", "senate!", "senator", "congressman", "congresswoman", "prime minister", "chief minister",
+    "union minister", "minister!", "ministers!", "ministry", "government", "govt!", "election", "politic",
+    "republican", "democrat", "labour party", "conservative party", "tory", "tories",
 ])
 
 UPLIFT = _rx([
     "breakthrough", "cure", "cured", "rescue", "saved", "saves", "save!", "restor",
     "recover", "reunit", "donat", "volunteer", "celebrat", "first-ever", "first ever",
-    "milestone", "thriv", "success", "record high", "record-breaking", "wins", "won!",
-    "award", "hope", "kindness", "kind-hearted", "generous", "generosity", "heartwarming", "inspir",
+    "milestone", "thriv", "success", "record high", "record-breaking", 
+    "award", "kindness", "kind-hearted", "generous", "generosity", "heartwarming", "inspir",
     "protect", "conservation", "renewable", "clean energy", "solar", "wind farm",
     "reforest", "rewild", "rebound", "comeback", "bounce back", "discover", "innovat",
-    "healed", "healing", "heals", "vaccine", "eradicat", "free!", "for free", "joy", "happy", "happiest",
+    "healed", "healing", "heals", "vaccine", "eradicat", "for free", "joy", "happy", "happiest",
     "smile", "delight", "adorable", "cute", "born", "baby", "hatch", "returns to",
-    "spotted for the first time", "back from the brink", "good news", "uplifting",
-    "helps", "helping", "gift", "surprise", "dream", "improv", "boost", "cleaner",
+    "spotted for the first time", "back from the brink", "uplifting",
+    "helps", "helping", "surprise", "cleaner",
     "reduce emissions", "cut emissions", "planted", "trees", "bees", "wildlife",
-    "sanctuary", "adopt", "graduat", "scholarship", "literacy", "peace", "ceasefire agreed",
+    "sanctuary", "adopt", "graduat", "scholarship", "literacy",
     "lifesaving", "life-saving", "promising", "remarkable", "incredible", "amazing",
 ])
 
@@ -213,26 +235,68 @@ def positivity(title: str, summary: str) -> int:
 
 WESTERN_REGIONS = {"Europe", "North America", "Oceania"}
 
-# Outlets whose stories are almost always about one non-Western region.
-_NON_WESTERN_OUTLETS: dict[str, re.Pattern[str]] = {
-    region: re.compile(r"\b(?:" + pattern + r")", re.IGNORECASE)
-    for region, pattern in {
-        "Asia": r"the better india|times of india|hindustan times|ndtv|india today|the hindu\b|indian express|"
-                r"news18|deccan|theprint|the print|scroll\.in|livemint|economic times|tribune india|firstpost|"
-                r"wion|dawn\b|express tribune|geo news|daily star|straits times|south china morning post|scmp|"
-                r"inquirer|jakarta|bangkok post|vnexpress|the nation thailand|korea herald|japan times|china daily",
-        "Africa": r"allafrica|punch ng|vanguard|premium times|daily nation|the citizen|news24|iol\b|"
-                  r"ghanaweb|the east african|mail & guardian",
-        "Middle East": r"al jazeera|gulf news|khaleej|arab news|the national\b|times of israel|jerusalem post",
-        "Latin America": r"mercopress|buenos aires times|rio times|mexico news daily|tico times",
-    }.items()
+# Outlets whose stories are almost always about one non-Western region, matched on the
+# publisher's name or web domain (Google News gives us both).
+_NON_WESTERN_OUTLETS: dict[str, list[str]] = {
+    "Asia": [
+        # India
+        "better india", "times of india", "indiatimes", "hindustan times", "hindustantimes", "ndtv",
+        "india today", "indiatoday", "the hindu", "thehindu", "indian express", "indianexpress",
+        "new indian express", "newindianexpress", "news18", "business standard", "business-standard",
+        "livemint", "mint", "moneycontrol", "financial express", "financialexpress", "economic times",
+        "zee news", "zeenews", "deccan", "the quint", "thequint", "theprint", "the print", "scroll.in",
+        "firstpost", "telegraph india", "telegraphindia", "tribune india", "tribuneindia", "outlook india",
+        "outlookindia", "dna india", "dnaindia", "the statesman", "thestatesman", "free press journal",
+        "freepressjournal", "jagran", "bhaskar", "amar ujala", "lokmat", "mathrubhumi", "manorama",
+        "yourstory", "wion", "republic world", "republicworld", "times now", "timesnownews", "abp live",
+        "abplive", "india.com", "news9", "oneindia", "siasat", "theweek.in",
+        "sportstar", "indiatvnews", "india tv", "etv bharat", "etvbharat", "pune mirror", "mid-day",
+        "mumbai mirror", "greater kashmir", "kashmir observer", "the shillong times",
+        "sentinel assam", "northeast now", "eastmojo", "the logical indian", "vibes of india",
+        # Rest of Asia
+        "dawn.com", "dawn", "express tribune", "tribune.com.pk", "geo news", "geo.tv", "thedailystar.net", "bdnews24", "dhaka tribune", "dhakatribune", "the kathmandu post", "kathmandupost",
+        "daily mirror sri lanka", "straits times", "straitstimes", "south china morning post", "scmp",
+        "inquirer.net", "philippine daily inquirer", "rappler", "gma news", "gmanetwork", "the star malaysia", "thestar.com.my",
+        "jakarta post", "thejakartapost", "bangkok post", "bangkokpost", "vnexpress", "the nation thailand",
+        "nationthailand", "korea herald", "koreaherald", "korea times", "koreatimes", "japan times",
+        "japantimes", "china daily", "chinadaily", "global times", "globaltimes", "xinhua", "cgtn",
+    ],
+    "Africa": [
+        "allafrica", "punchng", "punch nigeria", "vanguardngr", "vanguard nigeria", "premium times", "premiumtimesng",
+        "nation.africa", "daily nation", "citizen.digital", "news24", "iol", "timeslive",
+        "ghanaweb", "myjoyonline", "the east african", "theeastafrican", "mail & guardian", "egypt today",
+        "egypttoday", "ahram", "the guardian nigeria", "guardian.ng", "businessday ng", "the standard kenya",
+    ],
+    "Middle East": [
+        "al jazeera", "aljazeera", "gulf news", "gulfnews", "khaleej", "arab news", "arabnews",
+        "the national news", "thenationalnews", "times of israel", "timesofisrael", "jerusalem post",
+        "jpost", "haaretz", "middle east eye", "the new arab", "daily sabah", "hurriyet",
+    ],
+    "Latin America": [
+        "mercopress", "buenos aires times", "batimes", "rio times", "riotimesonline", "mexico news daily",
+        "mexiconewsdaily", "tico times", "ticotimes",
+    ],
+}
+_OUTLET_RX = {
+    region: re.compile(r"(?<![a-z])(?:" + "|".join(re.escape(n) for n in names) + r")(?![a-z])", re.IGNORECASE)
+    for region, names in _NON_WESTERN_OUTLETS.items()
+}
+_TLD_REGION = {
+    **dict.fromkeys(["in", "pk", "bd", "lk", "np", "sg", "my", "ph", "id", "th", "vn", "cn", "hk", "tw", "kr", "jp"], "Asia"),
+    **dict.fromkeys(["ng", "ke", "za", "gh", "ug", "tz", "et", "zw", "eg", "ma"], "Africa"),
+    **dict.fromkeys(["ae", "qa", "sa", "kw", "om", "bh", "jo", "lb", "il", "tr", "ir", "iq"], "Middle East"),
+    **dict.fromkeys(["br", "ar", "mx", "co", "cl", "pe", "ve", "ec", "uy", "py", "bo", "cr", "cu"], "Latin America"),
 }
 
 
-def region_for_source(source: str) -> str | None:
+def region_for_source(source: str, homepage: str = "") -> str | None:
     """Region implied by the outlet itself (e.g. an Indian newspaper), if any."""
-    for region, rx in _NON_WESTERN_OUTLETS.items():
-        if rx.search(source or ""):
+    host = urlsplit(homepage).netloc.lower() if homepage else ""
+    tld = host.rsplit(".", 1)[-1] if "." in host else ""
+    if tld in _TLD_REGION:
+        return _TLD_REGION[tld]
+    for region, rx in _OUTLET_RX.items():
+        if rx.search(source or "") or (host and rx.search(host)):
             return region
     return None
 

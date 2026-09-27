@@ -162,9 +162,11 @@ def test_feed_focuses_on_the_west(fixtures):
     news = [s for s in feed["stories"] if s["kind"] == "article"]
     kept_indian = [s for s in news if s["id"].startswith("i")]
     assert len([s for s in news if s["id"].startswith("w")]) == 20
-    assert 1 <= len(kept_indian) <= 5  # about 15% of the news at most
+    assert 1 <= len(kept_indian) <= 3  # about 10% of the news at most
     assert all(s["region"] == "Asia" for s in kept_indian)  # outlet tells us the region
-    assert min(s["uplift"] for s in kept_indian) >= 8  # the most uplifting ones are kept
+    assert all(s["uplift"] <= scrape.NON_WESTERN_MAX_UPLIFT for s in kept_indian)  # ranked low
+    top = scrape.top_stories(feed["stories"], NOW, n=10)
+    assert not any(s["id"].startswith("i") for s in top)  # never leads the feed
     dropped = {s["id"] for s in indian} - {s["id"] for s in kept_indian}
     assert dropped <= set(feed["rejected"])  # and not re-checked every run
     assert scrape.is_western({"region": "Global"}) and not scrape.is_western({"region": "Africa"})
@@ -175,3 +177,52 @@ def test_region_for_source():
     assert keywords.region_for_source("Premium Times") == "Africa"
     assert keywords.region_for_source("BBC News") is None
     assert keywords.guess_region("Kerala village celebrates new school", "") == "Asia"
+
+
+
+# Headlines that actually reached the top of the live site (27 Sep 2026) and must not.
+LIVE_BAD = [
+    ("Ethiopians celebrate Meskel and call for peace amid fighting", "", "Al Jazeera", "https://www.aljazeera.com"),
+    ("India's space sector: Slow burn, hard-won successes - and then liftoff", "", "Business Standard",
+     "https://www.business-standard.com"),
+    ("Modi spotlights Assam's wildlife conservation efforts in 'Mann Ki Baat'", "", "The Times of India",
+     "https://timesofindia.indiatimes.com"),
+    ("Ashutosh Ranka, CJP volunteers detained in Assam during peaceful meeting", "", "thehindu.com",
+     "https://www.thehindu.com"),
+    ("Good news for central government employees: DA hike announced", "", "Moneycontrol", "https://www.moneycontrol.com"),
+]
+
+
+def test_live_bad_headlines_never_lead(fixtures):
+    from goodnews import scrape
+    base = {"kind": "article", "summary": "", "imageUrl": None, "author": "S", "publishedAt": "2026-09-26T11:00:00Z",
+            "community": "Community", "category": "Community", "region": "Global", "uplift": 8, "score": None,
+            "comments": None, "discussionUrl": None}
+    bad = [dict(base, id=f"bad{i}", title=t, summary=sm, url=f"https://x/bad{i}", source=src, sourceHomepage=home)
+           for i, (t, sm, src, home) in enumerate(LIVE_BAD)]
+    good = [dict(base, id=f"g{i}", title=f"Volunteers plant a thousand trees in Devon {i}", url=f"https://x/g{i}",
+                 source="Good News Network", sourceHomepage="https://www.goodnewsnetwork.org", region="Europe")
+            for i in range(10)]
+    feed = build_feed(requests.Session(), {"stories": bad + good, "pets": []}, NOW,
+                      fixtures=fixtures, fetch_images=False, fetch_pets=False)
+    kept = {s["id"]: s for s in feed["stories"]}
+    # Politics, conflict, detentions and finance clickbait are gone entirely...
+    for i in (0, 2, 3, 4):
+        assert f"bad{i}" not in kept, LIVE_BAD[i][0]
+    # ...and anything non-Western that's left is ranked well below the good stories.
+    top = scrape.top_stories(feed["stories"], NOW, n=5)
+    assert all(s["id"].startswith("g") or s["kind"] != "article" for s in top)
+
+
+def test_keyword_uplift_favours_good_news_outlets():
+    from goodnews import scrape
+    assert scrape.keyword_uplift("Rescued turtles return to the sea", "", trusted=True) >= 6
+    assert scrape.keyword_uplift("Rescued turtles return to the sea after a remarkable recovery", "", trusted=False) <= 5
+
+
+def test_politics_is_unwanted():
+    from goodnews import scrape
+    story = {"kind": "article", "title": "Prime minister opens new park", "summary": ""}
+    assert scrape.unwanted(story)
+    assert not scrape.unwanted({"kind": "article", "title": "Volunteers open new park", "summary": ""})
+    assert scrape.unwanted({"kind": "image", "title": "Ugly truths of everyday sufferings", "summary": ""})
