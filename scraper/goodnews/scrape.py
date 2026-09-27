@@ -16,6 +16,7 @@ import hashlib
 import html
 import json
 import logging
+import math
 import re
 import sys
 from collections import Counter
@@ -43,8 +44,9 @@ SOCIAL_UPLIFT = 7
 MAX_PER_SOCIAL_COMMUNITY = 150
 # Sunnyside focuses on the West: at most this share of news stories may come from
 # Asia, Africa, Latin America or the Middle East (the most uplifting ones are kept).
-MAX_NON_WESTERN_SHARE = 0.15
+MAX_NON_WESTERN_SHARE = 0.10
 MIN_NON_WESTERN = 2
+NON_WESTERN_MAX_UPLIFT = 3
 MAX_REJECTED_IDS = 5000
 MIN_UPLIFT_MAINSTREAM = 6
 MIN_UPLIFT_TRUSTED = 3
@@ -160,9 +162,11 @@ def fetch_source(session: requests.Session, source: Source, fixtures: Path | Non
         if not is_http_url(url) or not title:
             continue
         name = source.name
+        homepage = source.homepage
         if is_google:
             # Google News titles look like "Headline - Publisher"; credit the publisher.
             publisher = (entry.get("source") or {}).get("title")
+            homepage = (entry.get("source") or {}).get("href") or homepage
             if publisher:
                 name = publisher
                 title = re.sub(r"\s+[-–—]\s+" + re.escape(publisher) + r"$", "", title)
@@ -176,7 +180,7 @@ def fetch_source(session: requests.Session, source: Source, fixtures: Path | Non
             url=url,
             imageUrl=image if is_http_url(image) else None,
             source=name,
-            sourceHomepage=source.homepage,
+            sourceHomepage=homepage,
             publishedAt=parse_time(entry),
             trusted=source.trusted,
         ))
@@ -242,11 +246,61 @@ def og_image(session: requests.Session, url: str) -> str | None:
     return found if is_http_url(found) else None
 
 
+def top_stories(stories: list[dict], now: datetime, n: int = 15) -> list[dict]:
+    """The first ``n`` posts under "Top stories", as the website and app rank them
+    (web/app.js hotScore + blend). Used to log what readers see first."""
+    def hot(s: dict) -> float:
+        age_h = (now - datetime.fromisoformat(s["publishedAt"].replace("Z", "+00:00"))).total_seconds() / 3600
+        popular = min(3.0, 0.75 * math.log10(1 + max(s.get("score") or 0, 0)))
+        return (s.get("uplift") or 5) + popular + (0.5 if s.get("imageUrl") else 0) - age_h / 6
+
+    news = sorted((s for s in stories if s.get("kind", "article") == "article"), key=hot, reverse=True)
+    social = sorted((s for s in stories if s.get("kind", "article") != "article"), key=hot, reverse=True)
+    out: list[dict] = []
+    while (news or social) and len(out) < n:
+        out += news[:3]
+        news = news[3:]
+        if social:
+            out.append(social.pop(0))
+    return out[:n]
+
+
+def keyword_uplift(title: str, summary: str, trusted: bool) -> int:
+    """Uplift score (0-10) when Claude isn't judging. Dedicated good-news outlets score 6-9;
+    mainstream stories that only passed the keyword check top out at 5, so they never
+    lead the feed."""
+    pos = keywords.positivity(title, summary)
+    return max(6, min(9, 6 + pos // 3)) if trusted else max(3, min(5, 3 + pos // 3))
+
+
+TRUSTED_NAMES = {s.name for s in SOURCES if s.trusted}
+# Sources we've dropped; their old posts are cleared from the feed too.
+REMOVED_SOURCES = {"Upworthy", "The Better India", "AllAfrica", "Al Jazeera"}
+
+
+def still_good(story: dict) -> bool:
+    """Re-check a previously published article against today's keyword rules (filters get
+    stricter over time). Stories Claude approved are left alone."""
+    if story.get("source") in REMOVED_SOURCES:
+        return False
+    if story.get("kind", "article") != "article" or story.get("checkedBy") == "claude":
+        return True
+    source = story.get("source", "")
+    trusted = source in TRUSTED_NAMES or source.startswith(("r/", "Lemmy"))
+    title, summary = story["title"], story.get("summary") or ""
+    if not keywords.passes_keyword_filter(title, summary, trusted):
+        return False
+    story["uplift"] = keyword_uplift(title, summary, trusted)  # re-scored with today's rules
+    if story.get("region") in (None, "Global"):
+        story["region"] = keywords.guess_region(title, summary)
+    return True
+
+
 def refine_region(story: dict) -> None:
     """Outlets like Indian newspapers tell us the region even when the headline doesn't."""
     if story.get("kind", "article") != "article":
         return
-    outlet_region = keywords.region_for_source(story.get("source", ""))
+    outlet_region = keywords.region_for_source(story.get("source", ""), story.get("sourceHomepage", ""))
     if outlet_region and story.get("region") in keywords.WESTERN_REGIONS | {"Global", None}:
         story["region"] = outlet_region
 
@@ -258,13 +312,18 @@ def is_western(story: dict) -> bool:
 
 def unwanted(story: dict) -> bool:
     """Content Sunnyside leaves out whatever its tone: non-English posts, celebrity and
-    royalty news, and sport. Memes and animal photos are only checked by their title."""
+    royalty news, politics, money and markets, and sport. Memes and animal photos are checked by their title."""
     title, summary = story["title"], story.get("summary") or ""
     article = story.get("kind", "article") == "article"
     text = f"{title}\n{summary}" if article else title
     if not keywords.is_english(text) or keywords.is_off_topic(title, summary if article else ""):
         return True
-    return article and (story.get("community") == "Sport" or keywords.is_sport(title, summary))
+    if keywords.POLITICS.search(text) or keywords.MONEY.search(title):
+        return True
+    if not article:
+        # Meme and animal titles: nothing sad or grim either.
+        return bool(keywords.DOOM.search(title))
+    return story.get("community") == "Sport" or keywords.is_sport(title, summary)
 
 
 def select_good_news(candidates: list[dict], use_claude: bool) -> list[dict]:
@@ -301,7 +360,7 @@ def select_good_news(candidates: list[dict], use_claude: bool) -> list[dict]:
             threshold = MIN_UPLIFT_TRUSTED if trusted else MIN_UPLIFT_MAINSTREAM
             if not verdict.good_news or verdict.uplift < threshold:
                 continue
-            story.update(community=verdict.category, region=verdict.region, uplift=verdict.uplift)
+            story.update(community=verdict.category, region=verdict.region, uplift=verdict.uplift, checkedBy="claude")
             if verdict.summary:
                 story["summary"] = verdict.summary
         else:
@@ -310,7 +369,8 @@ def select_good_news(candidates: list[dict], use_claude: bool) -> list[dict]:
             story.update(
                 community=keywords.guess_category(story["title"], story["summary"]),
                 region=keywords.guess_region(story["title"], story["summary"]),
-                uplift=max(3, min(10, 5 + keywords.positivity(story["title"], story["summary"]) // 2)),
+                uplift=keyword_uplift(story["title"], story["summary"], trusted),
+                checkedBy="keywords",
             )
         if story["community"] == "Sport":
             continue  # no sport on Sunnyside
@@ -373,6 +433,7 @@ def _output(s: dict) -> dict:
         "category": s["community"],  # v1 apps read this field
         "region": s["region"],
         "uplift": s["uplift"],
+        "checkedBy": s.get("checkedBy"),
         "score": s.get("score"),
         "comments": s.get("comments"),
         "discussionUrl": s.get("discussionUrl"),
@@ -408,7 +469,7 @@ def build_feed(
         s for s in previous["stories"]
         if s.get("publishedAt", "") >= iso(cutoff_for(s.get("community")))
         # Filters added later also clean up posts that were published before them.
-        and not unwanted(s)
+        and not unwanted(s) and still_good(s)
         # Mastodon was dropped as a source; its old posts go too.
         and not s.get("source", "").startswith("#")
         # Clips saved before we kept their video file can't play; they come back if still popular.
@@ -454,7 +515,9 @@ def build_feed(
 
     # Stories that already failed the filter aren't checked again (saves Claude calls).
     rejected_before = set(previous.get("rejected", []))
-    candidates = [c for c in candidates if c["id"] not in rejected_before]
+    unseen = [c for c in candidates if c["id"] not in rejected_before]
+    log.info("%d already rejected on an earlier run, %d to check", len(candidates) - len(unseen), len(unseen))
+    candidates = unseen
     fresh = select_good_news(candidates, use_claude)
     kept_ids = {s["id"] for s in fresh}
     rejected = [c["id"] for c in candidates if c["id"] not in kept_ids] + list(previous.get("rejected", []))
@@ -473,15 +536,16 @@ def build_feed(
     stories = [_output(s) for s in fresh] + prev_stories
     stories.sort(key=lambda s: s["publishedAt"], reverse=True)
 
-    # Focus on the West: keep only the most uplifting few non-Western news stories.
+    # Focus on the West: only a small share of non-Western news, and it never leads the
+    # feed (its uplift is capped, which is what "Top stories" ranks by).
     for s in stories:
         refine_region(s)
+        if s["kind"] == "article" and not is_western(s):
+            s["uplift"] = min(s.get("uplift", 5), NON_WESTERN_MAX_UPLIFT)
     articles = [s for s in stories if s["kind"] == "article"]
     non_western = [s for s in articles if not is_western(s)]
     quota = max(MIN_NON_WESTERN, round(MAX_NON_WESTERN_SHARE * (len(articles) - len(non_western)) / (1 - MAX_NON_WESTERN_SHARE)))
-    keep_non_western = {
-        s["id"] for s in sorted(non_western, key=lambda s: (s.get("uplift", 0), s["publishedAt"]), reverse=True)[:quota]
-    }
+    keep_non_western = {s["id"] for s in sorted(non_western, key=lambda s: s["publishedAt"], reverse=True)[:quota]}
 
     # Keep each social community from crowding out the news.
     per_community: Counter[str] = Counter()
@@ -554,6 +618,9 @@ def main(argv: list[str] | None = None) -> int:
     counts = Counter(s["community"] for s in feed["stories"])
     log.info("Wrote %s with %d posts and %d pets", out / "feed.json", len(feed["stories"]), len(feed["pets"]))
     log.info("Posts per community: %s", ", ".join(f"{c}: {n}" for c, n in sorted(counts.items())))
+    log.info("Top stories right now:")
+    for i, st in enumerate(top_stories(feed["stories"], datetime.now(timezone.utc)), 1):
+        log.info("  %2d. [%s | %s | uplift %s] %s", i, st["source"], st.get("region"), st.get("uplift"), st["title"][:110])
     regions = Counter(s.get("region", "Global") for s in feed["stories"] if s.get("kind") == "article")
     log.info("News by region: %s", ", ".join(f"{r}: {n}" for r, n in regions.most_common()))
     clips = [s for s in feed["stories"] if s.get("kind") == "video"]
