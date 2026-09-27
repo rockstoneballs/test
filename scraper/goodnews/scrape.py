@@ -182,7 +182,7 @@ def fetch_source(session: requests.Session, source: Source, fixtures: Path | Non
 
 def _item(*, title, url, source, sourceHomepage, publishedAt, trusted, summary="", imageUrl=None,
           kind="article", community=None, author=None, score=None, comments=None, discussionUrl=None,
-          imageWidth=None, imageHeight=None) -> dict:
+          imageWidth=None, imageHeight=None, videoUrl=None) -> dict:
     return {
         "id": story_id(discussionUrl if kind != "article" and discussionUrl else url),
         "title": title,
@@ -191,6 +191,7 @@ def _item(*, title, url, source, sourceHomepage, publishedAt, trusted, summary="
         "imageUrl": imageUrl,
         "imageWidth": imageWidth,
         "imageHeight": imageHeight,
+        "videoUrl": videoUrl,
         "source": source,
         "sourceHomepage": sourceHomepage,
         "publishedAt": publishedAt,
@@ -328,6 +329,8 @@ def load_previous(ref: str | None, session: requests.Session) -> dict:
 
 def _merge_social_fields(target: dict, other: dict) -> None:
     """Copy votes/comments/discussion from a Reddit/Lemmy copy of the same story."""
+    if other.get("videoUrl") and not target.get("videoUrl"):
+        target["videoUrl"] = other["videoUrl"]
     if other.get("score") is not None and (target.get("score") or 0) < other["score"]:
         for key in ("score", "comments", "discussionUrl"):
             target[key] = other[key]
@@ -343,6 +346,7 @@ def _output(s: dict) -> dict:
         "imageUrl": s["imageUrl"],
         "imageWidth": s.get("imageWidth"),
         "imageHeight": s.get("imageHeight"),
+        "videoUrl": s.get("videoUrl"),
         "source": s["source"],
         "sourceHomepage": s["sourceHomepage"],
         "author": s.get("author") or s["source"],
@@ -389,6 +393,8 @@ def build_feed(
         and not unwanted(s)
         # Mastodon was dropped as a source; its old posts go too.
         and not s.get("source", "").startswith("#")
+        # Clips saved before we kept their video file can't play; they come back if still popular.
+        and not (s.get("kind") == "video" and not s.get("videoUrl"))
     ]
     by_id = {s["id"]: s for s in prev_stories}
     by_title = {title_key(s["title"]): s for s in prev_stories}
@@ -517,6 +523,9 @@ def main(argv: list[str] | None = None) -> int:
     counts = Counter(s["community"] for s in feed["stories"])
     log.info("Wrote %s with %d posts and %d pets", out / "feed.json", len(feed["stories"]), len(feed["pets"]))
     log.info("Posts per community: %s", ", ".join(f"{c}: {n}" for c, n in sorted(counts.items())))
+    clips = [s for s in feed["stories"] if s.get("kind") == "video"]
+    log.info("Clips: %d (%d playable). Example: %s", len(clips), sum(1 for s in clips if s.get("videoUrl")),
+             next((s["videoUrl"] for s in clips if s.get("videoUrl")), "none"))
     if not feed["stories"]:
         log.error("Feed is empty — every source failed?")
         return 1

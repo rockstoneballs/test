@@ -242,7 +242,7 @@ fun VideoBadge(modifier: Modifier = Modifier) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-        Text(" Video", color = Color.White, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+        Text(" Tap to play", color = Color.White, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -278,6 +278,10 @@ fun PostMedia(story: Story, modifier: Modifier = Modifier, large: Boolean = fals
         return
     }
     val ratio = story.aspectRatio ?: 1f
+    if (large && story.kind == PostKind.Video && story.videoUrl != null) {
+        VideoPlayer(story.videoUrl, story.aspectRatio, modifier.clip(shape))
+        return
+    }
     Box(
         modifier
             .fillMaxWidth()

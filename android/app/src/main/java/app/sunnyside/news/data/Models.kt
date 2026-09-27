@@ -23,6 +23,7 @@ data class StoryDto(
     val imageUrl: String? = null,
     val imageWidth: Int? = null,
     val imageHeight: Int? = null,
+    val videoUrl: String? = null,
     val source: String,
     val sourceHomepage: String? = null,
     val author: String? = null,
@@ -76,6 +77,8 @@ data class Story(
     val discussionUrl: String? = null,
     val imageWidth: Int? = null,
     val imageHeight: Int? = null,
+    /** A directly playable MP4 for video posts. */
+    val videoUrl: String? = null,
 ) {
     /** Width / height of the image, clamped to something that fits on a phone screen. */
     val aspectRatio: Float?

@@ -211,6 +211,10 @@ main { padding: 16px 0 64px; min-width: 0; outline: none; }
 
 .media { position: relative; margin: 8px 0; border-radius: var(--radius-sm); overflow: hidden; background: var(--surface-2); border: 1px solid var(--border); }
 .media img { width: 100%; height: auto; max-height: 640px; object-fit: contain; background: #00000008; }
+/* Clips sit above the card's click-through link so their controls work. */
+.media.clip { position: relative; z-index: 2; background: #000; }
+.media video { display: block; width: 100%; height: auto; max-height: 640px; background: #000; }
+.detail .media video { max-height: 80vh; }
 .media.article img { max-height: 380px; object-fit: cover; aspect-ratio: 16 / 9; }
 .media .badge {
   position: absolute; left: 10px; bottom: 10px;

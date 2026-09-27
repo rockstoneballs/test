@@ -65,6 +65,9 @@ stories, then one meme or animal post. **Latest** is simply newest first.
   anything about royalty or monarchies, and all sport. These rules apply to every
   source, including posts already in the feed (`unwanted()` in `scraper/goodnews/scrape.py`,
   word lists in `scraper/goodnews/keywords.py`).
+* **Clips** (9GAG and Imgur animations, Reddit videos) are stored as direct MP4 links.
+  The website plays them inline, muted and looping, while they're on screen; the app plays
+  them on the post page, with a button to turn the sound on.
 * 9GAG has no official API; the scraper reads the same public JSON its tag pages use,
   so it may break or be blocked at any time (it's then skipped).
 * A dead source is logged and skipped. It never breaks a run.

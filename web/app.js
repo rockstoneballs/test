@@ -231,7 +231,37 @@ function postHead(p) {
   );
 }
 
+// Clips play muted and looping while they're on screen, like GIFs; controls let people
+// unmute or go full screen. Off-screen clips pause so the page stays light.
+const clipObserver = "IntersectionObserver" in window
+  ? new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (e.isIntersecting && e.intersectionRatio >= 0.5) e.target.play().catch(() => {});
+      else e.target.pause();
+    }
+  }, { threshold: [0, 0.5] })
+  : null;
+
+function clip(p, detail) {
+  const src = safeUrl(p.videoUrl);
+  const attrs = {
+    src, poster: safeUrl(p.imageUrl), loop: true, playsinline: true, controls: true,
+    preload: detail ? "auto" : "metadata", "aria-label": p.title,
+  };
+  if (p.imageWidth && p.imageHeight) {
+    attrs.width = p.imageWidth;
+    attrs.height = p.imageHeight;
+  }
+  const video = h("video", attrs);
+  video.muted = true; // needed for autoplay; people can unmute with the controls
+  video.defaultMuted = true;
+  if (clipObserver) clipObserver.observe(video);
+  else video.autoplay = true;
+  return h("div", { class: "media clip" }, video);
+}
+
 function media(p, detail) {
+  if (p.kind === "video" && safeUrl(p.videoUrl)) return clip(p, detail);
   const img = safeUrl(p.imageUrl);
   const isArticle = (p.kind || "article") === "article";
   if (!img) {
@@ -247,7 +277,7 @@ function media(p, detail) {
   image.addEventListener("error", () => image.closest(".media")?.remove());
   return h("div", { class: "media" + (isArticle ? " article" : "") },
     image,
-    p.kind === "video" ? h("span", { class: "badge" }, "▶ Video — tap to watch") : null,
+    p.kind === "video" ? h("span", { class: "badge" }, "▶ Video — open to watch") : null,
   );
 }
 
@@ -473,6 +503,7 @@ function render() {
   if (routeChanged) state.shown = PAGE_SIZE;
   lastRouteKey = key;
 
+  if (clipObserver) clipObserver.disconnect(); // clips from the previous page are gone
   renderRightRail();
   document.getElementById("saved-link").setAttribute("aria-current", route.name === "saved" ? "page" : "false");
 

@@ -117,6 +117,7 @@ class NewsRepository(
             discussionUrl = discussionUrl,
             imageWidth = imageWidth,
             imageHeight = imageHeight,
+            videoUrl = videoUrl?.takeIf { it.startsWith("https://") },
         )
     }
 

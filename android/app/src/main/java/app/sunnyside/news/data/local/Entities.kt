@@ -28,6 +28,7 @@ data class StoryEntity(
     val discussionUrl: String? = null,
     val imageWidth: Int? = null,
     val imageHeight: Int? = null,
+    val videoUrl: String? = null,
 )
 
 /** Saved posts are a separate copy so they survive the feed rolling over. */
@@ -51,6 +52,7 @@ data class SavedStoryEntity(
     val discussionUrl: String? = null,
     val imageWidth: Int? = null,
     val imageHeight: Int? = null,
+    val videoUrl: String? = null,
 )
 
 @Entity(tableName = "pets", primaryKeys = ["date", "kind"])
@@ -69,21 +71,21 @@ fun StoryEntity.toStory() = Story(
     id = id, title = title, summary = summary, url = url, imageUrl = imageUrl, source = source,
     publishedAtMillis = publishedAt, topic = Topic.from(category), region = Region.from(region), uplift = uplift,
     kind = PostKind.from(kind), author = author, score = score, comments = comments, discussionUrl = discussionUrl,
-    imageWidth = imageWidth, imageHeight = imageHeight,
+    imageWidth = imageWidth, imageHeight = imageHeight, videoUrl = videoUrl,
 )
 
 fun SavedStoryEntity.toStory() = Story(
     id = id, title = title, summary = summary, url = url, imageUrl = imageUrl, source = source,
     publishedAtMillis = publishedAt, topic = Topic.from(category), region = Region.from(region), uplift = uplift,
     kind = PostKind.from(kind), author = author, score = score, comments = comments, discussionUrl = discussionUrl,
-    imageWidth = imageWidth, imageHeight = imageHeight,
+    imageWidth = imageWidth, imageHeight = imageHeight, videoUrl = videoUrl,
 )
 
 fun Story.toSavedEntity(now: Long) = SavedStoryEntity(
     id = id, title = title, summary = summary, url = url, imageUrl = imageUrl, source = source,
     publishedAt = publishedAtMillis, category = topic.key, region = region.label, uplift = uplift, savedAt = now,
     kind = kindName(kind), author = author, score = score, comments = comments, discussionUrl = discussionUrl,
-    imageWidth = imageWidth, imageHeight = imageHeight,
+    imageWidth = imageWidth, imageHeight = imageHeight, videoUrl = videoUrl,
 )
 
 fun PetEntity.toPet() = Pet(
