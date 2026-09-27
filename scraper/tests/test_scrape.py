@@ -119,3 +119,15 @@ def test_sport_is_kept_to_a_minimum(fixtures):
     kept_sport = [s for s in feed["stories"] if s["community"] == "Sport"]
     assert len(kept_sport) == scrape.MAX_SPORT_POSTS
     assert sorted(s["uplift"] for s in kept_sport) == [7, 7, 8, 8]  # the most uplifting four
+
+
+def test_rejected_stories_are_not_rechecked(fixtures, monkeypatch):
+    from goodnews import scrape
+    first = build_feed(requests.Session(), {"stories": [], "pets": []}, NOW,
+                       fixtures=fixtures, fetch_images=False, fetch_pets=False)
+    assert first["rejected"]  # e.g. the missile-attack headline
+    seen = []
+    real = scrape.select_good_news
+    monkeypatch.setattr(scrape, "select_good_news", lambda c, u: seen.extend(c) or real(c, u))
+    build_feed(requests.Session(), first, NOW, fixtures=fixtures, fetch_images=False, fetch_pets=False)
+    assert seen == []

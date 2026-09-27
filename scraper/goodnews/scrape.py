@@ -43,6 +43,7 @@ SOCIAL_UPLIFT = 7
 MAX_PER_SOCIAL_COMMUNITY = 150
 # Sport is kept to a minimum: only the most uplifting few stories make it in.
 MAX_SPORT_POSTS = 4
+MAX_REJECTED_IDS = 5000
 MIN_UPLIFT_SPORT = 7
 MIN_UPLIFT_MAINSTREAM = 6
 MIN_UPLIFT_TRUSTED = 3
@@ -310,7 +311,7 @@ def load_previous(ref: str | None, session: requests.Session) -> dict:
     for s in stories:  # upgrade v1 feeds
         s.setdefault("community", s.get("category", "Community"))
         s.setdefault("kind", "article")
-    return {"stories": stories, "pets": data.get("pets", [])}
+    return {"stories": stories, "pets": data.get("pets", []), "rejected": data.get("rejected", [])}
 
 
 def _merge_social_fields(target: dict, other: dict) -> None:
@@ -413,7 +414,12 @@ def build_feed(
     if social_drops:
         log.info("Dropped social posts: %s", ", ".join(f"{k} ×{v}" for k, v in sorted(social_drops.items())))
 
+    # Stories that already failed the filter aren't checked again (saves Claude calls).
+    rejected_before = set(previous.get("rejected", []))
+    candidates = [c for c in candidates if c["id"] not in rejected_before]
     fresh = select_good_news(candidates, use_claude)
+    kept_ids = {s["id"] for s in fresh}
+    rejected = [c["id"] for c in candidates if c["id"] not in kept_ids] + list(previous.get("rejected", []))
     log.info("%d new posts (%s)", len(fresh), ", ".join(
         f"{c}: {n}" for c, n in sorted(Counter(s["community"] for s in fresh).items())))
 
@@ -462,6 +468,8 @@ def build_feed(
         "regions": keywords.REGIONS,
         "stories": stories,
         "pets": pets,
+        # IDs of recently rejected stories, so they aren't re-checked every run.
+        "rejected": list(dict.fromkeys(rejected))[:MAX_REJECTED_IDS],
     }
 
 
