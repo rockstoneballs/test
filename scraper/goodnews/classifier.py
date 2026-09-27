@@ -31,16 +31,14 @@ one decide:
 
 - good_news: true only if the core of the story is positive — progress, discovery, \
 recovery, kindness, conservation wins, health breakthroughs, people helping people, \
-delightful animal news, uplifting culture or sport. Mark false if the story centres on \
+delightful animal news, uplifting culture. Mark false if the story centres on \
 death, violence, war, crime, disaster, political conflict, scandal, economic pain or \
 fear, even if it contains a silver lining. Mark false for adverts, listicles of \
 products, opinion pieces without news, and anything mainly about a single \
 controversial politician. Also mark false for celebrity and showbiz stories \
 (film/TV/music stars, influencers, awards shows) and anything about royalty or \
-monarchies. Sport should be rare: mark sports stories false unless they are \
-exceptionally heart-warming beyond the result itself (e.g. remarkable \
-sportsmanship or a community story); never include match results, transfers or \
-league news.
+monarchies, anything about sport or athletes, and anything not written in \
+English.
 - uplift: 0-10, how much this would brighten a reader's morning (10 = pure joy).
 - category: the best fit from {CATEGORIES}.
 - region: where the story happens, from {REGIONS}. Use "Global" for worldwide or \

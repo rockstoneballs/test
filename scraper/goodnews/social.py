@@ -257,6 +257,8 @@ def fetch_mastodon(session: requests.Session, src: SocialSource) -> list[dict]:
     for st in statuses if isinstance(statuses, list) else []:
         if st.get("sensitive") or st.get("spoiler_text") or st.get("reblog"):
             continue
+        if st.get("language") and not str(st["language"]).startswith("en"):
+            continue
         score = int(st.get("favourites_count", 0)) + int(st.get("reblogs_count", 0))
         if score < src.min_score:
             continue
