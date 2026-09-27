@@ -44,6 +44,7 @@ import app.sunnyside.news.ui.components.EmptyState
 import app.sunnyside.news.ui.components.PostCallbacks
 import app.sunnyside.news.ui.components.PostHeader
 import app.sunnyside.news.ui.components.PostMedia
+import app.sunnyside.news.ui.components.PostTitle
 import app.sunnyside.news.ui.components.SectionHeader
 import app.sunnyside.news.ui.components.VoteControl
 import app.sunnyside.news.ui.components.postItems
@@ -66,7 +67,7 @@ fun StoryDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { if (story != null) Text("s/${story.community.label}") },
+                title = { Text("Post") },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 },
@@ -103,9 +104,9 @@ fun StoryDetailScreen(
                         .background(MaterialTheme.colorScheme.surfaceContainerLow)
                         .padding(16.dp),
                 ) {
-                    PostHeader(story, callbacks)
+                    PostHeader(story)
                     Spacer(Modifier.height(10.dp))
-                    Text(story.title, style = MaterialTheme.typography.headlineSmall)
+                    PostTitle(story, MaterialTheme.typography.headlineSmall)
                     if (story.region != Region.Global) {
                         Text(
                             "📍 ${story.region.label}",
@@ -167,7 +168,7 @@ fun StoryDetailScreen(
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }
             if (state.related.isNotEmpty()) {
-                item { SectionHeader("More from s/${story.community.label}", Modifier.padding(top = 20.dp, bottom = 8.dp)) }
+                item { SectionHeader("More good news like this", Modifier.padding(top = 20.dp, bottom = 8.dp)) }
                 postItems(state.related, ViewMode.Compact, user, callbacks)
             }
         }

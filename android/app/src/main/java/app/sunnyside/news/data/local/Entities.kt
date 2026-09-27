@@ -2,7 +2,7 @@ package app.sunnyside.news.data.local
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import app.sunnyside.news.data.Community
+import app.sunnyside.news.data.Topic
 import app.sunnyside.news.data.Pet
 import app.sunnyside.news.data.PetKind
 import app.sunnyside.news.data.PostKind
@@ -74,21 +74,21 @@ private fun kindName(kind: PostKind) = kind.name.lowercase()
 
 fun StoryEntity.toStory() = Story(
     id = id, title = title, summary = summary, url = url, imageUrl = imageUrl, source = source,
-    publishedAtMillis = publishedAt, community = Community.from(category), region = Region.from(region), uplift = uplift,
+    publishedAtMillis = publishedAt, topic = Topic.from(category), region = Region.from(region), uplift = uplift,
     kind = PostKind.from(kind), author = author, score = score, comments = comments, discussionUrl = discussionUrl,
     imageWidth = imageWidth, imageHeight = imageHeight,
 )
 
 fun SavedStoryEntity.toStory() = Story(
     id = id, title = title, summary = summary, url = url, imageUrl = imageUrl, source = source,
-    publishedAtMillis = publishedAt, community = Community.from(category), region = Region.from(region), uplift = uplift,
+    publishedAtMillis = publishedAt, topic = Topic.from(category), region = Region.from(region), uplift = uplift,
     kind = PostKind.from(kind), author = author, score = score, comments = comments, discussionUrl = discussionUrl,
     imageWidth = imageWidth, imageHeight = imageHeight,
 )
 
 fun Story.toSavedEntity(now: Long) = SavedStoryEntity(
     id = id, title = title, summary = summary, url = url, imageUrl = imageUrl, source = source,
-    publishedAt = publishedAtMillis, category = community.label, region = region.label, uplift = uplift, savedAt = now,
+    publishedAt = publishedAtMillis, category = topic.key, region = region.label, uplift = uplift, savedAt = now,
     kind = kindName(kind), author = author, score = score, comments = comments, discussionUrl = discussionUrl,
     imageWidth = imageWidth, imageHeight = imageHeight,
 )

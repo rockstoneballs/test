@@ -29,7 +29,7 @@ data class StoryDto(
     val publishedAt: String,
     val kind: String = "article",
     val community: String? = null,
-    val category: String = Community.Community.label,
+    val category: String = Topic.Kindness.key,
     val region: String = Region.Global.label,
     val uplift: Int = 5,
     val score: Int? = null,
@@ -66,7 +66,7 @@ data class Story(
     val imageUrl: String?,
     val source: String,
     val publishedAtMillis: Long,
-    val community: Community,
+    val topic: Topic,
     val region: Region,
     val uplift: Int,
     val kind: PostKind = PostKind.Article,
@@ -85,7 +85,17 @@ data class Story(
             null
         }
 
-    val byline: String get() = if (author != null && author != source) "$author · $source" else source
+    /** Where it came from in plain words: "Good News Network", "Reddit", "Mastodon"… */
+    val platform: String
+        get() = when {
+            source.startsWith("r/") -> "Reddit"
+            source.startsWith("Lemmy") -> "Lemmy"
+            source.startsWith("#") -> "Mastodon"
+            else -> source
+        }
+
+    /** "u/someone" for Reddit/Lemmy/Mastodon posts; null for articles. */
+    val poster: String? get() = author?.takeIf { platform != source && it != source }
 }
 
 enum class PetKind { Kitten, Puppy }
@@ -99,23 +109,25 @@ data class Pet(
     val breed: String?,
 )
 
-/** Communities are shown as s/<label>. News topics plus the social communities. */
-enum class Community(val label: String, val emoji: String, val color: Long, val about: String) {
-    WholesomeMemes("WholesomeMemes", "😂", 0xFFF2A516, "Memes that make you feel good about the world."),
-    Aww("Aww", "🥹", 0xFFE86A92, "Cute animals. That's it. That's the community."),
-    MadeMeSmile("MadeMeSmile", "😊", 0xFFF28C28, "Small moments of pure joy and people being lovely."),
-    Science("Science", "🔭", 0xFF5B6CD9, "Discoveries, space and the wonders of research."),
-    Environment("Environment", "🌿", 0xFF2E9D5B, "Climate wins, rewilding and a greener planet."),
-    Health("Health", "💚", 0xFF0F9D8F, "Medical breakthroughs and healthier lives."),
-    Animals("Animals", "🐾", 0xFFE07A1F, "Wildlife comebacks and animal news."),
-    Community("Community", "🤝", 0xFFD9477A, "Kindness, neighbours and people helping people."),
-    Innovation("Innovation", "💡", 0xFF8A56D6, "Clever ideas making life better."),
-    Culture("Culture", "🎨", 0xFFC9533A, "Art, music, books and joy."),
-    Sport("Sport", "🏅", 0xFF2C88C9, "Triumphs, comebacks and good sportsmanship.");
+/**
+ * Topic of a post, shown as a small flair tag like Reddit's post flair.
+ * [key] is the value in the feed's "community" field.
+ */
+enum class Topic(val key: String, val label: String, val emoji: String, val color: Long) {
+    Memes("WholesomeMemes", "Meme", "😂", 0xFFF2A516),
+    Aww("Aww", "Cute", "🥹", 0xFFE86A92),
+    Smiles("MadeMeSmile", "Wholesome", "😊", 0xFFF28C28),
+    Science("Science", "Science", "🔭", 0xFF5B6CD9),
+    Environment("Environment", "Environment", "🌿", 0xFF2E9D5B),
+    Health("Health", "Health", "💚", 0xFF0F9D8F),
+    Animals("Animals", "Animals", "🐾", 0xFFE07A1F),
+    Kindness("Community", "Kindness", "🤝", 0xFFD9477A),
+    Innovation("Innovation", "Innovation", "💡", 0xFF8A56D6),
+    Culture("Culture", "Culture", "🎨", 0xFFC9533A),
+    Sport("Sport", "Sport", "🏅", 0xFF2C88C9);
 
     companion object {
-        fun from(label: String?): Community =
-            entries.firstOrNull { it.label.equals(label, ignoreCase = true) } ?: valueOf("Community")
+        fun from(key: String?): Topic = entries.firstOrNull { it.key.equals(key, ignoreCase = true) } ?: Kindness
     }
 }
 

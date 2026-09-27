@@ -11,7 +11,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import app.sunnyside.news.data.Community
+import app.sunnyside.news.data.Topic
 import app.sunnyside.news.data.ThemeMode
 
 private val LightColors = lightColorScheme(
@@ -98,8 +98,8 @@ fun SunnysideTheme(mode: ThemeMode = ThemeMode.System, content: @Composable () -
     )
 }
 
-/** Accent colour per community, used for avatars, banners and image placeholders. */
-fun Community.accent(): Color = Color(color)
+/** Accent colour per topic, used for flair tags and image placeholders. */
+fun Topic.accent(): Color = Color(color)
 
 /** Upvote / downvote colours. */
 val UpvoteColor = Color(0xFFF76707)

@@ -9,7 +9,6 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.sunnyside.news.SunnysideApp
-import app.sunnyside.news.data.Community
 import app.sunnyside.news.data.NewsRepository
 import app.sunnyside.news.data.Pet
 import app.sunnyside.news.data.PetKind
@@ -60,8 +59,6 @@ abstract class PostsViewModel(
     fun toggleView() = viewModelScope.launch {
         settingsRepo.setView(if (settingsRepo.current().view == ViewMode.Card) ViewMode.Compact else ViewMode.Card)
     }
-
-    fun toggleJoined(community: Community) = viewModelScope.launch { settingsRepo.toggleJoined(community) }
 }
 
 // ------------------------------------------------------------------ Home
@@ -82,7 +79,7 @@ class HomeViewModel(repo: NewsRepository, settingsRepo: SettingsRepository) : Po
 
     val state: StateFlow<HomeState> = combine(repo.stories, repo.pets, repo.votes, settingsRepo.settings) { stories, pets, votes, s ->
         HomeState(
-            posts = Ranking.sort(stories.filter { it.community in s.joined }, s.sort, votes),
+            posts = Ranking.sort(stories, s.sort, votes),
             kitten = pets.firstOrNull { it.kind == PetKind.Kitten },
             puppy = pets.firstOrNull { it.kind == PetKind.Puppy },
             loaded = true,
@@ -121,28 +118,6 @@ class HomeViewModel(repo: NewsRepository, settingsRepo: SettingsRepository) : Po
     }
 }
 
-// ------------------------------------------------------------------ One community
-
-class CommunityViewModel(repo: NewsRepository, settingsRepo: SettingsRepository, handle: SavedStateHandle) :
-    PostsViewModel(repo, settingsRepo) {
-    val community: Community = Community.valueOf(checkNotNull(handle["name"]))
-
-    val posts: StateFlow<List<Story>?> = combine(repo.stories, repo.votes, settingsRepo.settings) { stories, votes, s ->
-        Ranking.sort(stories.filter { it.community == community }, s.sort, votes)
-    }.asState(this, null)
-}
-
-// ------------------------------------------------------------------ All communities
-
-data class CommunityListItem(val community: Community, val posts: Int, val joined: Boolean)
-
-class CommunitiesViewModel(repo: NewsRepository, settingsRepo: SettingsRepository) : PostsViewModel(repo, settingsRepo) {
-    val communities: StateFlow<List<CommunityListItem>> = combine(repo.stories, settingsRepo.settings) { stories, s ->
-        val counts = stories.groupingBy { it.community }.eachCount()
-        Community.entries.map { CommunityListItem(it, counts[it] ?: 0, it in s.joined) }
-    }.asState(this, emptyList())
-}
-
 // ------------------------------------------------------------------ Search
 
 class SearchViewModel(repo: NewsRepository, settingsRepo: SettingsRepository) : PostsViewModel(repo, settingsRepo) {
@@ -156,7 +131,7 @@ class SearchViewModel(repo: NewsRepository, settingsRepo: SettingsRepository) : 
         } else {
             Ranking.sort(
                 stories.filter { story ->
-                    val hay = "${story.title} ${story.summary} ${story.source} ${story.community.label} ${story.region.label}".lowercase()
+                    val hay = "${story.title} ${story.summary} ${story.source} ${story.topic.label} ${story.region.label}".lowercase()
                     words.all { it in hay }
                 },
                 s.sort,
@@ -190,7 +165,7 @@ class DetailViewModel(repo: NewsRepository, settingsRepo: SettingsRepository, ha
             related = if (story == null) {
                 emptyList()
             } else {
-                Ranking.sort(all.filter { it.community == story.community && it.id != id }, SortMode.Hot, votes).take(5)
+                Ranking.sort(all.filter { it.topic == story.topic && it.id != id }, SortMode.Hot, votes).take(5)
             },
             loaded = true,
         )
@@ -230,8 +205,6 @@ val AppViewModels: ViewModelProvider.Factory = viewModelFactory {
     fun prefs(extras: CreationExtras) = app(extras).container.settingsRepository
 
     initializer { HomeViewModel(news(this), prefs(this)) }
-    initializer { CommunityViewModel(news(this), prefs(this), createSavedStateHandle()) }
-    initializer { CommunitiesViewModel(news(this), prefs(this)) }
     initializer { SearchViewModel(news(this), prefs(this)) }
     initializer { SavedViewModel(news(this), prefs(this)) }
     initializer { DetailViewModel(news(this), prefs(this), createSavedStateHandle()) }

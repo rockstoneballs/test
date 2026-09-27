@@ -1,6 +1,6 @@
 package app.sunnyside.news
 
-import app.sunnyside.news.data.Community
+import app.sunnyside.news.data.Topic
 import app.sunnyside.news.data.Ranking
 import app.sunnyside.news.data.SortMode
 import app.sunnyside.news.data.Story
@@ -39,7 +39,7 @@ class LogicTest {
 
     @Test
     fun guessesTopicAndRegion() {
-        assertEquals(Community.Animals, StoryHeuristics.guessCategory("Baby elephant born at Kenyan sanctuary", ""))
+        assertEquals(Topic.Animals, StoryHeuristics.guessCategory("Baby elephant born at Kenyan sanctuary", ""))
         assertEquals(Region.Africa, StoryHeuristics.guessRegion("Baby elephant born in Kenya", ""))
         assertEquals(Region.Global, StoryHeuristics.guessRegion("Scientists find a new way to recycle plastic", ""))
     }
@@ -58,7 +58,7 @@ class LogicTest {
 
     private fun post(id: String, hoursAgo: Int, score: Int? = null, uplift: Int = 7) = Story(
         id = id, title = id, summary = "", url = "https://x/$id", imageUrl = null, source = "s",
-        publishedAtMillis = NOW - hoursAgo * 3_600_000L, community = Community.Aww, region = Region.Global,
+        publishedAtMillis = NOW - hoursAgo * 3_600_000L, topic = Topic.Aww, region = Region.Global,
         uplift = uplift, score = score,
     )
 
