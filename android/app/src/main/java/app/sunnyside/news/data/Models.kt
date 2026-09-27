@@ -146,34 +146,25 @@ enum class Region(val label: String, val emoji: String) {
     }
 }
 
-enum class SortMode(val label: String, val emoji: String) { Hot("Hot", "🔥"), New("New", "✨"), Top("Top", "🏆") }
+enum class SortMode(val label: String, val emoji: String) { Hot("Top stories", "⭐"), New("Latest", "🕒") }
 
 enum class ViewMode { Card, Compact }
 
-/** Ranking shared with the website (web/app.js): uplift + votes, decaying with age. */
+/** "Top stories" ranking, shared with the website (web/app.js): uplift, decaying with age. */
 object Ranking {
-    fun points(story: Story, myVote: Int): Int = (story.score ?: 0) + myVote
-
-    fun hot(story: Story, myVote: Int, now: Long = System.currentTimeMillis()): Double {
+    fun hot(story: Story, now: Long = System.currentTimeMillis()): Double {
         val ageHours = (now - story.publishedAtMillis) / 3_600_000.0
-        val votes = max(points(story, myVote), 0)
-        // Votes help, but are capped so news (which has no Reddit votes) isn't buried under memes.
-        val social = min(3.0, 0.75 * log10(1.0 + votes))
-        return story.uplift + social + (if (story.imageUrl != null) 0.5 else 0.0) + 2 * myVote - ageHours / 6
+        // For memes and animal photos, popularity on the source site picks the best ones (never shown).
+        val popular = min(3.0, 0.75 * log10(1.0 + max(story.score ?: 0, 0)))
+        return story.uplift + popular + (if (story.imageUrl != null) 0.5 else 0.0) - ageHours / 6
     }
 
-    /** Hot and Top show this many news stories for every meme / cute-animal post. */
+    /** "Top stories" shows this many news stories for every meme / cute-animal post. */
     const val NEWS_PER_SOCIAL = 3
 
-    fun sort(stories: List<Story>, mode: SortMode, votes: Map<String, Int>, now: Long = System.currentTimeMillis()): List<Story> {
+    fun sort(stories: List<Story>, mode: SortMode, now: Long = System.currentTimeMillis()): List<Story> {
         if (mode == SortMode.New) return stories.sortedByDescending { it.publishedAtMillis }
-        val comparator: Comparator<Story> = when (mode) {
-            // News has no upvotes of its own, so it ranks by uplift, then freshness.
-            SortMode.Top -> compareByDescending<Story> { points(it, votes[it.id] ?: 0) }
-                .thenByDescending { it.uplift }
-                .thenByDescending { it.publishedAtMillis }
-            else -> compareByDescending { hot(it, votes[it.id] ?: 0, now) }
-        }
+        val comparator = compareByDescending<Story> { hot(it, now) }
         val (news, social) = stories.partition { it.kind == PostKind.Article }
         return blend(news.sortedWith(comparator), social.sortedWith(comparator))
     }

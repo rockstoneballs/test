@@ -21,9 +21,8 @@ const TOPICS = {
 };
 
 const SORTS = [
-  { id: "hot", label: "Hot", icon: "🔥" },
-  { id: "new", label: "New", icon: "✨" },
-  { id: "top", label: "Top", icon: "🏆" },
+  { id: "hot", label: "Top stories", icon: "⭐" },
+  { id: "new", label: "Latest", icon: "🕒" },
 ];
 
 /* ------------------------------------------------------------------ storage */
@@ -47,9 +46,8 @@ const state = {
   posts: [],
   byId: new Map(),
   error: null,
-  sort: store.get("sort", "hot"),
+  sort: store.get("sort", "hot") === "new" ? "new" : "hot",
   view: store.get("view", "card"),
-  votes: store.get("votes", {}),          // id -> 1 | -1
   saved: store.get("saved", {}),          // id -> post snapshot
   pendingFeed: null,
   shown: PAGE_SIZE,
@@ -97,14 +95,6 @@ function timeAgo(iso) {
   return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
 
-function compact(n) {
-  if (n == null) return null;
-  if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, "") + "m";
-  if (Math.abs(n) >= 1e4) return Math.round(n / 1e3) + "k";
-  if (Math.abs(n) >= 1e3) return (n / 1e3).toFixed(1).replace(/\.0$/, "") + "k";
-  return String(n);
-}
-
 function topicOf(p) {
   return TOPICS[p.community || p.category] || TOPICS.Community;
 }
@@ -140,9 +130,6 @@ function toast(text) {
 }
 
 const ICON = {
-  up: '<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M10 3 3 11h4.5v6h5v-6H17z" fill="currentColor"/></svg>',
-  down: '<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M10 17 3 9h4.5V3h5v6H17z" fill="currentColor"/></svg>',
-  comment: '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M4 4h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H9l-4 3v-3H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>',
   share: '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M12 4l5 5-5 5M17 9H9a5 5 0 0 0-5 5v2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   save: '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M5 3h10v14l-5-3.5L5 17z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>',
   saved: '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M5 3h10v14l-5-3.5L5 17z" fill="currentColor"/></svg>',
@@ -154,18 +141,15 @@ const ICON = {
 
 /* ------------------------------------------------------------------ ranking */
 
-function myVote(p) { return state.votes[p.id] || 0; }
-function points(p) { return (p.score || 0) + myVote(p); }
-
+/** "Top stories" ranking: how uplifting a post is, decaying with age. */
 function hotScore(p) {
   const ageHours = (Date.now() - Date.parse(p.publishedAt)) / 3.6e6;
-  const votes = Math.max(points(p), 0);
-  // Votes help, but are capped so news (which has no Reddit votes) isn't buried under memes.
-  const social = Math.min(3, 0.75 * Math.log10(1 + votes));
-  return (p.uplift || 5) + social + (p.imageUrl ? 0.5 : 0) + 2 * myVote(p) - ageHours / 6;
+  // For memes and animal photos, popularity on the source site picks the best ones (never shown).
+  const popular = Math.min(3, 0.75 * Math.log10(1 + Math.max(p.score || 0, 0)));
+  return (p.uplift || 5) + popular + (p.imageUrl ? 0.5 : 0) - ageHours / 6;
 }
 
-// Hot and Top show NEWS_PER_SOCIAL news stories for every meme / cute-animal post, so the
+// "Top stories" shows NEWS_PER_SOCIAL news stories for every meme / cute-animal post, so the
 // world's good news leads the feed and the fun stuff is sprinkled through it.
 const NEWS_PER_SOCIAL = 3;
 
@@ -185,22 +169,11 @@ function blend(news, social) {
 
 function sortPosts(posts, sort) {
   if (sort === "new") return posts.slice().sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
-  const compare = sort === "top"
-    // News has no upvotes of its own, so it ranks by uplift, then freshness.
-    ? (a, b) => points(b) - points(a) || (b.uplift || 0) - (a.uplift || 0) || Date.parse(b.publishedAt) - Date.parse(a.publishedAt)
-    : (a, b) => hotScore(b) - hotScore(a);
+  const compare = (a, b) => hotScore(b) - hotScore(a);
   return blend(posts.filter((p) => !isSocial(p)).sort(compare), posts.filter(isSocial).sort(compare));
 }
 
 /* ------------------------------------------------------------------ actions */
-
-function vote(p, dir) {
-  const current = myVote(p);
-  const next = current === dir ? 0 : dir;
-  if (next) state.votes[p.id] = next; else delete state.votes[p.id];
-  store.set("votes", state.votes);
-  document.querySelectorAll(`[data-votes="${CSS.escape(p.id)}"]`).forEach((el) => el.replaceWith(voteBox(p, el.dataset.layout)));
-}
 
 function toggleSave(p) {
   if (state.saved[p.id]) {
@@ -231,20 +204,6 @@ async function share(p) {
 
 /* ------------------------------------------------------------------ components */
 
-function voteBox(p, layout) {
-  const v = myVote(p);
-  const score = p.score == null && !v ? "Vote" : compact(points(p));
-  return h("div", {
-    class: "votes" + (v > 0 ? " upvoted" : v < 0 ? " downvoted" : ""),
-    "data-votes": p.id,
-    "data-layout": layout || "row",
-  },
-    h("button", { class: "vote up", "aria-label": "Upvote", "aria-pressed": String(v > 0), html: ICON.up, onclick: (e) => { e.preventDefault(); vote(p, 1); } }),
-    h("span", { class: "score" }, score),
-    h("button", { class: "vote down", "aria-label": "Downvote", "aria-pressed": String(v < 0), html: ICON.down, onclick: (e) => { e.preventDefault(); vote(p, -1); } }),
-  );
-}
-
 function saveButton(p) {
   const saved = !!state.saved[p.id];
   return h("button", {
@@ -252,18 +211,8 @@ function saveButton(p) {
   }, h("span", { html: saved ? ICON.saved : ICON.save }), saved ? "Saved" : "Save");
 }
 
-function commentsPill(p) {
-  const url = safeUrl(p.discussionUrl);
-  if (!url) return null;
-  const label = p.comments != null ? compact(p.comments) : "Discuss";
-  return h("a", { class: "pill", href: url, target: "_blank", rel: "noopener", title: "Open the discussion" },
-    h("span", { html: ICON.comment }), label);
-}
-
-function actions(p, layout) {
+function actions(p) {
   return h("div", { class: "actions" },
-    layout === "compact" ? null : voteBox(p),
-    commentsPill(p),
     h("button", { class: "pill", onclick: (e) => { e.preventDefault(); share(p); } }, h("span", { html: ICON.share }), "Share"),
     saveButton(p),
   );
@@ -328,12 +277,11 @@ function postRow(p) {
   const thumb = h("div", { class: "thumb", style: img ? "" : `background:${t.color}22` },
     img ? h("img", { src: img, alt: "", loading: "lazy", referrerpolicy: "no-referrer" }) : t.emoji);
   return h("article", { class: "post row" },
-    voteBox(p, "column"),
     thumb,
     h("div", null,
       h("h2", { class: "post-title" }, h("a", { href }, p.title), flair(p)),
       postHead(p),
-      actions(p, "compact"),
+      actions(p),
     ),
   );
 }
@@ -367,7 +315,7 @@ function renderRightRail() {
       h("div", { class: "card-head" }, "About Sunnyside"),
       h("div", { class: "card-body" },
         h("p", null, "Only good news. Every story is picked from dedicated good-news outlets, or checked for positivity before it gets here."),
-        h("p", null, "Wholesome memes and cute animals come from Reddit, Lemmy and Mastodon. Scores are their upvotes; your own votes stay on this device."),
+        h("p", null, "Sprinkled in: wholesome memes and cute animals, credited to where they were first posted."),
         h("a", { class: "btn btn-primary btn-block", href: document.getElementById("get-app").href }, "📱 Get the Android app"),
       ),
     ),
@@ -493,9 +441,8 @@ function pagePost(route) {
       p.summary ? h("p", { class: "post-summary" }, p.summary) : null,
       h("div", { class: "detail-cta" },
         article && url ? h("a", { class: "btn btn-primary btn-block", href: url, target: "_blank", rel: "noopener" }, `Read the full story on ${domain(url)} `, h("span", { html: ICON.out })) : null,
-        discussion ? h("a", { class: "btn btn-block" + (article ? "" : " btn-primary"), href: discussion, target: "_blank", rel: "noopener" },
-          p.kind === "video" ? "▶ Watch it" : "💬 Join the discussion",
-          p.comments != null ? ` (${compact(p.comments)} comments)` : "", " on ", domain(discussion)) : null,
+        !article && discussion ? h("a", { class: "btn btn-primary btn-block", href: discussion, target: "_blank", rel: "noopener" },
+          p.kind === "video" ? "▶ Watch it on " : "View the original post on ", domain(discussion)) : null,
       ),
       actions(p),
     ),

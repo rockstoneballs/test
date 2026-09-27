@@ -8,15 +8,14 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [StoryEntity::class, SavedStoryEntity::class, PetEntity::class, VoteEntity::class],
-    version = 2,
+    entities = [StoryEntity::class, SavedStoryEntity::class, PetEntity::class],
+    version = 3,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun stories(): StoryDao
     abstract fun saved(): SavedStoryDao
     abstract fun pets(): PetDao
-    abstract fun votes(): VoteDao
 
     companion object {
         /** v2 adds Reddit-style fields (kind, votes, comments…) and the votes table. Saved posts are kept. */
@@ -35,9 +34,16 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** v3 removes voting. */
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS votes")
+            }
+        }
+
         fun create(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, "sunnyside.db")
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .fallbackToDestructiveMigration()
                 .build()
     }

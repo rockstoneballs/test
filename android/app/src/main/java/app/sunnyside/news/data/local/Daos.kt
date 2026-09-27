@@ -54,18 +54,6 @@ interface SavedStoryDao {
 }
 
 @Dao
-interface VoteDao {
-    @Query("SELECT * FROM votes")
-    fun observeAll(): Flow<List<VoteEntity>>
-
-    @Upsert
-    suspend fun set(vote: VoteEntity)
-
-    @Query("DELETE FROM votes WHERE id = :id")
-    suspend fun clear(id: String)
-}
-
-@Dao
 interface PetDao {
     @Query("SELECT * FROM pets ORDER BY date DESC, kind ASC")
     fun observeAll(): Flow<List<PetEntity>>

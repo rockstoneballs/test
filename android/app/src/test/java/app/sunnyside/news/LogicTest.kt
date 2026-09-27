@@ -61,7 +61,7 @@ class LogicTest {
     fun newsLeadsAndSocialIsSprinkledIn() {
         val cats = (1..5).map { post("cat$it", hoursAgo = 1, score = 5000, kind = PostKind.Image) }
         val news = (1..6).map { post("news$it", hoursAgo = it) }
-        val sorted = Ranking.sort(cats + news, SortMode.Hot, emptyMap(), NOW).map { it.id }
+        val sorted = Ranking.sort(cats + news, SortMode.Hot, NOW).map { it.id }
         assertEquals(
             listOf("news1", "news2", "news3", "cat1", "news4", "news5", "news6", "cat2", "cat3", "cat4", "cat5"),
             sorted,
@@ -75,20 +75,12 @@ class LogicTest {
     )
 
     @Test
-    fun hotBalancesVotesAndFreshness() {
+    fun topStoriesBalancePopularityAndFreshness() {
         val fresh = post("fresh", hoursAgo = 1)
         val popularButOld = post("old", hoursAgo = 40, score = 50_000)
         val popularAndRecent = post("hit", hoursAgo = 3, score = 20_000)
-        val sorted = Ranking.sort(listOf(popularButOld, fresh, popularAndRecent), SortMode.Hot, emptyMap(), NOW)
+        val sorted = Ranking.sort(listOf(popularButOld, fresh, popularAndRecent), SortMode.Hot, NOW)
         assertEquals(listOf("hit", "fresh", "old"), sorted.map { it.id })
-    }
-
-    @Test
-    fun myVotesCount() {
-        val a = post("a", hoursAgo = 1, score = 10)
-        val b = post("b", hoursAgo = 1, score = 10)
-        assertEquals(listOf("b", "a"), Ranking.sort(listOf(a, b), SortMode.Top, mapOf("b" to 1), NOW).map { it.id })
-        assertEquals(11, Ranking.points(b, 1))
     }
 
     private companion object {

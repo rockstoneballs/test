@@ -36,19 +36,15 @@ import kotlinx.coroutines.launch
 private fun <T> Flow<T>.asState(vm: ViewModel, initial: T): StateFlow<T> =
     stateIn(vm.viewModelScope, SharingStarted.WhileSubscribed(5_000), initial)
 
-/** Shared by every screen that shows posts: votes, saves, sort and layout. */
+/** Shared by every screen that shows posts: saves, sort and layout. */
 abstract class PostsViewModel(
     protected val repo: NewsRepository,
     protected val settingsRepo: SettingsRepository,
 ) : ViewModel() {
     val user: StateFlow<PostUserState> =
-        combine(repo.votes, repo.savedIds) { votes, saved -> PostUserState(votes, saved) }.asState(this, PostUserState())
+        repo.savedIds.map { PostUserState(it) }.asState(this, PostUserState())
 
     val settings: StateFlow<Settings> = settingsRepo.settings.asState(this, Settings())
-
-    fun vote(story: Story, direction: Int) = viewModelScope.launch {
-        repo.vote(story.id, direction, repo.votes.first()[story.id] ?: 0)
-    }
 
     fun toggleSave(story: Story) = viewModelScope.launch {
         repo.toggleSaved(story, story.id in repo.savedIds.first())
@@ -77,9 +73,9 @@ class HomeViewModel(repo: NewsRepository, settingsRepo: SettingsRepository) : Po
     val message: StateFlow<String?> = _message.asStateFlow()
     val updatedAt: StateFlow<Long?> = repo.feedUpdatedAt
 
-    val state: StateFlow<HomeState> = combine(repo.stories, repo.pets, repo.votes, settingsRepo.settings) { stories, pets, votes, s ->
+    val state: StateFlow<HomeState> = combine(repo.stories, repo.pets, settingsRepo.settings) { stories, pets, s ->
         HomeState(
-            posts = Ranking.sort(stories, s.sort, votes),
+            posts = Ranking.sort(stories, s.sort),
             kitten = pets.firstOrNull { it.kind == PetKind.Kitten },
             puppy = pets.firstOrNull { it.kind == PetKind.Puppy },
             loaded = true,
@@ -124,7 +120,7 @@ class SearchViewModel(repo: NewsRepository, settingsRepo: SettingsRepository) : 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
-    val results: StateFlow<List<Story>> = combine(repo.stories, repo.votes, settingsRepo.settings, _query) { stories, votes, s, q ->
+    val results: StateFlow<List<Story>> = combine(repo.stories, settingsRepo.settings, _query) { stories, s, q ->
         val words = q.trim().lowercase().split(Regex("\\s+")).filter { it.isNotEmpty() }
         if (words.isEmpty()) {
             emptyList()
@@ -135,7 +131,6 @@ class SearchViewModel(repo: NewsRepository, settingsRepo: SettingsRepository) : 
                     words.all { it in hay }
                 },
                 s.sort,
-                votes,
             )
         }
     }.asState(this, emptyList())
@@ -159,13 +154,13 @@ class DetailViewModel(repo: NewsRepository, settingsRepo: SettingsRepository, ha
     PostsViewModel(repo, settingsRepo) {
     private val id: String = checkNotNull(handle["id"])
 
-    val state: StateFlow<DetailState> = combine(repo.story(id), repo.stories, repo.votes) { story, all, votes ->
+    val state: StateFlow<DetailState> = combine(repo.story(id), repo.stories) { story, all ->
         DetailState(
             story = story,
             related = if (story == null) {
                 emptyList()
             } else {
-                Ranking.sort(all.filter { it.topic == story.topic && it.id != id }, SortMode.Hot, votes).take(5)
+                Ranking.sort(all.filter { it.topic == story.topic && it.id != id }, SortMode.Hot).take(5)
             },
             loaded = true,
         )

@@ -61,10 +61,9 @@ private fun rememberPostCallbacks(nav: NavHostController, vm: PostsViewModel): P
     return remember(nav, vm, toolbar) {
         PostCallbacks(
             open = { nav.navigate("post/${it.id}") },
-            vote = { story, direction -> vm.vote(story, direction) },
             toggleSave = { vm.toggleSave(it) },
             share = { shareText(context, it.title, shareBody(it)) },
-            openDiscussion = { story -> story.discussionUrl?.let { openInBrowser(context, it, toolbar) } },
+            openOriginal = { story -> story.discussionUrl?.let { openInBrowser(context, it, toolbar) } },
         )
     }
 }

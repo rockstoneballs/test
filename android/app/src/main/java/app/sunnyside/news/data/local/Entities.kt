@@ -53,13 +53,6 @@ data class SavedStoryEntity(
     val imageHeight: Int? = null,
 )
 
-/** Your own up/down votes. They stay on the device. */
-@Entity(tableName = "votes")
-data class VoteEntity(
-    @PrimaryKey val id: String,
-    val value: Int,
-)
-
 @Entity(tableName = "pets", primaryKeys = ["date", "kind"])
 data class PetEntity(
     val date: String,

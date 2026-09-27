@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.automirrored.outlined.Comment
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
@@ -26,7 +25,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -46,10 +44,8 @@ import app.sunnyside.news.ui.components.PostHeader
 import app.sunnyside.news.ui.components.PostMedia
 import app.sunnyside.news.ui.components.PostTitle
 import app.sunnyside.news.ui.components.SectionHeader
-import app.sunnyside.news.ui.components.VoteControl
 import app.sunnyside.news.ui.components.postItems
 import app.sunnyside.news.data.ViewMode
-import app.sunnyside.news.util.compactCount
 import app.sunnyside.news.util.domainOf
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -131,38 +127,22 @@ fun StoryDetailScreen(
                                 Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
                             }
                         }
-                        story.discussionUrl?.let { discussion ->
-                            val label = buildString {
-                                append(if (story.kind == PostKind.Video) "Watch it" else "Join the discussion")
-                                story.comments?.let { append(" (${compactCount(it)} comments)") }
-                                append(" on ${domainOf(discussion)}")
-                            }
-                            val content: @Composable () -> Unit = {
-                                Icon(
-                                    if (story.kind == PostKind.Video) Icons.Filled.PlayArrow else Icons.AutoMirrored.Outlined.Comment,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                                Spacer(Modifier.size(8.dp))
-                                Text(label)
-                            }
-                            if (story.kind == PostKind.Article) {
-                                OutlinedButton(
-                                    onClick = { callbacks.openDiscussion(story) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    contentPadding = PaddingValues(vertical = 14.dp),
-                                ) { content() }
-                            } else {
+                        // Memes and animal photos: credit where they were first posted.
+                        if (story.kind != PostKind.Article) {
+                            story.discussionUrl?.let { original ->
                                 Button(
-                                    onClick = { callbacks.openDiscussion(story) },
+                                    onClick = { callbacks.openOriginal(story) },
                                     modifier = Modifier.fillMaxWidth(),
                                     contentPadding = PaddingValues(vertical = 14.dp),
-                                ) { content() }
+                                ) {
+                                    if (story.kind == PostKind.Video) {
+                                        Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(Modifier.size(8.dp))
+                                    }
+                                    Text((if (story.kind == PostKind.Video) "Watch it on " else "View the original post on ") + domainOf(original))
+                                }
                             }
                         }
-                    }
-                    Row(Modifier.padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        VoteControl(story, user.votes[story.id] ?: 0, onVote = { callbacks.vote(story, it) })
                     }
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)

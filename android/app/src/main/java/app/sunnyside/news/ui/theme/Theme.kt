@@ -100,7 +100,3 @@ fun SunnysideTheme(mode: ThemeMode = ThemeMode.System, content: @Composable () -
 
 /** Accent colour per topic, used for flair tags and image placeholders. */
 fun Topic.accent(): Color = Color(color)
-
-/** Upvote / downvote colours. */
-val UpvoteColor = Color(0xFFF76707)
-val DownvoteColor = Color(0xFF5C7CFA)

@@ -14,8 +14,6 @@
   --brand-strong: #d9480f;
   --brand-soft: #fff0e1;
   --on-brand: #ffffff;
-  --up: #f76707;
-  --down: #5c7cfa;
   --focus: #1c7ed6;
   --shadow: 0 1px 2px rgba(60, 40, 10, .06), 0 2px 8px rgba(60, 40, 10, .04);
   --radius: 14px;
@@ -39,8 +37,6 @@
     --brand-strong: #ffa94d;
     --brand-soft: #3a2413;
     --on-brand: #1a0e02;
-    --up: #ff922b;
-    --down: #91a7ff;
     --focus: #74c0fc;
     --shadow: none;
     color-scheme: dark;
@@ -61,8 +57,6 @@
   --brand-strong: #ffa94d;
   --brand-soft: #3a2413;
   --on-brand: #1a0e02;
-  --up: #ff922b;
-  --down: #91a7ff;
   --focus: #74c0fc;
   --shadow: none;
   color-scheme: dark;
@@ -244,26 +238,13 @@ main { padding: 16px 0 64px; min-width: 0; outline: none; }
 .pill svg { flex-shrink: 0; }
 .pill[aria-pressed="true"] { color: var(--brand-strong); }
 
-.votes { display: inline-flex; align-items: center; height: 32px; border-radius: 999px; background: var(--surface-2); }
-.votes .score { min-width: 28px; text-align: center; font-size: 13px; font-weight: 800; color: var(--text); }
-.vote { width: 32px; height: 32px; border: 0; border-radius: 999px; background: none; display: grid; place-items: center; color: var(--text-3); }
-.vote:hover { background: var(--border); }
-.vote.up:hover, .vote.up[aria-pressed="true"] { color: var(--up); }
-.vote.down:hover, .vote.down[aria-pressed="true"] { color: var(--down); }
-.votes.upvoted { background: color-mix(in srgb, var(--up) 14%, var(--surface-2)); }
-.votes.upvoted .score { color: var(--up); }
-.votes.downvoted { background: color-mix(in srgb, var(--down) 14%, var(--surface-2)); }
-.votes.downvoted .score { color: var(--down); }
-
 /* compact view */
 .post.row {
-  display: grid; grid-template-columns: 44px 72px minmax(0, 1fr); gap: 12px; align-items: start;
+  display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 12px; align-items: start;
   border: 0; border-bottom: 1px solid var(--border); border-radius: 0; box-shadow: none; padding: 10px 12px;
 }
 .post.row:last-child { border-bottom: 0; }
 .post.row:hover { background: var(--surface-hover); }
-.post.row .votes { flex-direction: column; height: auto; background: none; position: relative; z-index: 2; }
-.post.row .votes.upvoted, .post.row .votes.downvoted { background: none; }
 .post.row .thumb { width: 72px; height: 56px; border-radius: 8px; object-fit: cover; background: var(--surface-2); border: 1px solid var(--border); display: grid; place-items: center; font-size: 24px; overflow: hidden; }
 .post.row .thumb img { width: 100%; height: 100%; object-fit: cover; }
 .post.row .post-title { font-size: 15px; margin: 0 0 4px; }

@@ -1,10 +1,10 @@
 # ☀️ Sunnyside: only good news
 
 Sunnyside is a news app and website that only shows good news, meant to be the
-first thing you open in the morning. It looks and feels like Reddit: one feed of
-posts with upvotes, comment counts, Hot / New / Top sorting, and card or compact
-layouts. But everything in it is good news, wholesome memes or cute animals. There
-are no communities to join; it's one feed. There's also a **Kitten of the Day** and
+first thing you open in the morning. It's a news site, not a social site: one feed
+of good news from around the world, laid out like Reddit's feed (cards or a compact
+list, **Top stories** or **Latest**), with wholesome memes and cute animals sprinkled
+in. There are no votes, comments or accounts. There's also a **Kitten of the Day** and
 a **Puppy of the Day**.
 
 * **Android app:** `android/` (Kotlin + Jetpack Compose)
@@ -34,14 +34,14 @@ Every post has a small topic tag, like Reddit's post flair:
 | 😊 Wholesome | People (and animals) being lovely | r/MadeMeSmile, r/HumansBeingBros, r/AnimalsBeingBros, Lemmy, Mastodon #wholesome |
 | 🔭 Science, 🌿 Environment, 💚 Health, 🐾 Animals, 🤝 Kindness, 💡 Innovation, 🎨 Culture, 🏅 Sport | Good-news stories | Good-news outlets, world news filtered for positivity, Google News, r/UpliftingNews, r/goodnews |
 
-Upvote and comment counts on posts from Reddit, Lemmy and Mastodon are real, and
-they're refreshed on every scrape. When a news story was also shared on
-r/UpliftingNews, it gets that thread's votes and a link to the discussion. Your own
-votes and saved posts stay on your device. There are no accounts yet.
+Memes and animal photos link back to the original post, as credit. Saved posts stay
+on your device.
 
-**Hot** ranking (the same formula in `web/app.js` and `Ranking` in the app) =
-uplift score + a capped boost from upvotes + your vote − 1 point per 6 hours of age.
-The cap keeps news, which has no Reddit votes, from being buried under memes.
+**Top stories** (the same logic in `web/app.js` and `Ranking` in the app) ranks by
+how uplifting a post is, minus 1 point per 6 hours of age. For memes and animal
+photos, popularity on the source site also helps pick the best ones; it's never
+shown. News and fun posts are ranked separately, then interleaved: three news
+stories, then one meme or animal post. **Latest** is simply newest first.
 
 ## Sources and filtering (`scraper/`)
 
@@ -118,8 +118,6 @@ cp -r ../web/. ../site/ && python -m http.server -d ../site 8000   # website at 
 
 ## Ideas for what's next
 
-* Real accounts, so votes and comments are shared between people (needs a
-  backend such as Supabase or Firebase)
 * Push notifications through FCM for breaking good news
-* Personalised ranking based on what each person upvotes and saves
+* Personalised ranking based on what each person reads and saves
 * Play Store release: a signing key, a privacy policy and store listing art
