@@ -141,6 +141,11 @@ CATEGORY_KEYWORDS: dict[str, re.Pattern[str]] = {
         "grand prix", "boxing", "ufc!", "wimbledon", "tournament", "playoff", "quarterback",
         "striker", "goalkeeper", "midfielder", "league", "cup final", "semi-final", "hat-trick",
         "touchdown", "slam dunk", "stadium", "transfer window", "super bowl", "wrestl",
+        "afl!", "aflw!", "nrl!", "nrlw!", "a-league", "gaa!", "hurling", "hockey", "baseball", "softball",
+        "volleyball", "netball", "ncaa", "wnba", "mls!", "fifa", "uefa", "ipl!", "nascar", "indycar", "pga!",
+        "lpga", "ryder cup", "six nations", "tour de france", "grand final", "semifinal",
+        "innings", "wicket", "halftime", "half-time", "off the mark", "win over", "matildas",
+        "socceroos", "wallabies", "all blacks", "lionesses", "gymnast", "sprinter", "skier", "snowboard",
     ]),
 }
 

@@ -238,3 +238,11 @@ def test_charity_headlines_are_not_mistaken_for_money_news():
     assert not scrape.unwanted(story)
     assert not scrape.unwanted(dict(story, title="Non-profit café trains young people for their first jobs"))
     assert scrape.unwanted(dict(story, title="Shareholders cheer record profits at Nike"))
+
+
+def test_sport_from_anywhere_is_caught():
+    from goodnews import keywords
+    assert keywords.is_sport("Freo finds joy in AFLW win, Pies finally off the mark")
+    assert keywords.is_sport("Matildas book their spot in the semifinal")
+    assert not keywords.is_sport("Volunteers restore Derby canal")
+    assert not keywords.is_sport("Scientists coach bees to recognise flowers")

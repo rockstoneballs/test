@@ -515,7 +515,9 @@ def build_feed(
 
     # Stories that already failed the filter aren't checked again (saves Claude calls).
     rejected_before = set(previous.get("rejected", []))
-    candidates = [c for c in candidates if c["id"] not in rejected_before]
+    unseen = [c for c in candidates if c["id"] not in rejected_before]
+    log.info("%d already rejected on an earlier run, %d to check", len(candidates) - len(unseen), len(unseen))
+    candidates = unseen
     fresh = select_good_news(candidates, use_claude)
     kept_ids = {s["id"] for s in fresh}
     rejected = [c["id"] for c in candidates if c["id"] not in kept_ids] + list(previous.get("rejected", []))
