@@ -47,7 +47,7 @@ _MONEY_WORDS = [
     "epfo", "tax!", "taxes", "budget", "loan", "emi!", "gold price", "petrol price", "fuel price",
     "lottery", "jackpot", "crypto", "bitcoin", "profits!", "revenue", "earnings", "billion-dollar",
     "settlement", "lawsuit", "refund", "compensation", "payout", "unfair", "underpaid", "wage theft",
-    "landlord", "renters", "house prices", "rent!", "rents!",
+    "landlord", "renters", "house prices", "rent!", "rents!", "sued", "sues!", "sue!",
     "admit card", "exam result", "board result", "recruitment", "vacancy", "vacancies", "scheme",
 ]
 MONEY = _rx(_MONEY_WORDS)
@@ -71,7 +71,8 @@ DOOM = _rx([
     "outrage", "slams", "criticis", "feud", "spat", "suffer", "struggl", "poverty", "grief", "mourn",
     "tragic", "tragedy", "funeral", "abandoned", "starv", "hunger", "refugee", "migrant", "deport",
     "shooting", "gun!", "guns!", "stabbed", "killed", "murder", "assault", "cyberattack", "scam",
-    "fined", "die!", "bleach", "heatwave", "heat wave", "warming", "worsen", "loss!", "losses", "losing",
+    "fined", "die!", "bodies", "body of", "landslide", "mudslide", "avalanche", "drown", "hunting", "hunter!",
+    "hunters", "bleach", "heatwave", "heat wave", "warming", "worsen", "loss!", "losses", "losing",
     "lose!", "shrink", "less time", "nightmare",
 ] + _MONEY_WORDS)
 
@@ -82,7 +83,7 @@ POLITICS = _rx([
     "parliament", "senate!", "senator", "congressman", "congresswoman", "prime minister", "chief minister",
     "union minister", "minister!", "ministers!", "ministry", "government", "govt!", "election", "politic",
     "republican", "democrat", "labour party", "conservative party", "tory", "tories",
-    "governor", "lawmaker", "legislat",
+    "governor", "lawmaker", "legislat", "chief whip",
 ])
 
 # Named politicians and parties: a story whose text is about them is politics, whatever
@@ -372,12 +373,20 @@ _CLICKBAIT_RX = re.compile(
     r"\b(?:blows|blew|blowing) (?:up|away)\b|\bslays\b|\bslayed\b|\bnails it\b|\bwins the internet|"
     r"\b(?:volunteers?|help|helpers|donations?) (?:are |is )?(?:needed|wanted)\b|\bappeal for\b|\blooking for volunteers|"
     r"\bwhat to do (?:with|about|if|when)\b|\bsee the (?:winning|best|photos|pictures|images|shots)\b|"
-    r"^good news in history\b",
+    r"^good news in history\b|\bgrants?\s*:|\bfunding opportunit|\bcall for proposals|\bapply now\b",
     re.IGNORECASE,
 )
 _LISTICLE_RX = re.compile(
     r"^(?:the )?\d+\s+(?:\w+\s+){0,2}(?:things|ways|reasons|tips|times|signs|photos|pictures|pics|facts|places|"
     r"books|ideas|moments|stories|habits|foods|lessons|secrets|tricks|products|gifts)\b",
+    re.IGNORECASE,
+)
+
+
+# Swearing, in any source (memes included): Sunnyside is a family-friendly morning read.
+PROFANITY = re.compile(
+    r"\bf[\*u@#]{1,3}c?k|\bfck|\bsh[\*i]t|\bb[\*i]tch|\bc[\*u]nt|\bwtf\b|\bassh[o0]le|\bdick(?:head)?\b|"
+    r"\bbastard|\bpiss(?:ed)?\b|\bcrap\b|\bdamn\b|\bslut|\bwhore|\bnsfw\b",
     re.IGNORECASE,
 )
 
@@ -400,7 +409,7 @@ _TABLOID_RX = re.compile(
     r"boredpanda|bored panda|distractify|upworthy|inspiremore|inspire more|twistedsifter|someecards|"
     r"buzzfeed|\bparade\b|parade\.com|whimsy|shared\.com|diply|viralnova|the dodo|thedodo|"
     r"animalsaroundtheglobe|dogtime|pawtracks|countryliving|"
-    r"yahoo|\bmsn\b|aol\.com|newsbreak|dailyhunt|\bnews18|wionews|\bzee ?news|\bindia\.com",
+    r"fundsforngos|yahoo|\bmsn\b|aol\.com|newsbreak|dailyhunt|\bnews18|wionews|\bzee ?news|\bindia\.com",
     re.IGNORECASE,
 )
 
@@ -481,7 +490,19 @@ def guess_category(title: str, summary: str) -> str:
     return best
 
 
+# Places elsewhere that share a UK or Irish name.
+_NOT_UK = re.compile(
+    r"new england|new london|\bscotland(?=,? county| county|,? (?:s\.?d|ct|conn|pa|tx|ga)\b)|"
+    r"\b(?:dublin|london|birmingham|manchester|cambridge|oxford|kent|cork|belfast|newcastle|brighton|"
+    r"bristol|leeds|glasgow|aberdeen|sheffield|norfolk|essex|devon|cornwall|durham)(?=\s*,\s*"
+    r"(?:ohio|oh|calif|california|ca|ga|georgia|va|virginia|ky|kentucky|tx|texas|al|ala|alabama|nh|mass|"
+    r"massachusetts|ma|conn|ct|ontario|ont|ms|miss|mississippi|wash|wa|me|maine|ny|pa|nc|sc|tn|fl|nsw|n\.s\.w)\b)",
+    re.IGNORECASE,
+)
+
+
 def guess_region(title: str, summary: str) -> str:
+    title, summary = _NOT_UK.sub(" ", title), _NOT_UK.sub(" ", summary)
     best, best_hits = "Global", 0
     for region, rx in _REGION_RX.items():
         hits = 2 * len(rx.findall(title)) + len(rx.findall(summary))

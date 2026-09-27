@@ -324,7 +324,7 @@ def unwanted(story: dict) -> bool:
     text = f"{title}\n{summary}" if article else title
     if not keywords.is_english(text) or keywords.is_off_topic(title, summary if article else ""):
         return True
-    if keywords.POLITICS.search(text) or keywords.MONEY.search(title):
+    if keywords.POLITICS.search(text) or keywords.MONEY.search(title) or keywords.PROFANITY.search(title):
         return True
     if article and (keywords.is_clickbait(title) or keywords.is_tabloid(story.get("source", ""), story.get("sourceHomepage", ""))):
         return True

@@ -293,3 +293,24 @@ def test_home_stories_get_a_small_boost():
     base = {"kind": "article", "publishedAt": "2026-09-26T10:00:00Z", "uplift": 5, "imageUrl": None}
     uk, us = dict(base, id="uk", region="UK & Ireland"), dict(base, id="us", region="North America")
     assert [s["id"] for s in scrape.top_stories([us, uk], NOW)] == ["uk", "us"]
+
+
+def test_second_uk_review_live_cases():
+    # Look-alike places elsewhere aren't the UK or Ireland.
+    assert keywords.guess_region("Volunteers turn out for East Laurinburg cleanup",
+                                 "SCOTLAND COUNTY S.C. (WPDE) — Volunteers spent Saturday") == "Global"
+    assert keywords.guess_region("Library opens in Dublin, Ohio", "") == "North America"
+    assert keywords.guess_region("Fall colours across New England", "") != "UK & Ireland"
+    # Grim, political, hunting, legal and notice stories that slipped through.
+    from goodnews.scrape import unwanted
+    base = {"kind": "article", "summary": "", "community": "Community", "source": "X", "sourceHomepage": ""}
+    for title in ["Chief Whip Emphasizes Research and Innovation in Zoology",
+                  "A group of formerly incarcerated women sued to get air conditioning in every Texas prison — and won",
+                  "Redwood Research Grants: Advancing Conservation and Restoration Science"]:
+        assert unwanted(dict(base, title=title)), title
+    for title in ["Two bodies recovered from landslide in Ghiwang, two others rescued",
+                  "Utah Wildlife Board Approves Changes to Elk Hunting Rules"]:
+        assert not keywords.passes_keyword_filter(title, "", trusted=False), title
+    # No swearing, memes included.
+    assert unwanted(dict(base, kind="image", title="F**k you all, this is love,"))
+    assert not unwanted(dict(base, kind="image", title="Scunthorpe choir hits the high notes"))
