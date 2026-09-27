@@ -324,3 +324,14 @@ def test_uk_and_irish_headlines_need_one_positive_word():
     assert keywords.passes_keyword_filter(title, "", False, scrape.min_positivity({"title": title, "source": "X"}))
     assert scrape.min_positivity({"title": "Seal pup rescued", "source": "BBC Wales"}) == 2
     assert scrape.min_positivity({"title": "Seal pup rescued", "source": "NPR"}) == 3
+
+
+def test_third_uk_review_live_cases():
+    from goodnews.scrape import unwanted
+    base = {"kind": "article", "summary": "", "community": "Community", "sourceHomepage": ""}
+    for title, source in [("Georgia Bulldogs vs. Tennessee Volunteers: Game Highlights", "ESPN"),
+                          ("Alaska Animal Rescue on National Geographic WILD HD: full details and when it's on", "TVGuide.co.uk"),
+                          ("U2 celebrate 50th anniversary at the school where they formed", "BBC Northern Ireland")]:
+        assert unwanted(dict(base, title=title, source=source)), title
+    assert not unwanted(dict(base, title="Meet Grumpygran1948 - Fortnite's record-breaking streamer", source="BBC Scotland"))
+    assert keywords.guess_region("Irish Road Bowling raises money for charities in Wheeling", "") == "Global"

@@ -164,6 +164,7 @@ CATEGORY_KEYWORDS: dict[str, re.Pattern[str]] = {
         "lpga", "ryder cup", "six nations", "tour de france", "grand final", "semifinal",
         "innings", "wicket", "halftime", "half-time", "off the mark", "win over", "matildas",
         "socceroos", "wallabies", "all blacks", "lionesses", "gymnast", "sprinter", "skier", "snowboard",
+        "vs!", "vs.", "game highlights", "match highlights", "espn",
     ]),
 }
 
@@ -184,6 +185,8 @@ OFF_TOPIC = _rx([
     "britain's got talent", "america's got talent", "showbiz", "pop star", "popstar", "movie star",
     "film star", "singer", "rapper", "actress", "actor!", "actors!", "star-studded",
     "royal ascot", "engaged to", "wedding of", "baby bump", "net worth",
+    "bafta", "rock star", "rockstar", "boy band", "girl band", "frontman", "gig!", "gigs!", "world tour",
+    "u2!", "bono!", "coldplay", "ed sheeran", "oasis!", "bafta-nominated",
 ])
 
 # Country / place names -> region. Order matters only for readability.
@@ -211,7 +214,7 @@ _REGION_PLACES: dict[str, list[str]] = {
     # Before Europe, so a story naming both counts as UK & Ireland.
     "UK & Ireland": [
         "uk", "u.k.", "britain", "british", "england", "scotland", "scottish", "wales", "welsh",
-        "ireland", "irish", "northern ireland", "nhs", "rnli", "national trust", "london", "manchester",
+        "ireland", "northern ireland", "nhs", "rnli", "national trust", "london", "manchester",
         "birmingham", "liverpool", "leeds", "sheffield", "bristol", "newcastle", "nottingham", "leicester",
         "brighton", "oxford", "cambridge", "yorkshire", "lancashire", "cumbria", "lake district",
         "cornwall", "cornish", "devon", "dorset", "somerset", "kent", "sussex", "essex", "norfolk", "suffolk",
@@ -373,6 +376,7 @@ _CLICKBAIT_RX = re.compile(
     r"\b(?:blows|blew|blowing) (?:up|away)\b|\bslays\b|\bslayed\b|\bnails it\b|\bwins the internet|"
     r"\b(?:volunteers?|help|helpers|donations?) (?:are |is )?(?:needed|wanted)\b|\bappeal for\b|\blooking for volunteers|"
     r"\bwhat to do (?:with|about|if|when)\b|\bsee the (?:winning|best|photos|pictures|images|shots)\b|"
+    r"\bwhen it'?s on\b|\bhow to watch\b|\bwhere to watch\b|\bfull details\b|\bepisode\b|\bseason \d|"
     r"^good news in history\b|\bgrants?\s*:|\bfunding opportunit|\bcall for proposals|\bapply now\b",
     re.IGNORECASE,
 )
@@ -409,7 +413,7 @@ _TABLOID_RX = re.compile(
     r"boredpanda|bored panda|distractify|upworthy|inspiremore|inspire more|twistedsifter|someecards|"
     r"buzzfeed|\bparade\b|parade\.com|whimsy|shared\.com|diply|viralnova|the dodo|thedodo|"
     r"animalsaroundtheglobe|dogtime|pawtracks|countryliving|"
-    r"fundsforngos|yahoo|\bmsn\b|aol\.com|newsbreak|dailyhunt|\bnews18|wionews|\bzee ?news|\bindia\.com",
+    r"fundsforngos|tvguide|tv guide|radiotimes|radio times|espn|sky sports|bbc sport|the athletic|yahoo|\bmsn\b|aol\.com|newsbreak|dailyhunt|\bnews18|wionews|\bzee ?news|\bindia\.com",
     re.IGNORECASE,
 )
 
