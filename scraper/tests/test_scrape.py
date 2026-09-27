@@ -101,24 +101,39 @@ def test_celebrity_and_royal_news_is_off_topic():
     assert not keywords.is_off_topic("Prince Edward Island opens a new wind farm")
 
 
-def test_sport_is_kept_to_a_minimum(fixtures):
-    from goodnews import scrape
+def test_sport_is_removed_entirely(fixtures):
     now_iso = "2026-09-26T10:00:00Z"
-    sport = [
-        {"id": f"sp{i}", "kind": "article", "title": f"Local football team wins cup {i}", "summary": "",
-         "url": f"https://x/{i}", "imageUrl": None, "source": "S", "sourceHomepage": "https://x",
-         "author": "S", "publishedAt": now_iso, "community": "Sport", "category": "Sport",
-         "region": "Europe", "uplift": 5 + i % 4, "score": None, "comments": None, "discussionUrl": None}
-        for i in range(10)
+    base = {"kind": "article", "summary": "", "imageUrl": None, "source": "S", "sourceHomepage": "https://x",
+            "author": "S", "publishedAt": now_iso, "region": "Europe", "uplift": 9, "score": None,
+            "comments": None, "discussionUrl": None}
+    previous = [
+        dict(base, id="sp", title="Underdog team wins the cup", url="https://x/1", community="Sport", category="Sport"),
+        dict(base, id="sp2", title="Marathon runner raises money for hospital", url="https://x/2",
+             community="Community", category="Community"),
+        dict(base, id="royal", title="Princess of Wales opens garden", url="https://x/3", community="Culture", category="Culture"),
+        dict(base, id="de", title="Neue Solaranlage versorgt das ganze Dorf mit Strom", url="https://x/4",
+             community="Environment", category="Environment"),
+        dict(base, id="ok", title="Volunteers plant a million trees", url="https://x/5", community="Environment",
+             category="Environment"),
     ]
-    royal = dict(sport[0], id="royal", title="Princess of Wales opens garden", community="Culture", category="Culture")
-    feed = build_feed(requests.Session(), {"stories": sport + [royal], "pets": []}, NOW,
+    feed = build_feed(requests.Session(), {"stories": previous, "pets": []}, NOW,
                       fixtures=fixtures, fetch_images=False, fetch_pets=False)
     ids = {s["id"] for s in feed["stories"]}
-    assert "royal" not in ids
-    kept_sport = [s for s in feed["stories"] if s["community"] == "Sport"]
-    assert len(kept_sport) == scrape.MAX_SPORT_POSTS
-    assert sorted(s["uplift"] for s in kept_sport) == [7, 7, 8, 8]  # the most uplifting four
+    assert "ok" in ids
+    assert not ids & {"sp", "sp2", "royal", "de"}
+
+
+def test_english_only():
+    assert keywords.is_english("Volunteers plant a million trees across Kenya")
+    assert keywords.is_english("Meet Pickle, who has claimed the laundry basket")
+    assert keywords.is_english("Cute dog")
+    assert keywords.is_english("Beyoncé-free café reopens in the village")
+    assert not keywords.is_english("Neue Solaranlage versorgt das ganze Dorf mit Strom")
+    assert not keywords.is_english("Le village a enfin l'eau potable grâce aux pompes solaires")
+    assert not keywords.is_english("Los voluntarios plantan un millón de árboles en la ciudad")
+    assert not keywords.is_english("Il nuovo parco è aperto a tutti i bambini della città")
+    assert not keywords.is_english("猫が救助されました")
+    assert not keywords.is_english("Кошка спасена волонтёрами")
 
 
 def test_rejected_stories_are_not_rechecked(fixtures, monkeypatch):

@@ -41,10 +41,7 @@ USER_AGENT = "SunnysideGoodNewsBot/1.1 (+https://github.com/rockstoneballs/test)
 MAX_OG_IMAGE_LOOKUPS = 80
 SOCIAL_UPLIFT = 7
 MAX_PER_SOCIAL_COMMUNITY = 150
-# Sport is kept to a minimum: only the most uplifting few stories make it in.
-MAX_SPORT_POSTS = 4
 MAX_REJECTED_IDS = 5000
-MIN_UPLIFT_SPORT = 7
 MIN_UPLIFT_MAINSTREAM = 6
 MIN_UPLIFT_TRUSTED = 3
 
@@ -147,6 +144,10 @@ def fetch_source(session: requests.Session, source: Source, fixtures: Path | Non
         log.warning("%s: fetch failed: %s", source.name, e)
         return []
 
+    language = str(parsed.feed.get("language", "")).lower()
+    if language and not language.startswith("en"):
+        log.info("%s: skipped, feed language is %s", source.name, language)
+        return []
     is_google = "news.google.com" in source.url
     items = []
     for entry in parsed.entries:
@@ -236,6 +237,17 @@ def og_image(session: requests.Session, url: str) -> str | None:
     return found if is_http_url(found) else None
 
 
+def unwanted(story: dict) -> bool:
+    """Content Sunnyside leaves out whatever its tone: non-English posts, celebrity and
+    royalty news, and sport. Memes and animal photos are only checked by their title."""
+    title, summary = story["title"], story.get("summary") or ""
+    article = story.get("kind", "article") == "article"
+    text = f"{title}\n{summary}" if article else title
+    if not keywords.is_english(text) or keywords.is_off_topic(title, summary if article else ""):
+        return True
+    return article and (story.get("community") == "Sport" or keywords.is_sport(title, summary))
+
+
 def select_good_news(candidates: list[dict], use_claude: bool) -> list[dict]:
     """Filter candidates down to good news and tag community/region/uplift.
 
@@ -243,6 +255,7 @@ def select_good_news(candidates: list[dict], use_claude: bool) -> list[dict]:
     curated by their communities; they only get the hard-block check. Articles
     go through Claude or the keyword filter.
     """
+    candidates = [c for c in candidates if not unwanted(c)]
     articles = [c for c in candidates if c["community"] is None]
     verdicts = {}
     if use_claude and articles:
@@ -252,7 +265,7 @@ def select_good_news(candidates: list[dict], use_claude: bool) -> list[dict]:
 
     selected = []
     for story in candidates:
-        if keywords.is_hard_blocked(story["title"]) or keywords.is_off_topic(story["title"]):
+        if keywords.is_hard_blocked(story["title"]):
             if story["community"] is not None:
                 log.info("Blocked %s post: %s", story["source"], story["title"][:80])
             continue
@@ -262,7 +275,7 @@ def select_good_news(candidates: list[dict], use_claude: bool) -> list[dict]:
 
     for i, story in enumerate(articles):
         trusted = story["_trusted"]
-        if keywords.is_hard_blocked(story["title"]) or keywords.is_off_topic(story["title"], story["summary"]):
+        if keywords.is_hard_blocked(story["title"]):
             continue
         verdict = verdicts.get(i)
         if verdict is not None:
@@ -280,9 +293,8 @@ def select_good_news(candidates: list[dict], use_claude: bool) -> list[dict]:
                 region=keywords.guess_region(story["title"], story["summary"]),
                 uplift=max(3, min(10, 5 + keywords.positivity(story["title"], story["summary"]) // 2)),
             )
-        if (story["community"] == "Sport" or keywords.is_sport(story["title"], story["summary"])) \
-                and story["uplift"] < MIN_UPLIFT_SPORT:
-            continue
+        if story["community"] == "Sport":
+            continue  # no sport on Sunnyside
         selected.append(story)
     return selected
 
@@ -374,7 +386,7 @@ def build_feed(
         s for s in previous["stories"]
         if s.get("publishedAt", "") >= iso(cutoff_for(s.get("community")))
         # Filters added later also clean up posts that were published before them.
-        and not keywords.is_off_topic(s["title"], s.get("summary", ""))
+        and not unwanted(s)
     ]
     by_id = {s["id"]: s for s in prev_stories}
     by_title = {title_key(s["title"]): s for s in prev_stories}
@@ -435,15 +447,7 @@ def build_feed(
     stories = [_output(s) for s in fresh] + prev_stories
     stories.sort(key=lambda s: s["publishedAt"], reverse=True)
 
-    # Keep each social community from crowding out the news, and sport to a minimum
-    # (only the most uplifting few, newest first among equals).
-    sport_ids = {
-        s["id"] for s in sorted(
-            (s for s in stories if s["kind"] == "article"
-             and (s["community"] == "Sport" or keywords.is_sport(s["title"], s.get("summary", "")))),
-            key=lambda s: (s.get("uplift", 0), s["publishedAt"]), reverse=True,
-        )[:MAX_SPORT_POSTS]
-    }
+    # Keep each social community from crowding out the news.
     per_community: Counter[str] = Counter()
     kept = []
     for s in stories:
@@ -451,8 +455,6 @@ def build_feed(
             per_community[s["community"]] += 1
             if per_community[s["community"]] > MAX_PER_SOCIAL_COMMUNITY:
                 continue
-        elif (s["community"] == "Sport" or keywords.is_sport(s["title"], s.get("summary", ""))) and s["id"] not in sport_ids:
-            continue
         kept.append(s)
     stories = kept[:max_stories]
 

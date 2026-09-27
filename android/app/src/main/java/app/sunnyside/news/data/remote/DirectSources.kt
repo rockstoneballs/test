@@ -53,7 +53,7 @@ class DirectSources(private val client: OkHttpClient, private val json: Json) {
             val stream = response.body?.byteStream() ?: return emptyList()
             RssParser.parse(stream).mapNotNull { item ->
                 if (item.link.isNullOrBlank() || item.title.isNullOrBlank()) return@mapNotNull null
-                if (StoryHeuristics.isHardBlocked(item.title)) return@mapNotNull null
+                if (StoryHeuristics.isHardBlocked(item.title) || StoryHeuristics.isSport(item.title)) return@mapNotNull null
                 val summary = StoryHeuristics.cleanSummary(item.description.orEmpty())
                 StoryDto(
                     id = sha1(item.link).take(16),

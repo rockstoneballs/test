@@ -215,6 +215,45 @@ def is_off_topic(title: str, summary: str = "") -> bool:
     return bool(OFF_TOPIC.search(text))
 
 
+# --------------------------------------------------------------------------- language
+
+_WORD_RX = re.compile(r"[^\W\d_]+", re.UNICODE)
+_EN_WORDS = set("""
+the a an and of to in is are was were be been for on with at by from this that these it its as has have had
+will would can could you your our their they he she we not but or new first after how why what who when
+into over up out about more than just all one two can't won't it's don't i my me us his her them there
+""".split())
+# Common words in other languages (words that are also English removed).
+_OTHER_WORDS = {
+    "de": "der das und ist nicht ein eine mit für auf dem des sich auch wird werden über zum zur bei nach vom sind noch wie".split(),
+    "fr": "le la les et est une des du pour dans sur avec pas aux ce cette sont qui que au ont été leur".split(),
+    "es": "el la los las y es una por con para del al que se su sus más como pero muy está son fue".split(),
+    "it": "il lo gli e è una con del della che non sono più anche nel alla dei".split(),
+    "pt": "o os e é um uma para com da dos das que não mais está são foi pelo".split(),
+    "nl": "het een en van voor op niet zijn dat ook bij naar wordt deze".split(),
+}
+_ACCENTS = set("äöüßéèêëàâçñãõìíîïòóôùúûœ")
+
+
+def is_english(text: str) -> bool:
+    """Cheap language check for headlines and snippets: stopwords plus script."""
+    letters = [c for c in text if c.isalpha()]
+    if not letters:
+        return True
+    non_latin = sum(1 for c in letters if ord(c) > 0x24F)
+    if non_latin / len(letters) > 0.2:
+        return False
+    words = [w.lower() for w in _WORD_RX.findall(text)]
+    en = sum(1 for w in words if w in _EN_WORDS)
+    other = max(sum(1 for w in words if w in lang) for lang in _OTHER_WORDS.values())
+    accents = sum(1 for c in letters if c.lower() in _ACCENTS)
+    if other > en:
+        return False
+    if other == en and other > 0:
+        return accents == 0
+    return en > 0 or accents / len(letters) < 0.03
+
+
 def is_sport(title: str, summary: str = "") -> bool:
     return bool(CATEGORY_KEYWORDS["Sport"].search(title)) or len(CATEGORY_KEYWORDS["Sport"].findall(summary)) >= 2
 

@@ -22,7 +22,6 @@ object StoryHeuristics {
         Topic.Innovation to "invent|technology|robot|startup|engineer|3d print|battery|prototype|innovation",
         Topic.Kindness to "community|volunteer|neighbo|donat|charity|school|student|teacher|homeless|kindness|village",
         Topic.Culture to "\\bart\\b|\\barts\\b|music|film|book|museum|festival|artist|concert|theat|poet|dance",
-        Topic.Sport to "sport|football|soccer|olympic|paralympic|marathon|athlete|tennis|cricket|rugby|medal|champion",
     ).mapValues { Regex("\\b(?:${it.value})", RegexOption.IGNORE_CASE) }
 
     private val regionWords: Map<Region, Regex> = mapOf(
@@ -38,6 +37,14 @@ object StoryHeuristics {
     private val wpFooter = Regex("The post .{0,300}? appeared first on .{0,200}?\\.?$", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
 
     fun isHardBlocked(title: String): Boolean = hardBlock.containsMatchIn(title)
+
+    /** Sunnyside has no sport (same rule as the scraper). */
+    private val sport = Regex(
+        "\\b(sport|football|soccer|olympic|paralympic|marathon|athlete|tennis|cricket|rugby|basketball|medal|champion|league|tournament|golf|boxing)",
+        RegexOption.IGNORE_CASE,
+    )
+
+    fun isSport(title: String): Boolean = sport.containsMatchIn(title)
 
     fun cleanText(raw: String): String =
         HtmlCompat.fromHtml(raw, HtmlCompat.FROM_HTML_MODE_LEGACY).toString()

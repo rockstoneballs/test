@@ -32,7 +32,7 @@ Every post has a small topic tag, like Reddit's post flair:
 | 😂 Meme | Feel-good memes | r/wholesomememes, r/wholesome, Lemmy, Mastodon #WholesomeMemes |
 | 🥹 Cute | Cute animal photos and videos | r/aww, r/Eyebleach, r/rarepuppers, r/IllegallySmolCats, Lemmy, Mastodon #CatsOfMastodon / #DogsOfMastodon / #Caturday |
 | 😊 Wholesome | People (and animals) being lovely | r/MadeMeSmile, r/HumansBeingBros, r/AnimalsBeingBros, Lemmy, Mastodon #wholesome |
-| 🔭 Science, 🌿 Environment, 💚 Health, 🐾 Animals, 🤝 Kindness, 💡 Innovation, 🎨 Culture, 🏅 Sport | Good-news stories | Good-news outlets, world news filtered for positivity, Google News, r/UpliftingNews, r/goodnews |
+| 🔭 Science, 🌿 Environment, 💚 Health, 🐾 Animals, 🤝 Kindness, 💡 Innovation, 🎨 Culture | Good-news stories | Good-news outlets, world news filtered for positivity, Google News, r/UpliftingNews, r/goodnews |
 
 Memes and animal photos link back to the original post, as credit. Saved posts stay
 on your device.
@@ -61,10 +61,10 @@ stories, then one meme or animal post. **Latest** is simply newest first.
 * **Memes and cute animals** come from Reddit, Lemmy and Mastodon. NSFW and spoiler posts
   are dropped, and so are posts below a per-source upvote threshold. Cute
   animals stay for 3 days, news for 7, and memes for up to 30 (they don't go stale).
-* **Left out on purpose:** celebrity and showbiz news, and anything about royalty or
-  monarchies, are filtered from every source (`OFF_TOPIC` in `scraper/goodnews/keywords.py`).
-  Sport is kept to a minimum: at most a handful of the most uplifting sports stories are
-  in the feed at any time, and never results or transfer news.
+* **Left out on purpose:** posts not written in English, celebrity and showbiz news,
+  anything about royalty or monarchies, and all sport. These rules apply to every
+  source, including posts already in the feed (`unwanted()` in `scraper/goodnews/scrape.py`,
+  word lists in `scraper/goodnews/keywords.py`).
 * A dead source is logged and skipped. It never breaks a run.
 
 ## Setup

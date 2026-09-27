@@ -123,8 +123,7 @@ enum class Topic(val key: String, val label: String, val emoji: String, val colo
     Animals("Animals", "Animals", "🐾", 0xFFE07A1F),
     Kindness("Community", "Kindness", "🤝", 0xFFD9477A),
     Innovation("Innovation", "Innovation", "💡", 0xFF8A56D6),
-    Culture("Culture", "Culture", "🎨", 0xFFC9533A),
-    Sport("Sport", "Sport", "🏅", 0xFF2C88C9);
+    Culture("Culture", "Culture", "🎨", 0xFFC9533A);
 
     companion object {
         fun from(key: String?): Topic = entries.firstOrNull { it.key.equals(key, ignoreCase = true) } ?: Kindness

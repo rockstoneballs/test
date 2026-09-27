@@ -17,7 +17,6 @@ const TOPICS = {
   Community: { label: "Kindness", emoji: "🤝", color: "#D9477A" },
   Innovation: { label: "Innovation", emoji: "💡", color: "#8A56D6" },
   Culture: { label: "Culture", emoji: "🎨", color: "#C9533A" },
-  Sport: { label: "Sport", emoji: "🏅", color: "#2C88C9" },
 };
 
 const SORTS = [

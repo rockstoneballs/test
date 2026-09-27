@@ -46,6 +46,12 @@ class LogicTest {
     }
 
     @Test
+    fun skipsSport() {
+        assertTrue(StoryHeuristics.isSport("Underdog football team wins the league"))
+        assertFalse(StoryHeuristics.isSport("Volunteers plant a million trees"))
+    }
+
+    @Test
     fun blocksDarkHeadlines() {
         assertTrue(StoryHeuristics.isHardBlocked("Two killed in crash"))
         assertFalse(StoryHeuristics.isHardBlocked("Volunteers plant a million trees"))
