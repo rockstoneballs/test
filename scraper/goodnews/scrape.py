@@ -16,6 +16,7 @@ import hashlib
 import html
 import json
 import logging
+import math
 import re
 import sys
 from collections import Counter
@@ -240,6 +241,25 @@ def og_image(session: requests.Session, url: str) -> str | None:
         return None
     found = html.unescape(m.group(1) or m.group(2))
     return found if is_http_url(found) else None
+
+
+def top_stories(stories: list[dict], now: datetime, n: int = 15) -> list[dict]:
+    """The first ``n`` posts under "Top stories", as the website and app rank them
+    (web/app.js hotScore + blend). Used to log what readers see first."""
+    def hot(s: dict) -> float:
+        age_h = (now - datetime.fromisoformat(s["publishedAt"].replace("Z", "+00:00"))).total_seconds() / 3600
+        popular = min(3.0, 0.75 * math.log10(1 + max(s.get("score") or 0, 0)))
+        return (s.get("uplift") or 5) + popular + (0.5 if s.get("imageUrl") else 0) - age_h / 6
+
+    news = sorted((s for s in stories if s.get("kind", "article") == "article"), key=hot, reverse=True)
+    social = sorted((s for s in stories if s.get("kind", "article") != "article"), key=hot, reverse=True)
+    out: list[dict] = []
+    while (news or social) and len(out) < n:
+        out += news[:3]
+        news = news[3:]
+        if social:
+            out.append(social.pop(0))
+    return out[:n]
 
 
 def refine_region(story: dict) -> None:
@@ -554,6 +574,9 @@ def main(argv: list[str] | None = None) -> int:
     counts = Counter(s["community"] for s in feed["stories"])
     log.info("Wrote %s with %d posts and %d pets", out / "feed.json", len(feed["stories"]), len(feed["pets"]))
     log.info("Posts per community: %s", ", ".join(f"{c}: {n}" for c, n in sorted(counts.items())))
+    log.info("Top stories right now:")
+    for i, st in enumerate(top_stories(feed["stories"], datetime.now(timezone.utc)), 1):
+        log.info("  %2d. [%s | %s | uplift %s] %s", i, st["source"], st.get("region"), st.get("uplift"), st["title"][:110])
     regions = Counter(s.get("region", "Global") for s in feed["stories"] if s.get("kind") == "article")
     log.info("News by region: %s", ", ".join(f"{r}: {n}" for r, n in regions.most_common()))
     clips = [s for s in feed["stories"] if s.get("kind") == "video"]
