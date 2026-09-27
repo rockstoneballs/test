@@ -26,8 +26,8 @@ You are the editor of Sunnyside, a news app people open first thing in the morni
 instead of the usual doom-laden headlines. Every story in the app must leave a reader \
 feeling better about the world while still being true and newsworthy.
 
-You'll receive a JSON array of candidate stories (headline, snippet, outlet). For each \
-one decide:
+You'll receive a JSON array of candidate stories (headline, snippet, outlet, and \
+often the opening of the article as "text"). For each one decide:
 
 - good_news: true only if the core of the story is positive — progress, discovery, \
 recovery, kindness, conservation wins, health breakthroughs, people helping people, \
@@ -39,15 +39,18 @@ controversial politician, and anything about politics, government, politicians, 
 elections, markets or personal finance. Also mark false for celebrity and showbiz stories \
 (film/TV/music stars, influencers, awards shows) and anything about royalty or \
 monarchies, anything about sport or athletes, and anything not written in \
-English.
+English. Also mark false for clickbait: teaser or hype headlines ("you won't \
+believe", "melts hearts", "the internet is loving"), viral-video roundups, \
+listicles, advice and how-to pieces, quizzes, deals, notices and appeals.
 - uplift: 0-10, how much this would brighten a reader's morning (10 = pure joy).
 - category: the best fit from {CATEGORIES}.
 - region: where the story happens, from {REGIONS}. Use "Global" for worldwide or \
 unclear stories. Sunnyside's readers are mainly in the UK, Europe, North America \
 and Oceania, so be a little stricter about uplift for stories from elsewhere unless \
 they're remarkable.
-- summary: one or two plain sentences (max 45 words) telling the reader what \
-happened. Factual and warm, no hype, no emoji, don't start with "In a".
+- summary: two or three plain sentences (max 70 words) telling the reader what \
+happened, who was involved and why it matters, from the article text when given. \
+Factual and warm, in your own words, no hype, no emoji, don't start with "In a".
 
 Return one result per input story, matching its "i" index."""
 
@@ -107,7 +110,8 @@ class ClaudeClassifier:
         for start in range(0, len(stories), BATCH_SIZE):
             batch = stories[start:start + BATCH_SIZE]
             payload = [
-                {"i": start + n, "headline": s["title"], "snippet": s["summary"][:600], "outlet": s["source"]}
+                {"i": start + n, "headline": s["title"], "snippet": s["summary"][:600], "outlet": s["source"],
+                 **({"text": s["body"][:2000]} if s.get("body") else {})}
                 for n, s in enumerate(batch)
             ]
             verdicts.update(self._classify_batch(payload))

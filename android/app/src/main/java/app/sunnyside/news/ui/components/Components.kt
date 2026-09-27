@@ -1,7 +1,6 @@
 package app.sunnyside.news.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,7 +24,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Comment
-import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Bookmark
@@ -60,7 +58,6 @@ import app.sunnyside.news.data.SortMode
 import app.sunnyside.news.data.Story
 import app.sunnyside.news.data.ViewMode
 import app.sunnyside.news.ui.theme.accent
-import app.sunnyside.news.util.domainOf
 import app.sunnyside.news.util.timeAgo
 import coil.compose.SubcomposeAsyncImage
 
@@ -246,21 +243,6 @@ fun VideoBadge(modifier: Modifier = Modifier) {
     }
 }
 
-@Composable
-fun LinkChip(url: String, modifier: Modifier = Modifier) {
-    Row(
-        modifier
-            .clip(RoundedCornerShape(50))
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(50))
-            .padding(horizontal = 10.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(domainOf(url), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-        Spacer(Modifier.width(4.dp))
-        Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
 /** Media block for a post: full image for memes/photos, 16:9 banner for articles. */
 @Composable
 fun PostMedia(story: Story, modifier: Modifier = Modifier, large: Boolean = false) {
@@ -328,7 +310,15 @@ fun PostCard(story: Story, saved: Boolean, callbacks: PostCallbacks, modifier: M
                     modifier = Modifier.padding(top = 8.dp),
                 )
             }
-            if (story.kind == PostKind.Article) LinkChip(story.url, Modifier.padding(top = 10.dp))
+            // News opens in the app first; the original is one tap further, on the story screen.
+            if (story.kind == PostKind.Article && story.body.isNotBlank()) {
+                Text(
+                    "Read the story →",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
             Spacer(Modifier.height(10.dp))
             PostActions(story, saved, callbacks)
         }

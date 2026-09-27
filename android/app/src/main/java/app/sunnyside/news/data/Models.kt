@@ -36,6 +36,10 @@ data class StoryDto(
     val score: Int? = null,
     val comments: Int? = null,
     val discussionUrl: String? = null,
+    /** The opening paragraphs of the article, separated by blank lines. */
+    val body: String = "",
+    /** "claude" when the summary was written by Claude, "keywords" otherwise. */
+    val checkedBy: String? = null,
 )
 
 @Serializable
@@ -79,7 +83,14 @@ data class Story(
     val imageHeight: Int? = null,
     /** A directly playable MP4 for video posts. */
     val videoUrl: String? = null,
+    /** The opening paragraphs of the article, separated by blank lines ("" if none). */
+    val body: String = "",
+    /** The summary was written by Claude from the article (rather than taken from the feed). */
+    val writtenSummary: Boolean = false,
 ) {
+    val paragraphs: List<String>
+        get() = body.split(Regex("\\n\\s*\\n")).map { it.trim() }.filter { it.isNotEmpty() }
+
     /** Width / height of the image, clamped to something that fits on a phone screen. */
     val aspectRatio: Float?
         get() = if (imageWidth != null && imageHeight != null && imageWidth > 0 && imageHeight > 0) {

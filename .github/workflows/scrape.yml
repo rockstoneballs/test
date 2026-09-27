@@ -46,7 +46,10 @@ jobs:
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
           IMGUR_CLIENT_ID: ${{ secrets.IMGUR_CLIENT_ID }}
-        run: python -m goodnews.scrape --out ../site --previous "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/feed.json"
+        run: >-
+          python -m goodnews.scrape --out ../site
+          --previous "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/feed.json"
+          ${{ github.ref != 'refs/heads/main' && '--list-news' || '' }}
       - name: Preview (non-main branches)
         if: github.ref != 'refs/heads/main'
         uses: actions/upload-artifact@v4

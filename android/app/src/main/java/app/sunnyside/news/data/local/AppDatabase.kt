@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [StoryEntity::class, SavedStoryEntity::class, PetEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -49,9 +49,19 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** v5 stores the opening of each article, so stories can be read in the app. */
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                for (table in listOf("stories", "saved_stories")) {
+                    db.execSQL("ALTER TABLE $table ADD COLUMN body TEXT NOT NULL DEFAULT ''")
+                    db.execSQL("ALTER TABLE $table ADD COLUMN checkedBy TEXT")
+                }
+            }
+        }
+
         fun create(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, "sunnyside.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .fallbackToDestructiveMigration()
                 .build()
     }

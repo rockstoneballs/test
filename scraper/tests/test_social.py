@@ -138,7 +138,7 @@ def test_votes_refresh_and_reddit_copy_merges_into_rss_article(monkeypatch):
 
     def build(previous, extra=()):
         monkeypatch.setattr(scrape, "fetch_social", lambda session: [dict(reddit_copy), dict(dog), *extra])
-        return scrape.build_feed(requests.Session(), previous, NOW, fetch_images=False, fetch_pets=False)
+        return scrape.build_feed(requests.Session(), previous, NOW, fetch_pages=False, fetch_pets=False)
 
     # First run: the article arrives only via Reddit, and the dog photo is accepted as-is.
     first = build({"stories": [], "pets": []})
@@ -161,7 +161,7 @@ def test_social_communities_are_capped(monkeypatch):
     monkeypatch.setattr(scrape, "fetch_source", lambda *a: [])
     posts = [_social(title=f"Dog {i}", url=f"https://r/{i}", discussionUrl=f"https://r/{i}") for i in range(6)]
     monkeypatch.setattr(scrape, "fetch_social", lambda session: posts)
-    feed = scrape.build_feed(requests.Session(), {"stories": [], "pets": []}, NOW, fetch_images=False, fetch_pets=False)
+    feed = scrape.build_feed(requests.Session(), {"stories": [], "pets": []}, NOW, fetch_pages=False, fetch_pets=False)
     assert len(feed["stories"]) == 3
 
 
@@ -234,5 +234,5 @@ def test_old_mastodon_posts_are_removed(monkeypatch):
             "imageUrl": "https://files/cat.jpg", "source": "#CatsOfMastodon", "sourceHomepage": "https://m",
             "author": "@x", "publishedAt": "2026-09-26T10:00:00Z", "community": AWW, "category": AWW,
             "region": "Global", "uplift": 7, "score": 50, "comments": 1, "discussionUrl": "https://mastodon.social/@x/1"}
-    feed = scrape.build_feed(requests.Session(), {"stories": [toot], "pets": []}, NOW, fetch_images=False, fetch_pets=False)
+    feed = scrape.build_feed(requests.Session(), {"stories": [toot], "pets": []}, NOW, fetch_pages=False, fetch_pets=False)
     assert feed["stories"] == []

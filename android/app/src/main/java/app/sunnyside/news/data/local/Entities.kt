@@ -29,6 +29,8 @@ data class StoryEntity(
     val imageWidth: Int? = null,
     val imageHeight: Int? = null,
     val videoUrl: String? = null,
+    val body: String = "",
+    val checkedBy: String? = null,
 )
 
 /** Saved posts are a separate copy so they survive the feed rolling over. */
@@ -53,6 +55,8 @@ data class SavedStoryEntity(
     val imageWidth: Int? = null,
     val imageHeight: Int? = null,
     val videoUrl: String? = null,
+    val body: String = "",
+    val checkedBy: String? = null,
 )
 
 @Entity(tableName = "pets", primaryKeys = ["date", "kind"])
@@ -72,6 +76,7 @@ fun StoryEntity.toStory() = Story(
     publishedAtMillis = publishedAt, topic = Topic.from(category), region = Region.from(region), uplift = uplift,
     kind = PostKind.from(kind), author = author, score = score, comments = comments, discussionUrl = discussionUrl,
     imageWidth = imageWidth, imageHeight = imageHeight, videoUrl = videoUrl,
+    body = body, writtenSummary = checkedBy == "claude",
 )
 
 fun SavedStoryEntity.toStory() = Story(
@@ -79,6 +84,7 @@ fun SavedStoryEntity.toStory() = Story(
     publishedAtMillis = publishedAt, topic = Topic.from(category), region = Region.from(region), uplift = uplift,
     kind = PostKind.from(kind), author = author, score = score, comments = comments, discussionUrl = discussionUrl,
     imageWidth = imageWidth, imageHeight = imageHeight, videoUrl = videoUrl,
+    body = body, writtenSummary = checkedBy == "claude",
 )
 
 fun Story.toSavedEntity(now: Long) = SavedStoryEntity(
@@ -86,6 +92,7 @@ fun Story.toSavedEntity(now: Long) = SavedStoryEntity(
     publishedAt = publishedAtMillis, category = topic.key, region = region.label, uplift = uplift, savedAt = now,
     kind = kindName(kind), author = author, score = score, comments = comments, discussionUrl = discussionUrl,
     imageWidth = imageWidth, imageHeight = imageHeight, videoUrl = videoUrl,
+    body = body, checkedBy = if (writtenSummary) "claude" else null,
 )
 
 fun PetEntity.toPet() = Pet(

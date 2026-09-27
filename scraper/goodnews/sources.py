@@ -70,9 +70,7 @@ SOURCES: list[Source] = [
            "https://www.theguardian.com/world/series/the-upside"),
     Source("Good Good Good", "https://www.goodgoodgood.co/articles/rss.xml", True, "https://www.goodgoodgood.co"),
     Source("Nice News", "https://nicenews.com/feed/", True, "https://nicenews.com"),
-    Source("Inspire More", "https://www.inspiremore.com/feed/", True, "https://www.inspiremore.com"),
     Source("Squirrel News", "https://squirrel-news.net/feed/", True, "https://squirrel-news.net"),
-    Source("Sunny Skyz", "https://www.sunnyskyz.com/rss_tebow.php", True, "https://www.sunnyskyz.com"),
     # Mainstream, regional and science outlets, filtered for positivity.
     Source("BBC News", "https://feeds.bbci.co.uk/news/world/rss.xml", False, "https://www.bbc.co.uk/news"),
     Source("BBC Science", "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml", False,
@@ -98,21 +96,23 @@ SOURCES: list[Source] = [
     Source("Smithsonian", "https://www.smithsonianmag.com/rss/latest_articles/", False, "https://www.smithsonianmag.com"),
     Source("Mongabay", "https://news.mongabay.com/feed/", False, "https://news.mongabay.com"),
     # Google News searches: a wide net across thousands of outlets worldwide.
-    # Specific searches only: a plain "good news" search mostly finds clickbait
-    # ("good news for pensioners…").
-    _google_news("heartwarming"),
+    # Specific, newsy searches only: "good news" or "heartwarming" searches mostly find
+    # clickbait ("good news for pensioners…", "heartwarming moment…").
     _google_news("scientists breakthrough"),
     _google_news("conservation success"),
-    _google_news("rescued animal"),
+    _google_news("new species discovered"),
     _google_news("record renewable energy"),
-    _google_news("act of kindness"),
-    _google_news("heartwarming", "GB"),
+    _google_news("volunteers restore"),
+    _google_news("charity raises"),
     _google_news("volunteers", "GB"),
-    _google_news("act of kindness", "GB"),
-    _google_news("heartwarming", "CA"),
-    _google_news("heartwarming", "AU"),
-    _google_news("heartwarming", "IE"),
-    _google_news("heartwarming", "NZ"),
+    _google_news("charity raises", "GB"),
+    _google_news("conservation success", "GB"),
+    _google_news("wildlife returns", "GB"),
+    _google_news("volunteers", "CA"),
+    _google_news("volunteers", "AU"),
+    _google_news("conservation success", "AU"),
+    _google_news("volunteers", "IE"),
+    _google_news("volunteers", "NZ"),
 ]
 
 SOCIAL_SOURCES: list[SocialSource] = [

@@ -46,6 +46,20 @@ object StoryHeuristics {
 
     fun isSport(title: String): Boolean = sport.containsMatchIn(title)
 
+    /** Teasers, hype, listicles, questions and advice pieces (a short version of the scraper's rule). */
+    private val clickbait = Regex(
+        "you won'?t believe|will (make you|restore your|melt your)|\\byou(r|'re|'ll)?\\b|\\bhere'?s (why|what|how)|" +
+            "\\bthis is (why|what|how)\\b|(goes|went) viral|\\bviral\\b|\\binternet (is|can'?t|goes)|" +
+            "\\bhow to\\b|\\btips\\b|\\bhacks?\\b|\\bdeals?\\b|\\bincredible\\b|\\bamazing\\b|\\bshocking|" +
+            "^(watch|video|photos?|quiz|opinion)\\s*[:|-]|^good news in history|^(the )?\\d+ (\\w+ ){0,2}(things|ways|reasons|photos|moments)\\b",
+        RegexOption.IGNORE_CASE,
+    )
+
+    fun isClickbait(title: String): Boolean {
+        val t = title.trim()
+        return clickbait.containsMatchIn(t) || t.endsWith("?") || t.endsWith("…") || t.endsWith("...") || '!' in t
+    }
+
     fun cleanText(raw: String): String =
         HtmlCompat.fromHtml(raw, HtmlCompat.FROM_HTML_MODE_LEGACY).toString()
             .replace('￼', ' ')

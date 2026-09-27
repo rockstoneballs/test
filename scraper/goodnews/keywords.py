@@ -47,6 +47,7 @@ _MONEY_WORDS = [
     "epfo", "tax!", "taxes", "budget", "loan", "emi!", "gold price", "petrol price", "fuel price",
     "lottery", "jackpot", "crypto", "bitcoin", "profits!", "revenue", "earnings", "billion-dollar",
     "settlement", "lawsuit", "refund", "compensation", "payout", "unfair", "underpaid", "wage theft",
+    "landlord", "renters", "house prices", "rent!", "rents!",
     "admit card", "exam result", "board result", "recruitment", "vacancy", "vacancies", "scheme",
 ]
 MONEY = _rx(_MONEY_WORDS)
@@ -70,7 +71,8 @@ DOOM = _rx([
     "outrage", "slams", "criticis", "feud", "spat", "suffer", "struggl", "poverty", "grief", "mourn",
     "tragic", "tragedy", "funeral", "abandoned", "starv", "hunger", "refugee", "migrant", "deport",
     "shooting", "gun!", "guns!", "stabbed", "killed", "murder", "assault", "cyberattack", "scam",
-    "fined",
+    "fined", "die!", "bleach", "heatwave", "heat wave", "warming", "worsen", "loss!", "losses", "losing",
+    "lose!", "shrink", "less time", "nightmare",
 ] + _MONEY_WORDS)
 
 # Politics and politicians: never Sunnyside material, from any source.
@@ -80,22 +82,37 @@ POLITICS = _rx([
     "parliament", "senate!", "senator", "congressman", "congresswoman", "prime minister", "chief minister",
     "union minister", "minister!", "ministers!", "ministry", "government", "govt!", "election", "politic",
     "republican", "democrat", "labour party", "conservative party", "tory", "tories",
+    "governor", "lawmaker", "legislat",
+])
+
+# Named politicians and parties: a story whose text is about them is politics, whatever
+# its headline says. (Unlike POLITICS, fine to check in article text.)
+POLITICIANS = _rx([
+    "trump!", "biden!", "kamala harris", "vance!", "obama!", "starmer!", "sunak!", "farage!", "badenoch", "reform uk",
+    "putin!", "netanyahu", "zelensky", "xi jinping", "modi!", "bjp!", "macron!", "merz!", "albanese!", "carney!",
+    "poilievre", "luxon!", "republicans", "democrats", "maga!", "labour party", "tory", "tories",
+])
+
+# Sad turns that show up in a story's text rather than its headline.
+GRIM_TEXT = _rx([
+    "passed away", "devastating news", "tragically", "lost her life", "lost his life", "lost their lives",
+    "funeral", "was diagnosed with terminal", "terminally ill", "memorial service",
 ])
 
 UPLIFT = _rx([
     "breakthrough", "cure", "cured", "rescue", "saved", "saves", "save!", "restor",
     "recover", "reunit", "donat", "volunteer", "celebrat", "first-ever", "first ever",
     "milestone", "thriv", "success", "record high", "record-breaking", 
-    "award", "kindness", "kind-hearted", "generous", "generosity", "heartwarming", "inspir",
+    "award", "kindness", "kind-hearted", "generous", "generosity", "inspir",
     "protect", "conservation", "renewable", "clean energy", "solar", "wind farm",
     "reforest", "rewild", "rebound", "comeback", "bounce back", "discover", "innovat",
     "healed", "healing", "heals", "vaccine", "eradicat", "for free", "joy", "happy", "happiest",
-    "smile", "delight", "adorable", "cute", "born", "baby", "hatch", "returns to",
-    "spotted for the first time", "back from the brink", "uplifting",
-    "helps", "helping", "surprise", "cleaner",
+    "smile", "delight", "born", "baby", "hatch", "returns to",
+    "spotted for the first time", "back from the brink",
+    "helps", "helping", "cleaner",
     "reduce emissions", "cut emissions", "planted", "trees", "bees", "wildlife",
     "sanctuary", "adopt", "graduat", "scholarship", "literacy",
-    "lifesaving", "life-saving", "promising", "remarkable", "incredible", "amazing",
+    "lifesaving", "life-saving", "promising",
 ])
 
 CATEGORY_KEYWORDS: dict[str, re.Pattern[str]] = {
@@ -311,6 +328,68 @@ def region_for_source(source: str, homepage: str = "") -> str | None:
         if rx.search(source or "") or (host and rx.search(host)):
             return region
     return None
+
+
+# --------------------------------------------------------------------------- clickbait
+
+# Headlines written to make you click rather than to tell you what happened: teasers,
+# hype, listicles, questions, advice pieces, "the internet is loving…", notices and deals.
+_CLICKBAIT_RX = re.compile(
+    r"you won'?t believe|will (?:make you|restore your|melt your|leave you|have you|blow your)|"
+    r"\byou(?:r|'re|'ll|'ve)?\b|\bhere'?s (?:why|what|how|the|who|where)|\bthis is (?:why|what|how|the)\b|"
+    r"\bthat'?s why\b|the reason why|what happened next|\bwait (?:until|till|for)\b|"
+    r"\b(?:melts?|melting|warms?|warming|broke|breaks|won) (?:the )?(?:hearts?|internet)\b|"
+    r"\binternet (?:is|can'?t|goes|loses|reacts)|\b(?:goes|went|going|gone) viral\b|\bviral\b|"
+    r"\btiktok|\binstagram|\btwitter\b|\breddit|\bnetizens\b|social media users|"
+    r"\bfans (?:are|react|go|can'?t)|\bpeople are (?:loving|obsessed|losing)|"
+    r"\b(?:heartwarming|adorable|sweet|wholesome|emotional|touching|hilarious|epic) (?:moment|video|clip|reaction)|"
+    r"\bjaw-?dropping|\bmind-?blowing|\bshocking|\bstunning|\bincredible\b|\bamazing\b|\bunbelievable|"
+    r"\bmust-see|\bnot what you|\bno one (?:expected|saw)|\bnobody (?:expected|saw)|\bthe truth about\b|"
+    r"^(?:watch|video|photos?|quiz|opinion|review|comment|analysis|explainer|podcast|live|sponsored)\s*[:|-]|"
+    r"\bhow to\b|\btips\b|\bhacks?\b|\bdeals?\b|\bon sale\b|\bsale\b|% off|\bgift guide|\bbest .{0,30} to buy|"
+    r"\bdiscount|\bcoupon|\bpromo code|\bsponsored\b|"
+    r"\bseeks?\b|\bseeking\b|\bsign up\b|\bapplications? (?:are )?(?:now )?open|\bhow to apply|\btickets?\b|"
+    r"\bcall for (?:volunteers|entries|applications)|\bwhat to know\b|\beverything (?:we|you) know|"
+    r"\bjust (?:obliterated|destroyed|nailed|crushed|schooled|owned|shut down|broke the)\b|^they (?:said|told)\b|"
+    r"\b(?:blows|blew|blowing) (?:up|away)\b|\bslays\b|\bslayed\b|\bnails it\b|\bwins the internet|"
+    r"\b(?:volunteers?|help|helpers|donations?) (?:are |is )?(?:needed|wanted)\b|\bappeal for\b|\blooking for volunteers|"
+    r"\bwhat to do (?:with|about|if|when)\b|\bsee the (?:winning|best|photos|pictures|images|shots)\b|"
+    r"^good news in history\b",
+    re.IGNORECASE,
+)
+_LISTICLE_RX = re.compile(
+    r"^(?:the )?\d+\s+(?:\w+\s+){0,2}(?:things|ways|reasons|tips|times|signs|photos|pictures|pics|facts|places|"
+    r"books|ideas|moments|stories|habits|foods|lessons|secrets|tricks|products|gifts)\b",
+    re.IGNORECASE,
+)
+
+
+def is_clickbait(title: str) -> bool:
+    t = title.strip()
+    return bool(
+        _CLICKBAIT_RX.search(t) or _LISTICLE_RX.search(t)
+        or t.endswith(("?", "...", "…")) or "!" in t
+    )
+
+
+# Tabloids, viral-content sites and entertainment outlets: their good news is mostly
+# clickbait. Matched against the outlet's name and website.
+_TABLOID_RX = re.compile(
+    r"daily ?mail|mail ?online|mirror\.co\.uk|\bthe mirror\b|daily mirror|\bexpress\.co\.uk|daily express|"
+    r"thesun\.|the-sun\.com|\bthe sun\b|\bthe us sun\b|dailystar\.|daily star|dailyrecord|daily record|\bmetro\.co\.uk|^metro$|"
+    r"ladbible|unilad|\bthe tab\b|newsweek|nypost|new york post|pagesix|\btmz\b|eonline|e! online|"
+    r"people\.com|^people$|usmagazine|us weekly|hellomagazine|hello!|ok!|closer ?online|\bheat ?world|"
+    r"boredpanda|bored panda|distractify|upworthy|inspiremore|inspire more|twistedsifter|someecards|"
+    r"buzzfeed|\bparade\b|parade\.com|whimsy|shared\.com|diply|viralnova|the dodo|thedodo|"
+    r"animalsaroundtheglobe|dogtime|pawtracks|countryliving|"
+    r"yahoo|\bmsn\b|aol\.com|newsbreak|dailyhunt|\bnews18|wionews|\bzee ?news|\bindia\.com",
+    re.IGNORECASE,
+)
+
+
+def is_tabloid(source: str, homepage: str = "") -> bool:
+    host = urlsplit(homepage).netloc.lower() if homepage else ""
+    return bool(_TABLOID_RX.search(source or "") or (host and _TABLOID_RX.search(host)))
 
 
 # Place names that look royal but aren't.

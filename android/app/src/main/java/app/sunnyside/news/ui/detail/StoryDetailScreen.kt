@@ -26,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -33,10 +34,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.sunnyside.news.data.PostKind
 import app.sunnyside.news.data.Region
+import app.sunnyside.news.data.Story
 import app.sunnyside.news.ui.DetailViewModel
 import app.sunnyside.news.ui.components.EmptyState
 import app.sunnyside.news.ui.components.PostCallbacks
@@ -112,9 +121,7 @@ fun StoryDetailScreen(
                         )
                     }
                     PostMedia(story, Modifier.padding(top = 12.dp), large = true)
-                    if (story.summary.isNotBlank()) {
-                        Text(story.summary, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 12.dp))
-                    }
+                    StoryText(story)
                     Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (story.kind == PostKind.Article) {
                             Button(
@@ -122,7 +129,7 @@ fun StoryDetailScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 contentPadding = PaddingValues(vertical = 14.dp),
                             ) {
-                                Text("Read the full story on ${domainOf(story.url)}")
+                                Text("${if (story.body.isNotBlank()) "Continue reading" else "Read the full story"} on ${domainOf(story.url)}")
                                 Spacer(Modifier.size(8.dp))
                                 Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
                             }
@@ -152,5 +159,45 @@ fun StoryDetailScreen(
                 postItems(state.related, ViewMode.Compact, user, callbacks)
             }
         }
+    }
+}
+
+/**
+ * The story itself: Claude's summary (when there is one) and the article's opening
+ * paragraphs, credited to the outlet. Without an excerpt, just the summary.
+ */
+@Composable
+private fun StoryText(story: Story) {
+    val paragraphs = story.paragraphs
+    if (paragraphs.isEmpty()) {
+        if (story.summary.isNotBlank()) {
+            Text(story.summary, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 12.dp))
+        }
+        return
+    }
+    Column(Modifier.padding(top = 14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (story.writtenSummary && story.summary.isNotBlank()) {
+            Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh, shape = RoundedCornerShape(12.dp)) {
+                Text(
+                    buildAnnotatedString {
+                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("In short: ") }
+                        append(story.summary)
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                )
+            }
+        }
+        paragraphs.forEach { paragraph ->
+            Text(
+                paragraph,
+                style = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Serif, lineHeight = 27.sp),
+            )
+        }
+        Text(
+            "The opening of the story, from ${story.source}.",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
