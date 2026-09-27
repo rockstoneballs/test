@@ -108,8 +108,31 @@ CATEGORY_KEYWORDS: dict[str, re.Pattern[str]] = {
     "Sport": _rx([
         "sport", "football", "soccer", "olympic", "paralympic", "marathon", "athlete",
         "tennis", "cricket", "rugby", "basketball", "medal", "champion", "cyclist", "swimmer",
+        "premier league", "nfl!", "nba!", "mlb!", "nhl!", "world cup", "golf", "formula 1", "f1!",
+        "grand prix", "boxing", "ufc!", "wimbledon", "tournament", "playoff", "quarterback",
+        "striker", "goalkeeper", "midfielder", "league", "cup final", "semi-final", "hat-trick",
+        "touchdown", "slam dunk", "stadium", "transfer window", "super bowl", "wrestl",
     ]),
 }
+
+# Not what Sunnyside is for: celebrity gossip and royalty/monarchy news.
+OFF_TOPIC = _rx([
+    # Royalty and monarchy
+    "king charles", "queen camilla", "queen elizabeth", "royal family", "royals!", "royal visit",
+    "the royal", "monarch", "prince!", "princes!", "princess", "duke of", "duchess", "kate middleton",
+    "princess of wales", "prince of wales", "meghan markle", "prince harry", "prince william",
+    "buckingham palace", "kensington palace", "windsor castle", "coronation", "jubilee", "sandringham",
+    "king felipe", "queen letizia", "king willem", "crown prince", "emperor naruhito", "throne",
+    # Celebrity and showbiz
+    "celebrity", "celebrities", "celeb!", "celebs!", "a-list", "hollywood", "red carpet", "oscar",
+    "grammy", "golden globe", "emmy", "met gala", "box office", "kardashian", "taylor swift",
+    "beyonc", "kanye", "rihanna", "justin bieber", "selena gomez", "ariana grande", "harry styles",
+    "kim k", "paparazzi", "influencer", "tiktok star", "youtuber", "reality tv", "reality star",
+    "love island", "bachelorette", "strictly come dancing", "dancing with the stars", "x factor",
+    "britain's got talent", "america's got talent", "showbiz", "pop star", "popstar", "movie star",
+    "film star", "singer", "rapper", "actress", "actor!", "actors!", "star-studded",
+    "royal ascot", "engaged to", "wedding of", "baby bump", "net worth",
+])
 
 # Country / place names -> region. Order matters only for readability.
 _REGION_PLACES: dict[str, list[str]] = {
@@ -180,6 +203,20 @@ def positivity(title: str, summary: str) -> int:
         score += weight * len(UPLIFT.findall(text))
         score -= 3 * weight * len(DOOM.findall(text))
     return score
+
+
+# Place names that look royal but aren't.
+_NOT_ROYAL = re.compile(r"prince edward island|prince rupert|prince george, b|queensland|kingston|kings cross", re.IGNORECASE)
+
+
+def is_off_topic(title: str, summary: str = "") -> bool:
+    """Celebrity or royalty news, which Sunnyside leaves out."""
+    text = _NOT_ROYAL.sub(" ", f"{title}\n{summary}")
+    return bool(OFF_TOPIC.search(text))
+
+
+def is_sport(title: str, summary: str = "") -> bool:
+    return bool(CATEGORY_KEYWORDS["Sport"].search(title)) or len(CATEGORY_KEYWORDS["Sport"].findall(summary)) >= 2
 
 
 def passes_keyword_filter(title: str, summary: str, trusted: bool) -> bool:

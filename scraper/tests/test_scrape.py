@@ -89,3 +89,45 @@ def test_pets_are_stable_within_a_day():
             raise AssertionError("should not fetch when today's pets exist")
 
     assert pets_for_today(NoNetwork(), NOW.date(), history) == sorted(history, key=lambda p: p["kind"], reverse=True)
+
+
+def test_celebrity_and_royal_news_is_off_topic():
+    assert keywords.is_off_topic("Prince William visits new children's hospital")
+    assert keywords.is_off_topic("King Charles plants a tree at Sandringham")
+    assert keywords.is_off_topic("Taylor Swift donates to food banks on tour")
+    assert keywords.is_off_topic("Hollywood actor surprises fans")
+    assert not keywords.is_off_topic("Volunteers plant a million trees across Kenya")
+    assert not keywords.is_off_topic("Scientists celebrate a malaria vaccine breakthrough")
+    assert not keywords.is_off_topic("Prince Edward Island opens a new wind farm")
+
+
+def test_sport_is_kept_to_a_minimum(fixtures):
+    from goodnews import scrape
+    now_iso = "2026-09-26T10:00:00Z"
+    sport = [
+        {"id": f"sp{i}", "kind": "article", "title": f"Local football team wins cup {i}", "summary": "",
+         "url": f"https://x/{i}", "imageUrl": None, "source": "S", "sourceHomepage": "https://x",
+         "author": "S", "publishedAt": now_iso, "community": "Sport", "category": "Sport",
+         "region": "Europe", "uplift": 5 + i % 4, "score": None, "comments": None, "discussionUrl": None}
+        for i in range(10)
+    ]
+    royal = dict(sport[0], id="royal", title="Princess of Wales opens garden", community="Culture", category="Culture")
+    feed = build_feed(requests.Session(), {"stories": sport + [royal], "pets": []}, NOW,
+                      fixtures=fixtures, fetch_images=False, fetch_pets=False)
+    ids = {s["id"] for s in feed["stories"]}
+    assert "royal" not in ids
+    kept_sport = [s for s in feed["stories"] if s["community"] == "Sport"]
+    assert len(kept_sport) == scrape.MAX_SPORT_POSTS
+    assert sorted(s["uplift"] for s in kept_sport) == [7, 7, 8, 8]  # the most uplifting four
+
+
+def test_rejected_stories_are_not_rechecked(fixtures, monkeypatch):
+    from goodnews import scrape
+    first = build_feed(requests.Session(), {"stories": [], "pets": []}, NOW,
+                       fixtures=fixtures, fetch_images=False, fetch_pets=False)
+    assert first["rejected"]  # e.g. the missile-attack headline
+    seen = []
+    real = scrape.select_good_news
+    monkeypatch.setattr(scrape, "select_good_news", lambda c, u: seen.extend(c) or real(c, u))
+    build_feed(requests.Session(), first, NOW, fixtures=fixtures, fetch_images=False, fetch_pets=False)
+    assert seen == []

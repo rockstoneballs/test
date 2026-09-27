@@ -41,6 +41,10 @@ USER_AGENT = "SunnysideGoodNewsBot/1.1 (+https://github.com/rockstoneballs/test)
 MAX_OG_IMAGE_LOOKUPS = 80
 SOCIAL_UPLIFT = 7
 MAX_PER_SOCIAL_COMMUNITY = 150
+# Sport is kept to a minimum: only the most uplifting few stories make it in.
+MAX_SPORT_POSTS = 4
+MAX_REJECTED_IDS = 5000
+MIN_UPLIFT_SPORT = 7
 MIN_UPLIFT_MAINSTREAM = 6
 MIN_UPLIFT_TRUSTED = 3
 
@@ -248,7 +252,7 @@ def select_good_news(candidates: list[dict], use_claude: bool) -> list[dict]:
 
     selected = []
     for story in candidates:
-        if keywords.is_hard_blocked(story["title"]):
+        if keywords.is_hard_blocked(story["title"]) or keywords.is_off_topic(story["title"]):
             if story["community"] is not None:
                 log.info("Blocked %s post: %s", story["source"], story["title"][:80])
             continue
@@ -258,7 +262,7 @@ def select_good_news(candidates: list[dict], use_claude: bool) -> list[dict]:
 
     for i, story in enumerate(articles):
         trusted = story["_trusted"]
-        if keywords.is_hard_blocked(story["title"]):
+        if keywords.is_hard_blocked(story["title"]) or keywords.is_off_topic(story["title"], story["summary"]):
             continue
         verdict = verdicts.get(i)
         if verdict is not None:
@@ -276,6 +280,9 @@ def select_good_news(candidates: list[dict], use_claude: bool) -> list[dict]:
                 region=keywords.guess_region(story["title"], story["summary"]),
                 uplift=max(3, min(10, 5 + keywords.positivity(story["title"], story["summary"]) // 2)),
             )
+        if (story["community"] == "Sport" or keywords.is_sport(story["title"], story["summary"])) \
+                and story["uplift"] < MIN_UPLIFT_SPORT:
+            continue
         selected.append(story)
     return selected
 
@@ -304,7 +311,7 @@ def load_previous(ref: str | None, session: requests.Session) -> dict:
     for s in stories:  # upgrade v1 feeds
         s.setdefault("community", s.get("category", "Community"))
         s.setdefault("kind", "article")
-    return {"stories": stories, "pets": data.get("pets", [])}
+    return {"stories": stories, "pets": data.get("pets", []), "rejected": data.get("rejected", [])}
 
 
 def _merge_social_fields(target: dict, other: dict) -> None:
@@ -363,7 +370,12 @@ def build_feed(
     def cutoff_for(community: str | None) -> datetime:
         return now - timedelta(days=MAX_AGE_DAYS.get(community, max_age_days))
 
-    prev_stories = [s for s in previous["stories"] if s.get("publishedAt", "") >= iso(cutoff_for(s.get("community")))]
+    prev_stories = [
+        s for s in previous["stories"]
+        if s.get("publishedAt", "") >= iso(cutoff_for(s.get("community")))
+        # Filters added later also clean up posts that were published before them.
+        and not keywords.is_off_topic(s["title"], s.get("summary", ""))
+    ]
     by_id = {s["id"]: s for s in prev_stories}
     by_title = {title_key(s["title"]): s for s in prev_stories}
 
@@ -402,7 +414,12 @@ def build_feed(
     if social_drops:
         log.info("Dropped social posts: %s", ", ".join(f"{k} ×{v}" for k, v in sorted(social_drops.items())))
 
+    # Stories that already failed the filter aren't checked again (saves Claude calls).
+    rejected_before = set(previous.get("rejected", []))
+    candidates = [c for c in candidates if c["id"] not in rejected_before]
     fresh = select_good_news(candidates, use_claude)
+    kept_ids = {s["id"] for s in fresh}
+    rejected = [c["id"] for c in candidates if c["id"] not in kept_ids] + list(previous.get("rejected", []))
     log.info("%d new posts (%s)", len(fresh), ", ".join(
         f"{c}: {n}" for c, n in sorted(Counter(s["community"] for s in fresh).items())))
 
@@ -418,7 +435,15 @@ def build_feed(
     stories = [_output(s) for s in fresh] + prev_stories
     stories.sort(key=lambda s: s["publishedAt"], reverse=True)
 
-    # Keep each social community from crowding out the news.
+    # Keep each social community from crowding out the news, and sport to a minimum
+    # (only the most uplifting few, newest first among equals).
+    sport_ids = {
+        s["id"] for s in sorted(
+            (s for s in stories if s["kind"] == "article"
+             and (s["community"] == "Sport" or keywords.is_sport(s["title"], s.get("summary", "")))),
+            key=lambda s: (s.get("uplift", 0), s["publishedAt"]), reverse=True,
+        )[:MAX_SPORT_POSTS]
+    }
     per_community: Counter[str] = Counter()
     kept = []
     for s in stories:
@@ -426,6 +451,8 @@ def build_feed(
             per_community[s["community"]] += 1
             if per_community[s["community"]] > MAX_PER_SOCIAL_COMMUNITY:
                 continue
+        elif (s["community"] == "Sport" or keywords.is_sport(s["title"], s.get("summary", ""))) and s["id"] not in sport_ids:
+            continue
         kept.append(s)
     stories = kept[:max_stories]
 
@@ -441,6 +468,8 @@ def build_feed(
         "regions": keywords.REGIONS,
         "stories": stories,
         "pets": pets,
+        # IDs of recently rejected stories, so they aren't re-checked every run.
+        "rejected": list(dict.fromkeys(rejected))[:MAX_REJECTED_IDS],
     }
 
 
