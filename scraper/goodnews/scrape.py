@@ -32,7 +32,7 @@ import requests
 from . import articles, keywords
 from .classifier import ClaudeClassifier
 from .pets import pets_for_today
-from .social import RedditClient, fetch_imgur, fetch_lemmy, fetch_ninegag, fetch_reddit
+from .social import RedditClient, fetch_imgur, fetch_lemmy, fetch_ninegag, fetch_reddit, vet_social
 from .sources import MAX_AGE_DAYS, SOCIAL_COMMUNITIES, SOCIAL_SOURCES, SOURCES, Source
 
 log = logging.getLogger("goodnews")
@@ -194,7 +194,7 @@ def fetch_source(session: requests.Session, source: Source, fixtures: Path | Non
 
 def _item(*, title, url, source, sourceHomepage, publishedAt, trusted, summary="", imageUrl=None,
           kind="article", community=None, author=None, score=None, comments=None, discussionUrl=None,
-          imageWidth=None, imageHeight=None, videoUrl=None) -> dict:
+          imageWidth=None, imageHeight=None, videoUrl=None, tags=None) -> dict:
     return {
         "id": story_id(discussionUrl if kind != "article" and discussionUrl else url),
         "title": title,
@@ -213,6 +213,7 @@ def _item(*, title, url, source, sourceHomepage, publishedAt, trusted, summary="
         "score": score,
         "comments": comments,
         "discussionUrl": discussionUrl,
+        "tags": tags,
         "_trusted": trusted,
     }
 
@@ -464,6 +465,7 @@ def _output(s: dict) -> dict:
         "comments": s.get("comments"),
         "discussionUrl": s.get("discussionUrl"),
         **({"body": s["body"]} if "body" in s else {}),
+        **({"tags": s["tags"]} if s.get("tags") is not None else {}),
     }
 
 
@@ -537,6 +539,9 @@ def build_feed(
         and not unwanted(s) and still_good(s)
         # Mastodon was dropped as a source; its old posts go too.
         and not s.get("source", "").startswith("#")
+        # 9GAG and Imgur posts are re-checked against today's tag rules; ones saved before
+        # we kept their tags are dropped (they come back if they pass).
+        and not (s.get("source", "").startswith(("9GAG", "Imgur")) and vet_social(s.get("tags") or [], s.get("community")))
         # Clips saved before we kept their video file can't play; they come back if still popular.
         and not (s.get("kind") == "video" and not s.get("videoUrl"))
     ]
@@ -699,6 +704,10 @@ def main(argv: list[str] | None = None) -> int:
             log.info("  - [%s | %s | %d words] %s", st["source"], st.get("region"), words, st["title"][:120])
             if st.get("body"):
                 log.info("      %s", st["body"][:160].replace("\n\n", " ¶ "))
+    if args.list_news:
+        for st in feed["stories"]:
+            if st.get("source", "").startswith(("9GAG", "Imgur")):
+                log.info("  ~ [%s | %s] %s  tags=%s", st["source"], st["kind"], st["title"][:70], st.get("tags"))
     regions = Counter(s.get("region", "Global") for s in feed["stories"] if s.get("kind") == "article")
     log.info("News by region: %s", ", ".join(f"{r}: {n}" for r, n in regions.most_common()))
     clips = [s for s in feed["stories"] if s.get("kind") == "video"]
