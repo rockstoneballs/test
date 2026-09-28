@@ -261,11 +261,11 @@ def fetch_lemmy(session: requests.Session, src: SocialSource) -> list[dict]:
 # blocklist. Posts without tags are left out.
 
 ANIMAL_TAGS = re.compile(
-    r"^(?:animals?|aww|cute animals?|pets?|cats?|kittens?|kitty|catmemes|cat memes|dogs?|doggos?|dawgs?|puppy|"
+    r"^(?:animals?|cute animals?|pets?|cats?|kittens?|kitty|catmemes|cat memes|dogs?|doggos?|dawgs?|puppy|"
     r"puppies|pupper|bunny|bunnies|rabbits?|hamsters?|guinea pigs?|birds?|parrots?|owls?|ducks?|ducklings?|"
     r"otters?|foxes|fox|red pandas?|pandas?|koalas?|sloths?|hedgehogs?|capybaras?|horses?|ponies|pony|goats?|"
     r"cows?|pigs?|piglets?|lambs?|sheep|elephants?|penguins?|seals?|whales?|dolphins?|turtles?|tortoises?|"
-    r"frogs?|wildlife|baby animals|animal love|animal rescue|rescue animals?|nature|squirrels?|raccoons?|"
+    r"frogs?|wildlife|baby animals|animal love|animal rescue|rescue animals?|squirrels?|raccoons?|"
     r"deer|bears?|wolf|wolves|lions?|tigers?|cheetahs?|monkeys?|bats?|golden retrievers?|corgis?|"
     r"shiba|husky|huskies|labradors?|pitbulls?|beagles?|pugs?)$",
     re.IGNORECASE,
@@ -285,7 +285,9 @@ BLOCKED_TAGS = re.compile(
     r"stand ?up|comedy|comedian|podcast|joe rogan|roast|prank|"
     r"wtf|nsfw|shitpost|dark humou?r|dank|cursed|gore|blood|fight|brawl|accident|crash|dumb|idiot|fail|"
     r"drunk|alcohol|beer|weed|drug|gun|weapon|knife|hunting|religio|racis|\bwhite\b|\bblack people|"
-    r"sports?\b|football|soccer|nfl|nba|ufc|boxing|anime|hentai|gaming|videogame|video games?",
+    r"sports?\b|football|soccer|nfl|nba|ufc|boxing|anime|hentai|gaming|videogame|video games?|"
+    r"vacation|holiday|travel|hiking|healthy living|lifestyle|fashion|makeup|tattoo|selfie|wedding|dance|dancing|"
+    r"tiktok|influencer|asmr",
     re.IGNORECASE,
 )
 

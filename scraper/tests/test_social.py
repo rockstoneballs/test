@@ -256,13 +256,14 @@ def test_ninegag_posts_must_earn_their_place_by_their_tags():
         _gag(2, "She got a white accent though", stuffed, "sodablob"),
         _gag(3, "The best marketing strategy", stuffed, "sodablob"),
         _gag(4, "Reasonable reaction", ["japan", "kawaii", "wholesome", "girl", "waifu"]),
-        _gag(5, "Vacation Video", ["aww", "nature", "hiking", "mildly interesting", "healthy living", "beach"]),
+        _gag(5, "Beach day", ["aww", "beach", "summer"]),
         _gag(6, "Found the fountain of youth", ["salmahayek", "vampire", "timeless", "celebrity"]),
         _gag(7, "Stop it", ["Wtf", "Random"]),
         _gag(8, "Welcome home", []),
         _gag(9, "Basically smol and fluffy", ["animals", "aww", "bunny", "cute", "wholesome"]),
         _gag(10, "Sleep mode ON", ["cat", "sleep", "purr"]),
         _gag(11, "Dogs and doors", ["dog", "door", "smart", "accident", "dumb"]),
+        _gag(12, "Vacation Video", ["aww", "nature", "hiking", "mildly interesting", "healthy living"]),
     ]
     cats = fetch_ninegag(FakeSession({"9gag.com": FakeResponse({"data": {"posts": posts}})}),
                          SocialSource("9gag", "cats", AWW, min_score=100, limit=20))

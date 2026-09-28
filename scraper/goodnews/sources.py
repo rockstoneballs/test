@@ -179,4 +179,4 @@ SOCIAL_SOURCES: list[SocialSource] = [
 ]
 
 # How long posts stay. Memes are evergreen, so a meme community that posts slowly still fills up.
-MAX_AGE_DAYS = {MEMES: 30, AWW: 3, SMILES: 7}
+MAX_AGE_DAYS = {MEMES: 60, AWW: 3, SMILES: 7}
