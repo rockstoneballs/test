@@ -71,7 +71,7 @@ stories, then one meme or animal post. **Latest** is simply newest first.
   keyword filter is used instead.
 * **Memes and cute animals** come from Reddit, Lemmy, 9GAG and Imgur. NSFW and spoiler posts
   are dropped, and so are posts below a per-source upvote threshold. Cute
-  animals stay for 3 days, news for 7, and memes for up to 30 (they don't go stale).
+  animals stay for 3 days, news for 7, and memes for up to 60 (they don't go stale).
 * **Left out on purpose:** posts not written in English, celebrity and showbiz news,
   anything about royalty or monarchies, politics, money and markets (pay rises, tax,
   share prices, lawsuits and settlements), all sport, and clickbait: teaser and hype
@@ -86,6 +86,12 @@ stories, then one meme or animal post. **Latest** is simply newest first.
   original. Pages marked `nosnippet` are respected, and Google News links are resolved
   to the publisher's own page. With `ANTHROPIC_API_KEY` set, Claude also writes a short
   "In short" summary from the article.
+* **9GAG and Imgur are vetted by their tags.** Uploaders put popular tags on unrelated
+  videos, so a post needs an animal tag (cute animals) or a wholesome tag (memes), and none
+  from a blocklist (politics, people and bodies, celebrities, comedy, "wtf", news…). Posts
+  without tags, and uploaders repeating one set of tags across several posts, are left
+  out. Tags are saved with each post and re-checked every run (`vet_social()` in
+  `scraper/goodnews/social.py`).
 * **Clips** (9GAG and Imgur animations, Reddit videos) are stored as direct MP4 links.
   The website plays them inline, muted and looping, while they're on screen; the app plays
   them on the post page, with a button to turn the sound on.

@@ -28,7 +28,7 @@ from urllib.parse import urlsplit
 
 import requests
 
-from .sources import SocialSource
+from .sources import AWW, MEMES, SocialSource
 
 log = logging.getLogger(__name__)
 
@@ -252,6 +252,70 @@ def fetch_lemmy(session: requests.Session, src: SocialSource) -> list[dict]:
 
 
 
+# --------------------------------------------------------------------------- vetting
+#
+# 9GAG and Imgur tags are chosen by uploaders, and their tag pages are only loosely
+# moderated: a clip of a stand-up comedian tagged "cats", or a bikini video tagged
+# "cute", shows up in those tags. We can't see what's in a video, so a post has to earn
+# its place from its tags: the right kind of tag for its topic, and none from the
+# blocklist. Posts without tags are left out.
+
+ANIMAL_TAGS = re.compile(
+    r"^(?:animals?|cute animals?|pets?|cats?|kittens?|kitty|catmemes|cat memes|dogs?|doggos?|dawgs?|puppy|"
+    r"puppies|pupper|bunny|bunnies|rabbits?|hamsters?|guinea pigs?|birds?|parrots?|owls?|ducks?|ducklings?|"
+    r"otters?|foxes|fox|red pandas?|pandas?|koalas?|sloths?|hedgehogs?|capybaras?|horses?|ponies|pony|goats?|"
+    r"cows?|pigs?|piglets?|lambs?|sheep|elephants?|penguins?|seals?|whales?|dolphins?|turtles?|tortoises?|"
+    r"frogs?|wildlife|baby animals|animal love|animal rescue|rescue animals?|squirrels?|raccoons?|"
+    r"deer|bears?|wolf|wolves|lions?|tigers?|cheetahs?|monkeys?|bats?|golden retrievers?|corgis?|"
+    r"shiba|husky|huskies|labradors?|pitbulls?|beagles?|pugs?)$",
+    re.IGNORECASE,
+)
+WHOLESOME_TAGS = re.compile(
+    r"^(?:wholesome|wholesome memes?|kindness|good deeds?|heartwarming|faith in humanity|mama memes|"
+    r"animal love|baby animals|made me smile)$",
+    re.IGNORECASE,
+)
+BLOCKED_TAGS = re.compile(
+    r"trump|biden|obama|harris|putin|zelensk|netanyahu|politic|election|woke|maga|conservative|liberal|"
+    r"leftist|right ?wing|left ?wing|republican|democrat|government|immigra|israel|gaza|palestin|ukrain|russia|"
+    r"\bwar\b|military|army|police|protest|news|"
+    r"girls?\b|women|woman|waifu|bikini|swimsuit|lingerie|beach|model|hot\b|sexy|thicc|booty|body|gym|"
+    r"fitness|workout|yoga|cosplay|onlyfans|instagram model|dating|tinder|relationship|wife|girlfriend|"
+    r"boyfriend|husband|celebrit|actor|actress|singer|rapper|salmahayek|"
+    r"stand ?up|comedy|comedian|podcast|joe rogan|roast|prank|"
+    r"wtf|nsfw|shitpost|dark humou?r|dank|cursed|gore|blood|fight|brawl|accident|crash|dumb|idiot|fail|"
+    r"drunk|alcohol|beer|weed|drug|gun|weapon|knife|hunting|religio|racis|\bwhite\b|\bblack people|"
+    r"sports?\b|football|soccer|nfl|nba|ufc|boxing|anime|hentai|gaming|videogame|video games?|"
+    r"vacation|holiday|travel|hiking|healthy living|lifestyle|fashion|makeup|tattoo|selfie|wedding|dance|dancing|"
+    r"tiktok|influencer|asmr",
+    re.IGNORECASE,
+)
+
+
+def vet_social(tags: list[str], community: str | None) -> str | None:
+    """None if a 9GAG/Imgur post may appear, else why not."""
+    if not tags:
+        return "no tags"
+    blocked = next((t for t in tags if BLOCKED_TAGS.search(t)), None)
+    if blocked:
+        return f"tag '{blocked}'"
+    if community == AWW and not any(ANIMAL_TAGS.match(t.strip()) for t in tags):
+        return "no animal tag"
+    if community == MEMES and not any(WHOLESOME_TAGS.match(t.strip()) or ANIMAL_TAGS.match(t.strip()) for t in tags):
+        return "no wholesome tag"
+    return None
+
+
+def _tag_stuffers(posts: list[dict]) -> set[str]:
+    """Uploaders posting several different posts with the same tags in one listing: a
+    sign they're stuffing popular tags onto unrelated videos."""
+    seen: dict[tuple[str, tuple[str, ...]], int] = {}
+    for p in posts:
+        key = ((p.get("postSection") or {}).get("name") or "", tuple(sorted(t.get("key", "").lower() for t in p.get("tags") or [])))
+        seen[key] = seen.get(key, 0) + 1
+    return {uploader for (uploader, tags), n in seen.items() if n >= 3 and tags}
+
+
 BROWSER_UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
 
 
@@ -270,8 +334,17 @@ def fetch_ninegag(session: requests.Session, src: SocialSource) -> list[dict]:
         return []
 
     items = []
+    skipped: dict[str, int] = {}
+    stuffers = _tag_stuffers(posts)
     for p in posts:
         if p.get("nsfw") or p.get("type") not in ("Photo", "Animated", "Video"):
+            continue
+        tags = [str(t.get("key", "")).strip() for t in p.get("tags") or [] if t.get("key")]
+        uploader = (p.get("postSection") or {}).get("name") or ""
+        reason = "tag stuffing" if uploader in stuffers else vet_social(tags, src.community)
+        if reason:
+            key = reason if reason.startswith(("no ", "tag stuffing")) else "blocked tag"
+            skipped[key] = skipped.get(key, 0) + 1
             continue
         score = int(p.get("upVoteCount", 0))
         if score < src.min_score:
@@ -296,6 +369,7 @@ def fetch_ninegag(session: requests.Session, src: SocialSource) -> list[dict]:
             "imageHeight": img.get("height"),
             "source": f"9GAG · {src.name}",
             "sourceHomepage": f"https://9gag.com/tag/{src.name}",
+            "tags": tags,
             "publishedAt": datetime.fromtimestamp(int(p.get("creationTs", 0)), tz=timezone.utc),
             "kind": "video" if video else "image",
             "videoUrl": video,
@@ -305,6 +379,8 @@ def fetch_ninegag(session: requests.Session, src: SocialSource) -> list[dict]:
             "comments": int(p.get("commentsCount", 0)),
             "discussionUrl": url,
         })
+    if skipped:
+        log.info("9gag #%s: left out %s", src.name, ", ".join(f"{n} ({k})" for k, n in sorted(skipped.items())))
     items.sort(key=lambda i: i["score"], reverse=True)
     return items[:src.limit]
 
@@ -329,6 +405,9 @@ def fetch_imgur(session: requests.Session, src: SocialSource) -> list[dict]:
     items = []
     for e in entries:
         if e.get("nsfw"):
+            continue
+        tags = [str(t.get("name", "")).strip() for t in e.get("tags") or [] if t.get("name")]
+        if vet_social(tags, src.community):
             continue
         score = int(e.get("points") or e.get("ups") or 0)
         if score < src.min_score:
@@ -355,6 +434,7 @@ def fetch_imgur(session: requests.Session, src: SocialSource) -> list[dict]:
             "imageHeight": image.get("height"),
             "source": f"Imgur · {src.name}",
             "sourceHomepage": f"https://imgur.com/t/{src.name}",
+            "tags": tags,
             "publishedAt": datetime.fromtimestamp(int(e.get("datetime", 0)), tz=timezone.utc),
             "kind": "video" if animated and video else "image",
             "videoUrl": video if animated else None,
