@@ -271,6 +271,10 @@ def fetch_ninegag(session: requests.Session, src: SocialSource) -> list[dict]:
 
     items = []
     for p in posts:
+        # TEMP: inspect what 9GAG tells us about each post.
+        log.info("9gag-debug #%s | %s | section=%s | tags=%s | nsfw=%s | %s", src.name, p.get("type"),
+                 (p.get("postSection") or {}).get("name"), [t.get("key") for t in p.get("tags") or []][:12],
+                 p.get("nsfw"), (p.get("title") or "")[:70])
         if p.get("nsfw") or p.get("type") not in ("Photo", "Animated", "Video"):
             continue
         score = int(p.get("upVoteCount", 0))
