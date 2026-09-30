@@ -180,7 +180,7 @@ CATEGORY_KEYWORDS: dict[str, re.Pattern[str]] = {
         "lpga", "ryder cup", "six nations", "tour de france", "grand final", "semifinal",
         "innings", "wicket", "halftime", "half-time", "off the mark", "win over", "matildas",
         "socceroos", "wallabies", "all blacks", "lionesses", "gymnast", "sprinter", "skier", "snowboard",
-        "vs!", "vs.", "game highlights", "match highlights", "espn",
+        "vs!", "vs.", "game highlights", "match highlights", "espn", "clinch", "division title", "stood down as", "years in charge", "as manager", "new manager", "managerial", "county board", "all-ireland", "inter-county",
     ]),
 }
 
@@ -347,7 +347,7 @@ _TLD_REGION = {
     **dict.fromkeys(["in", "pk", "bd", "lk", "np", "sg", "my", "ph", "id", "th", "vn", "cn", "hk", "tw", "kr", "jp"], "Asia"),
     **dict.fromkeys(["ng", "ke", "za", "gh", "ug", "tz", "et", "zw", "eg", "ma"], "Africa"),
     **dict.fromkeys(["ae", "qa", "sa", "kw", "om", "bh", "jo", "lb", "il", "tr", "ir", "iq"], "Middle East"),
-    **dict.fromkeys(["br", "ar", "mx", "co", "cl", "pe", "ve", "ec", "uy", "py", "bo", "cr", "cu"], "Latin America"),
+    **dict.fromkeys(["br", "ar", "mx", "cl", "pe", "ve", "ec", "uy", "py", "bo", "cr", "cu"], "Latin America"),
 }
 
 
@@ -396,7 +396,10 @@ _CLICKBAIT_RX = re.compile(
     r"\b(?:needs?|calls? for|appeals? for|seeks?|seeking|looking for|recruit\w*|wanted)\b.{0,30}\bvolunteers?\b|"
     r"\bvolunteer (?:opportunit|push|drive|board)|\bappeal\b|\bshortlist|\bfinalists?\b|\bnominations?\b|"
     r"\baward recipients\b|\bto host\b|\bwill host\b|\bworkshop\b|\bopen house\b|"
-    r"\b(?:festival|fair|show|event|market|parade|concert|race|walk|run|gala)s?\b.{0,30}\breturns?\b|"
+    r"\b(?:festival|fest|fair|show|event|market|parade|concert|race|walk|run|gala|exhibition)s?\b.{0,30}\breturns?\b|"
+    r"^an evening (?:at|with|of)\b|\b(?:is|are) looking for\b|\bawards 20\d\d\b|\b(?:underlines|reaffirms|renews) "
+    r"(?:its |their )?commitment\b|^[A-Z][a-z]+ [A-Z][a-z]+:\s|\bstage \d\b.{0,30}\b(?:water|drought|restriction)|"
+    r"\bwater restrictions\b|\bhosepipe\b|"
     r"\bthis weekend\b|\bupcoming\b|\bsave the date\b|\bget set\b|\bforever home|\bnew home for\b|"
     r"\blooking for (?:a )?(?:new |loving )?home|\bsearching for a new\b|\b(?:available|up) for adoption|"
     r"\badoption fees|\bready for a rescue|^interview\s*:|\bcolumn\b|\bsneak peek|\bphoto gallery|\[photo|"
@@ -426,11 +429,14 @@ PROFANITY = re.compile(
 )
 
 
+_QUOTES = str.maketrans({"\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"'})
+
+
 def is_clickbait(title: str) -> bool:
-    t = title.strip()
+    t = title.strip().translate(_QUOTES)
     return bool(
         _CLICKBAIT_RX.search(t) or _LISTICLE_RX.search(t)
-        or t.endswith(("?", "...", "…")) or "!" in t
+        or "?" in t or t.endswith(("...", "…")) or "!" in t
     )
 
 
@@ -450,7 +456,7 @@ _TABLOID_RX = re.compile(
     r"modern healthcare|socialsamosa|marketing-interactive|contentgrip|roastbrief|ecommercenews|6ix retail|lavx|"
     r"cyberkendra|insight eu|hypefresh|express computer|zawya|energyglobal|manila times|ritzau|about amazon|"
     r"pressnetwork|businessweekly|business standard|seeking ?alpha|motley fool|benzinga|zacks|fiercebiotech|"
-    r"fierce pharma|biospace|pharmaphorum|oncodaily|finance\.|tvguide|tv guide|radiotimes|radio times|espn|sky sports|bbc sport|the athletic|yahoo|\bmsn\b|aol\.com|newsbreak|dailyhunt|\bnews18|wionews|\bzee ?news|\bindia\.com",
+    r"fierce pharma|biospace|pharmaphorum|oncodaily|finance\.|\bani news\b|globetrender|tvguide|tv guide|radiotimes|radio times|espn|sky sports|bbc sport|the athletic|yahoo|\bmsn\b|aol\.com|newsbreak|dailyhunt|\bnews18|wionews|\bzee ?news|\bindia\.com",
     re.IGNORECASE,
 )
 

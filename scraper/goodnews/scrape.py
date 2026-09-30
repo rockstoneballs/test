@@ -562,6 +562,8 @@ def grim_inside(story: dict) -> bool:
                   else (keywords.HARD_BLOCK, keywords.DOOM))
     if hard.search(body) or keywords.POLITICIANS.search(body) or keywords.GRIM_TEXT.search(body):
         return True
+    if keywords.is_sport("", " ".join(body.split("\n\n")[:2])):
+        return True  # a sports report behind a vague headline
     return story.get("source") not in TRUSTED_NAMES and bool(doom.search(body.split("\n\n", 1)[0]))
 
 

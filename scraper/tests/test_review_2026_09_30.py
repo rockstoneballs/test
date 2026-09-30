@@ -217,3 +217,37 @@ def test_second_pass_not_good_news(title, source):
 @pytest.mark.parametrize("title", SECOND_PASS_GOOD)
 def test_second_pass_good_news(title):
     assert not unwanted(dict(BASE, title=title, source="X")) and keywords.passes_keyword_filter(title, "", False)
+
+
+THIRD_PASS_BAD = [
+    "Can AI Predict Heart Surgery Recovery? Here’s How Artificial Intelligence May Help Doctors",
+    "Julie Jay: Chaos aside, being a parent has made me the happiest I've ever been",
+    "Edmond returns to Stage 1 water conservation plan",
+    "Diverse Fest returns to Sarasota Harvest House to celebrate community",
+    "An Evening at the Estuary: Celebrating Conservation. Investing in Our Future.",
+    "Leitrim animal rescue is looking for photos of past rescue dogs for exciting project",
+    "Regional Volunteer Awards 2026: Yorkshire and Humberside",
+    "Marina Port de Mallorca underlines commitment to Mediterranean conservation",
+    "Guardians fans donate to Denver charity after Rockies win helps Cleveland clinch division",
+]
+
+
+@pytest.mark.parametrize("title", THIRD_PASS_BAD)
+def test_third_pass_not_good_news(title):
+    assert unwanted(dict(BASE, title=title, source="X")) or not keywords.passes_keyword_filter(title, "", False)
+
+
+def test_sports_reports_behind_vague_headlines():
+    from goodnews.scrape import grim_inside
+    assert grim_inside({"title": "Galway pull a rabbit from the hat - just in time too", "source": "Irish Examiner",
+                        "checkedBy": "keywords", "body": "As soon as Kevin Walsh stood down as Galway manager after "
+                        "five years in charge, his successor was obvious. The county board ran a process."})
+    assert not unwanted(dict(BASE, title="Belton food pantry manager inspires volunteer", source="X"))
+
+
+def test_dot_co_websites_are_not_colombian():
+    story = dict(BASE, title="Decades ago, this frog species vanished from Yosemite", source="Good Good Good",
+                 sourceHomepage="https://www.goodgoodgood.co", region="Latin America", checkedBy="keywords",
+                 body="About 50 years ago, red-legged frogs disappeared from Yosemite National Park.")
+    refine_region(story)
+    assert story["region"] != "Latin America"
