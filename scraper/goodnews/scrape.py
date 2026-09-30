@@ -261,7 +261,11 @@ def keyword_uplift(title: str, summary: str, trusted: bool) -> int:
     mainstream stories that only passed the keyword check top out at 5, so they never
     lead the feed."""
     pos = keywords.positivity(title, summary)
-    return max(6, min(9, 6 + pos // 3)) if trusted else max(3, min(5, 3 + pos // 3))
+    score = max(6, min(9, 6 + pos // 3)) if trusted else max(3, min(5, 3 + pos // 3))
+    if keywords.is_progress(title) or keywords.is_ai_for_good(title, summary):
+        # Progress on hard problems (disease, climate) and AI helping people: the big stuff.
+        score = max(score, 7 if trusted else 6)
+    return score
 
 
 TRUSTED_NAMES = {s.name for s in SOURCES if s.trusted}
@@ -282,6 +286,7 @@ def still_good(story: dict) -> bool:
     if not keywords.passes_keyword_filter(title, summary, trusted, min_positivity(story)):
         return False
     story["uplift"] = keyword_uplift(title, summary, trusted)  # re-scored with today's rules
+    story["community"] = story["category"] = keywords.guess_category(title, summary)
     if story.get("region") in (None, "Global"):
         story["region"] = keywords.guess_region(title, summary)
     return True
@@ -297,6 +302,10 @@ def refine_region(story: dict) -> None:
     if story.get("kind", "article") != "article":
         return
     source, homepage = story.get("source", ""), story.get("sourceHomepage", "")
+    if story.get("checkedBy") != "claude" and story.get("body"):
+        # The article's opening says where it happened more reliably than a feed summary.
+        opening = " ".join(story["body"].split("\n\n")[:2])
+        story["region"] = keywords.guess_region(story["title"], opening)
     region = story.get("region")
     outlet_region = keywords.region_for_source(source, homepage)
     if outlet_region and region in keywords.WESTERN_REGIONS | {"Global", None}:
@@ -347,6 +356,8 @@ def unwanted(story: dict) -> bool:
         return True
     if article and (keywords.is_clickbait(title) or keywords.is_tabloid(story.get("source", ""), story.get("sourceHomepage", ""))):
         return True
+    if article and len(title.split()) < 4:
+        return True  # "Cancer Treatments": a section name, not a story
     if not article:
         # Meme and animal titles: nothing sad or grim either.
         return bool(keywords.DOOM.search(title))
@@ -495,6 +506,48 @@ def add_article_text(session: requests.Session, stories: list[dict]) -> None:
     log.info("Article pages: %d read (%s)", len(todo), ", ".join(f"{k}: {v}" for k, v in stats.most_common()))
 
 
+_WORD_RX = re.compile(r"[A-Za-z0-9]+")
+_DUP_STOP = {"the", "a", "an", "of", "to", "in", "on", "for", "and", "at", "by", "with", "as", "is", "from", "after",
+             "its", "their", "this", "that", "new", "be", "are", "was"}
+
+
+def _title_words(title: str) -> dict[str, bool]:
+    """Word stems (first five letters) -> whether it's a name or place (capitalised, not first)."""
+    words = _WORD_RX.findall(title)
+    return {w.lower()[:5]: i > 0 and w[0].isupper() for i, w in enumerate(words) if w.lower() not in _DUP_STOP}
+
+
+def _same_story(a: dict[str, bool], b: dict[str, bool]) -> bool:
+    if not a or not b:
+        return False
+    only_a, only_b = a.keys() - b.keys(), b.keys() - a.keys()
+    if any(a[w] for w in only_a) and any(b[w] for w in only_b):
+        return False  # each names somewhere or someone the other doesn't: Exeter vs Truro
+    shared = len(a.keys() & b.keys())
+    return shared / len(a.keys() | b.keys()) > 0.65 or (min(len(a), len(b)) >= 5 and shared / min(len(a), len(b)) >= 0.7)
+
+
+def drop_near_duplicates(stories: list[dict]) -> list[dict]:
+    """The same story from several outlets (or re-worded by one): keep the first copy
+    (stories arrive newest first, so the earlier report is dropped only if it's the
+    duplicate of a fuller one), preferring one with an excerpt."""
+    kept: list[dict] = []
+    words: list[dict[str, bool]] = []
+    for s in stories:
+        if s.get("kind", "article") != "article":
+            kept.append(s)
+            words.append({})
+            continue
+        w = _title_words(s["title"])
+        dup = next((i for i, o in enumerate(words) if _same_story(w, o)), None)
+        if dup is None:
+            kept.append(s)
+            words.append(w)
+        elif s.get("body") and not kept[dup].get("body"):
+            kept[dup], words[dup] = s, w
+    return kept
+
+
 def grim_inside(story: dict) -> bool:
     """For stories that only passed the keyword filter on their headline: is the article
     itself about something grim or political? (Violence or a named politician anywhere in
@@ -502,9 +555,16 @@ def grim_inside(story: dict) -> bool:
     if story.get("checkedBy") == "claude":
         return False
     body = story.get("body") or ""
-    if keywords.is_hard_blocked(body) or keywords.POLITICIANS.search(body) or keywords.GRIM_TEXT.search(body):
+    title, summary = story.get("title", ""), story.get("summary") or ""
+    # Stories about progress on disease or climate naturally talk about deaths and decline.
+    progress = keywords.is_progress(title) or keywords.is_ai_for_good(title, summary)
+    hard, doom = ((keywords.HARD_BLOCK_FOR_PROGRESS, keywords.DOOM_FOR_PROGRESS) if progress
+                  else (keywords.HARD_BLOCK, keywords.DOOM))
+    if hard.search(body) or keywords.POLITICIANS.search(body) or keywords.GRIM_TEXT.search(body):
         return True
-    return story.get("source") not in TRUSTED_NAMES and bool(keywords.DOOM.search(body.split("\n\n", 1)[0]))
+    if keywords.is_sport("", " ".join(body.split("\n\n")[:2])):
+        return True  # a sports report behind a vague headline
+    return story.get("source") not in TRUSTED_NAMES and bool(doom.search(body.split("\n\n", 1)[0]))
 
 
 def build_feed(
@@ -632,7 +692,7 @@ def build_feed(
             if per_community[s["community"]] > MAX_PER_SOCIAL_COMMUNITY:
                 continue
         kept.append(s)
-    stories = kept[:max_stories]
+    stories = drop_near_duplicates(kept)[:max_stories]
 
     pets = previous["pets"]
     if fetch_pets:

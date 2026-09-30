@@ -13,7 +13,7 @@ from urllib.parse import urlsplit
 
 CATEGORIES = [
     "Science", "Environment", "Health", "Animals",
-    "Community", "Innovation", "Culture", "Sport",
+    "Community", "Innovation", "AI", "Culture", "Sport",
 ]
 
 REGIONS = [
@@ -33,10 +33,11 @@ def _rx(words: list[str]) -> re.Pattern[str]:
 # Words that sink a story no matter where it came from (checked in titles of
 # trusted sources, and titles + summaries of mainstream sources).
 HARD_BLOCK = _rx([
-    "killed", "killing", "murder", "massacre", "rape", "suicide", "terror",
+    "killed", "killing", "murder", "massacre", "rape", "suicide", "suicidal", "terror",
     "shooting", "shot dead", "stabbing", "genocide", "beheaded", "bombing",
     "dead bod", "death toll", "fatal", "slaughter", "abuse", "hostage",
-    "war crime", "execution", "executed",
+    "war crime", "execution", "executed", "body found", "body was found", "baby's body", "bodies found",
+    "remains found", "human remains",
 ])
 
 # Money, markets, disputes and admin notices: not what anyone means by good news, and
@@ -49,11 +50,14 @@ _MONEY_WORDS = [
     "settlement", "lawsuit", "refund", "compensation", "payout", "unfair", "underpaid", "wage theft",
     "landlord", "renters", "house prices", "rent!", "rents!", "sued", "sues!", "sue!",
     "admit card", "exam result", "board result", "recruitment", "vacancy", "vacancies", "scheme",
+    "tender!", "tenders!", "contract!", "contracts!", "acquisition", "acquires", "merger", "manufactur",
+    "invests", "invest!", "portfolio", "transaction", "esg!", "insurance", "reimburs", "partners with",
+    "cash raise", "fresh cash", "funding round", "secures $", "raises $", "interim results",
 ]
 MONEY = _rx(_MONEY_WORDS)
 
 # Words that make mainstream stories too gloomy for the feed.
-DOOM = _rx([
+_DOOM_WORDS = [
     "war!", "wars!", "warfare", "attack", "strike", "missile", "drone strike", "invasion", "troops",
     "dies", "died", "death", "dead", "deadly", "crash", "collapse", "disaster",
     "crisis", "fear", "warn", "threat", "scandal", "corrupt", "arrest", "charged",
@@ -74,7 +78,17 @@ DOOM = _rx([
     "fined", "die!", "bodies", "body of", "landslide", "mudslide", "avalanche", "drown", "hunting", "hunter!",
     "hunters", "bleach", "heatwave", "heat wave", "warming", "worsen", "loss!", "losses", "losing",
     "lose!", "shrink", "less time", "nightmare",
-] + _MONEY_WORDS)
+    # Sad endings, disputes and nuisances that slipped through as "good news".
+    "put to sleep", "euthanis", "euthanas", "incurable", "tribute", "in memory of", "memorial", "anger", "angry",
+    "despicable", "shuts down", "shut down", "closes", "closure", "closing down", "apologis", "apologiz",
+    "nodule", "seabed mining", "deep-sea mining", "deep sea mining",
+    "objects to", "objection", "petition", "urged to", "below average", "hornet", "invasive", "damaged",
+    "toppled", "drifting", "dumped", "forced to", "counting the cost", "carcass", "severed", "decapitat",
+    "remains!", "head discovered", "head found", "prompts report", "investigat", "poach", "mining", "stolen",
+    "theft", "vandal", "horrendous", "horrific", "appalling", "cull!", "culled", "into river", "into a river",
+    "into the river", "plunge", "dental desert", "heat up", "heats up", "heating up", "accelerat", "faster than expected",
+] + _MONEY_WORDS
+DOOM = _rx(_DOOM_WORDS)
 
 # Politics and politicians: never Sunnyside material, from any source.
 POLITICS = _rx([
@@ -83,7 +97,11 @@ POLITICS = _rx([
     "parliament", "senate!", "senator", "congressman", "congresswoman", "prime minister", "chief minister",
     "union minister", "minister!", "ministers!", "ministry", "government", "govt!", "election", "politic",
     "republican", "democrat", "labour party", "conservative party", "tory", "tories",
-    "governor", "lawmaker", "legislat", "chief whip",
+    "governor", "lawmaker", "legislat", "chief whip", "candidate", "rightwing", "right-wing", "leftwing",
+    "left-wing", "nra!", "eu commission", "european commission", "rfk", "kennedy",
+    # UK and Irish politicians who often appear in "good news" headlines.
+    "burnham", "sadiq khan", "rachel reeves", "miliband", "streeting", "rayner", "lammy", "badenoch", "swinney",
+    "sarwar", "taoiseach", "tánaiste", "tanaiste", "micheál martin", "micheal martin", "simon harris", "mcdonald!",
 ])
 
 # Named politicians and parties: a story whose text is about them is politics, whatever
@@ -121,7 +139,8 @@ CATEGORY_KEYWORDS: dict[str, re.Pattern[str]] = {
         "animal", "wildlife", "species", "dog", "puppy", "cat!", "cats!", "kitten", "bird",
         "whale", "dolphin", "turtle", "elephant", "tiger", "lion", "bear", "wolf", "wolves",
         "bee!", "bees!", "butterfl", "koala", "panda", "rhino", "gorilla", "otter", "beaver",
-        "shark", "coral", "sanctuary", "zoo", "pet!", "pets!", "horse", "owl", "penguin",
+        "shark", "coral", "sanctuary", "zoo", "pet!", "pets!", "horse", "owl", "penguin", "frog", "amphibian",
+        "reptile", "hippo", "leopard", "monkey", "ape!", "apes!",
     ]),
     "Environment": _rx([
         "climate", "emission", "renewable", "solar", "wind power", "wind farm", "carbon",
@@ -141,7 +160,7 @@ CATEGORY_KEYWORDS: dict[str, re.Pattern[str]] = {
     ]),
     "Innovation": _rx([
         "invent", "technology", "tech", "robot", "startup", "engineer", "3d print", "app!", "apps!",
-        "artificial intelligence", "ai!", "battery", "prototype", "innovation", "design",
+        "battery", "prototype", "innovation", "design",
     ]),
     "Community": _rx([
         "community", "volunteer", "neighbo", "donat", "charity", "school", "student",
@@ -164,7 +183,7 @@ CATEGORY_KEYWORDS: dict[str, re.Pattern[str]] = {
         "lpga", "ryder cup", "six nations", "tour de france", "grand final", "semifinal",
         "innings", "wicket", "halftime", "half-time", "off the mark", "win over", "matildas",
         "socceroos", "wallabies", "all blacks", "lionesses", "gymnast", "sprinter", "skier", "snowboard",
-        "vs!", "vs.", "game highlights", "match highlights", "espn",
+        "vs!", "vs.", "game highlights", "match highlights", "espn", "clinch", "division title", "stood down as", "years in charge", "as manager", "new manager", "managerial", "county board", "all-ireland", "inter-county",
     ]),
 }
 
@@ -186,7 +205,7 @@ OFF_TOPIC = _rx([
     "film star", "singer", "rapper", "actress", "actor!", "actors!", "star-studded",
     "royal ascot", "engaged to", "wedding of", "baby bump", "net worth",
     "bafta", "rock star", "rockstar", "boy band", "girl band", "frontman", "gig!", "gigs!", "world tour",
-    "u2!", "bono!", "coldplay", "ed sheeran", "oasis!", "bafta-nominated",
+    "u2!", "bono!", "coldplay", "ed sheeran", "oasis!", "bafta-nominated", "pageant", "top-performing songs",
 ])
 
 # Country / place names -> region. Order matters only for readability.
@@ -331,7 +350,7 @@ _TLD_REGION = {
     **dict.fromkeys(["in", "pk", "bd", "lk", "np", "sg", "my", "ph", "id", "th", "vn", "cn", "hk", "tw", "kr", "jp"], "Asia"),
     **dict.fromkeys(["ng", "ke", "za", "gh", "ug", "tz", "et", "zw", "eg", "ma"], "Africa"),
     **dict.fromkeys(["ae", "qa", "sa", "kw", "om", "bh", "jo", "lb", "il", "tr", "ir", "iq"], "Middle East"),
-    **dict.fromkeys(["br", "ar", "mx", "co", "cl", "pe", "ve", "ec", "uy", "py", "bo", "cr", "cu"], "Latin America"),
+    **dict.fromkeys(["br", "ar", "mx", "cl", "pe", "ve", "ec", "uy", "py", "bo", "cr", "cu"], "Latin America"),
 }
 
 
@@ -377,12 +396,30 @@ _CLICKBAIT_RX = re.compile(
     r"\b(?:volunteers?|help|helpers|donations?) (?:are |is )?(?:needed|wanted)\b|\bappeal for\b|\blooking for volunteers|"
     r"\bwhat to do (?:with|about|if|when)\b|\bsee the (?:winning|best|photos|pictures|images|shots)\b|"
     r"\bwhen it'?s on\b|\bhow to watch\b|\bwhere to watch\b|\bfull details\b|\bepisode\b|\bseason \d|"
+    r"\b(?:needs?|calls? for|appeals? for|seeks?|seeking|looking for|recruit\w*|wanted)\b.{0,30}\bvolunteers?\b|"
+    r"\bvolunteer (?:opportunit|push|drive|board)|\bappeal\b|\bshortlist|\bfinalists?\b|\bnominations?\b|"
+    r"\baward recipients\b|\bto host\b|\bwill host\b|\bworkshop\b|\bopen house\b|"
+    r"\b(?:festival|fest|fair|show|event|market|parade|concert|race|walk|run|gala|exhibition)s?\b.{0,30}\breturns?\b|"
+    r"^an evening (?:at|with|of)\b|\b(?:is|are) looking for\b|\bawards 20\d\d\b|\b(?:underlines|reaffirms|renews) "
+    r"(?:its |their )?commitment\b|^[A-Z][a-z]+ [A-Z][a-z]+:\s|\bstage \d\b.{0,30}\b(?:water|drought|restriction)|"
+    r"\bwater restrictions\b|\bhosepipe\b|"
+    r"\bthis weekend\b|\bupcoming\b|\bsave the date\b|\bget set\b|\bforever home|\bnew home for\b|"
+    r"\blooking for (?:a )?(?:new |loving )?home|\bsearching for a new\b|\b(?:available|up) for adoption|"
+    r"\badoption fees|\bready for a rescue|^interview\s*:|\bcolumn\b|\bsneak peek|\bphoto gallery|\[photo|"
+    r"\bpictures\s*:|^in pictures\b|\bmeet the\b|\bsurvey\b|\bpoll\b|"
+    r"\bhow (?:u\.s\.|uk|people|americans|britons) (?:adults )?(?:give|support)|"
+    r"\bawarded\b.{0,40}\b(?:fund|funding|grant)|\b(?:fund|funding|grants?)\b.{0,20}\bawarded\b|\bfirst round of\b|"
+    r"^\[[^\]]+\]|\bdoc talk\b|\bcommentary\b|^editorial\b|\beditorial\s*[|:]|\bop-ed\b|\bpodcast\b|\btranscript\b|"
+    r"^the download\b|\bto watch\b|\bat [A-Z]{3,}\s?20\d\d\b|\bcongress\b|\bconference\b|\bto attend\b|"
+    r"\bopens? applications\b|\bholding\b.{0,30}\b(?:training|event|meeting|session)|\bvolunteer training\b|"
+    r"\btop[- ]performing\b|\bby decade\b|®|™|\([A-Z]{2,5}\)|\bfy\s?\d\d\b|\bq[1-4] (?:20)?\d\d\b|\?\s+[-–|]|"
     r"^good news in history\b|\bgrants?\s*:|\bfunding opportunit|\bcall for proposals|\bapply now\b",
     re.IGNORECASE,
 )
 _LISTICLE_RX = re.compile(
     r"^(?:the )?\d+\s+(?:\w+\s+){0,2}(?:things|ways|reasons|tips|times|signs|photos|pictures|pics|facts|places|"
-    r"books|ideas|moments|stories|habits|foods|lessons|secrets|tricks|products|gifts)\b",
+    r"books|ideas|moments|stories|habits|foods|lessons|secrets|tricks|products|gifts|advances|breakthroughs|"
+    r"trends|innovations|companies|startups)\b",
     re.IGNORECASE,
 )
 
@@ -395,11 +432,14 @@ PROFANITY = re.compile(
 )
 
 
+_QUOTES = str.maketrans({"\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"'})
+
+
 def is_clickbait(title: str) -> bool:
-    t = title.strip()
+    t = title.strip().translate(_QUOTES)
     return bool(
         _CLICKBAIT_RX.search(t) or _LISTICLE_RX.search(t)
-        or t.endswith(("?", "...", "…")) or "!" in t
+        or "?" in t or t.endswith(("...", "…")) or "!" in t
     )
 
 
@@ -413,7 +453,13 @@ _TABLOID_RX = re.compile(
     r"boredpanda|bored panda|distractify|upworthy|inspiremore|inspire more|twistedsifter|someecards|"
     r"buzzfeed|\bparade\b|parade\.com|whimsy|shared\.com|diply|viralnova|the dodo|thedodo|"
     r"animalsaroundtheglobe|dogtime|pawtracks|countryliving|"
-    r"fundsforngos|tvguide|tv guide|radiotimes|radio times|espn|sky sports|bbc sport|the athletic|yahoo|\bmsn\b|aol\.com|newsbreak|dailyhunt|\bnews18|wionews|\bzee ?news|\bindia\.com",
+    r"business ?wire|pr ?newswire|globe ?newswire|accesswire|einpresswire|press release|investing\.com|"
+    r"stt info|marketscreener|yougov|american hunter|\bwwd\b|36kr|vietnam\.vn|fundsforngos|tipranks|simply ?wall|"
+    r"thebusinessdesk|biggo|scanx|chosunbiz|stock ?titan|investing news|arabian business|economy\.ac|"
+    r"modern healthcare|socialsamosa|marketing-interactive|contentgrip|roastbrief|ecommercenews|6ix retail|lavx|"
+    r"cyberkendra|insight eu|hypefresh|express computer|zawya|energyglobal|manila times|ritzau|about amazon|"
+    r"pressnetwork|businessweekly|business standard|seeking ?alpha|motley fool|benzinga|zacks|fiercebiotech|"
+    r"fierce pharma|biospace|pharmaphorum|oncodaily|finance\.|\bani news\b|globetrender|tvguide|tv guide|radiotimes|radio times|espn|sky sports|bbc sport|the athletic|yahoo|\bmsn\b|aol\.com|newsbreak|dailyhunt|\bnews18|wionews|\bzee ?news|\bindia\.com",
     re.IGNORECASE,
 )
 
@@ -476,16 +522,146 @@ def is_sport(title: str, summary: str = "") -> bool:
     return bool(CATEGORY_KEYWORDS["Sport"].search(title)) or len(CATEGORY_KEYWORDS["Sport"].findall(summary)) >= 2
 
 
+# --------------------------------------------------------------------------- AI for good
+
+_AI_RX = re.compile(r"\b(?:AI|LLMs?|GenAI)\b|\bA\.I\.")
+_AI_WORDS_RX = re.compile(
+    r"artificial intelligence|machine learning|deep learning|neural network|large language model|"
+    r"\bchatbot|alphafold|deepmind|computer vision|openai|chatgpt|anthropic|\bcopilot\b|deepfake|nvidia",
+    re.IGNORECASE,
+)
+# What makes an AI story good news: AI helping people, science, health or the planet.
+AI_HELPS = _rx([
+    "help", "detect", "diagnos", "predict", "discover", "find!", "finds!", "found!", "spot", "speed", "faster",
+    "save!", "saves!", "saving", "saved", "cure", "treat", "translat", "accessib", "blind", "deaf", "paralys",
+    "restore", "protect", "track", "map!", "maps!", "mapping", "forecast", "early warning", "breakthrough",
+    "advance", "new drug", "antibiotic", "protein", "enzyme", "wildlife", "conservation", "climate", "energy",
+    "crop", "farm", "doctor", "nurse", "patient", "scientist", "research", "cancer", "disease", "rescue",
+    "voice", "sight", "hearing", "speak", "walk", "clean", "reduce", "cut!", "cuts!",
+])
+# ...and what doesn't: the AI industry, its risks and its controversies.
+AI_BAD = _rx([
+    "deepfake", "job!", "jobs!", "layoff", "replac", "slop", "misinformation", "disinformation", "bubble", "hype",
+    "scam", "fraud", "copyright", "plagiar", "cheat", "lawsuit", "sued", "regulat", "ban!", "bans!", "banned",
+    "warn", "risk", "danger", "threat", "existential", "superintelligen", "surveillance", "facial recognition",
+    "military", "weapon", "girlfriend", "boyfriend", "companion", "romance", "energy use", "power use",
+    "power demand", "electricity demand", "data cent", "water use", "chip", "nvidia", "openai", "stock",
+    "valuation", "funding round", "raises $", "investment", "investor", "startup", "ipo!", "billion", "trillion",
+    "ceo!", "musk", "altman", "zuckerberg", "arms race", "race to", "bias", "hallucinat", "mistake", "error",
+    "addict", "lonel", "harm", "abuse", "privacy", "hack", "cyber", "spy", "propaganda", "election",
+    "brand", "marketing", "advertis", "shop", "retail", "commerce", "enterprise", "agentic", "deploy", "market!",
+    "markets!", "security", "flaw", "vulnerab", "xss", "gaps", "favour", "favor", "citation", "overview", "seo!",
+    "geo!", "tools!", "platform", "receptionist", "tracker", "secures", "logistics", "claim", "harder test",
+    "problem", "rfk", "kennedy", "tyranny", "trend", "revive", "mammoth", "anniversary", "award", "partners",
+    "invest", "customer", "sales", "productivity", "workforce", "employ", "cheaper", "profit",
+])
+# Who or what an AI story must be helping, for it to count as AI for good.
+AI_BENEFITS = _rx([
+    "patient", "doctor", "nurse", "hospital", "disease", "cancer", "tumour", "tumor", "diabetes", "stroke", "heart",
+    "alzheimer", "dementia", "parkinson", "als!", "mnd!", "blind", "deaf", "paralys", "voice", "speech", "disab",
+    "drug", "antibiotic", "protein", "enzyme", "molecul", "gene", "medic", "vaccine", "diagnos", "surgery", "sepsis",
+    "species", "wildlife", "animal", "rhino", "whale", "bird", "forest", "conservation", "poach", "climate",
+    "weather", "flood", "wildfire", "earthquake", "crop", "farm", "food", "water", "energy", "solar", "emission",
+    "carbon", "pollution", "scientist", "science", "mathemat", "rescue", "children", "language", "translat",
+])
+
+
+def mentions_ai(title: str) -> bool:
+    return bool(_AI_RX.search(title) or _AI_WORDS_RX.search(title))
+
+
+def is_ai_for_good(title: str, summary: str = "") -> bool:
+    """An AI story about AI helping people or the planet, not the industry or its risks."""
+    return (mentions_ai(title) and bool(AI_HELPS.search(title)) and bool(AI_BENEFITS.search(title))
+            and not AI_BAD.search(f"{title}\n{summary}") and not title.rstrip().endswith("?"))
+
+
+# --------------------------------------------------------------------------- progress on hard problems
+#
+# Good news about really bad things: a cancer treatment, an Alzheimer's drug, emissions
+# falling. Those headlines necessarily mention death, decline, disease or warming, which
+# would otherwise sink them, so a story that pairs a hard problem with progress on it is
+# judged without those words.
+
+HARD_PROBLEMS = _rx([
+    "cancer", "tumour", "tumor", "leukaemia", "leukemia", "lymphoma", "melanoma", "myeloma", "alzheimer",
+    "dementia", "parkinson", "motor neurone", "mnd!", "als!", "multiple sclerosis", "huntington", "diabetes",
+    "stroke", "heart disease", "heart failure", "sickle cell", "cystic fibrosis", "muscular dystrophy",
+    "malaria", "hiv!", "aids!", "tuberculosis", "antibiotic resist", "antimicrobial resist", "superbug",
+    "sepsis", "blindness", "paralys", "spinal cord", "epilepsy", "rare disease", "genetic disease", "brain injur",
+    "climate", "emission", "carbon", "greenhouse", "global warming", "fossil fuel", "coal!", "deforestation",
+    "extinct", "endangered", "coral", "ocean acid", "plastic pollution", "pollution", "air quality",
+])
+PROGRESS = _rx([
+    "breakthrough", "cure", "cured", "treatment", "therapy", "therapies", "vaccine", "drug!", "drugs!", "trial",
+    "approved", "approval", "slows", "slowed", "slowing", "halts", "halted", "reverse", "reverses", "reversed",
+    "remission", "survival", "detect", "early diagnosis", "screening", "new test", "blood test", "gene therapy",
+    "gene editing", "crispr", "immunotherapy", "restor", "record low", "fall!", "falls!", "fell!", "drop",
+    "cut!", "cuts!", "slash", "phase out", "phase-out", "renewable", "solar", "wind power", "wind farm",
+    "clean energy", "carbon capture", "rewild", "reforest", "recover", "rebound", "comeback", "protect",
+    "saved", "saves", "milestone", "first time", "promising", "discover", "invent", "new way", "innovat",
+    "success", "hope", "win!", "wins!", "record", "lowest", "back from the brink",
+])
+# Words that come with the territory in such stories.
+_INHERENT = {
+    "dies", "died", "death", "dead", "deadly", "die!", "decline", "crisis", "warming", "loss!", "losses",
+    "losing", "lose!", "threat", "suffer", "struggl", "victim", "extinct", "toxic", "pollut",
+    "outbreak", "pandemic", "cancer risk", "incurable",
+}
+DOOM_FOR_PROGRESS = _rx([w for w in _DOOM_WORDS if w not in _INHERENT])
+HARD_BLOCK_FOR_PROGRESS = _rx(["killed", "murder", "massacre", "rape", "suicide", "terror", "shooting",
+                               "stabbing", "genocide", "bombing", "death toll", "war crime", "body found"])
+
+
+# The problem getting worse, however much progress is mentioned alongside it.
+_WORSENING = re.compile(
+    r"\b(?:deaths?|cases|emissions|infections|diagnoses|temperatures?|incidence|mortality)\b.{0,20}"
+    r"\b(?:record high|highest|rise|rises|rising|risen|rose|increase[sd]?|increasing|surge[sd]?|soar(?:s|ed)?|climb(?:s|ed)?|jump(?:s|ed)?|"
+    r"double[sd]?|spike[sd]?)\b|\b(?:rise|rising|increase|surge|spike|jump) in\b|\bdespite\b|\bsetback\b|"
+    r"\bfail(?:s|ed|ure)?\b|\bnot enough\b|\bbut only\b|\bway off\b|\bstill off\b|\boff (?:its|their|the) "
+    r"(?:\d{4} )?(?:climate )?targets?\b|\bbehind schedule\b|\breveals?\b.{0,40}\bdiagnos|\bdiagnosed with\b|"
+    r"\bbattl(?:e|es|ing) (?:with )?\w*\s?cancer|\bdrops?\b.{0,30}\bdrug\b|\bless time\b|\bheat(?:s|ing)? up\b|\bworsen|\bshrink|"
+    r"\bbleach|\bdie[sd]? off\b|\boff track\b|\bfalls? short\b|\bwithdrawn\b|\babandon",
+    re.IGNORECASE,
+)
+
+
+def is_progress(title: str) -> bool:
+    """A headline about progress on a hard problem (disease, climate, extinction)."""
+    return bool(HARD_PROBLEMS.search(title) and PROGRESS.search(title) and not _WORSENING.search(title))
+
+
 def passes_keyword_filter(title: str, summary: str, trusted: bool, min_positivity: int = 3) -> bool:
+    if mentions_ai(title) and not is_ai_for_good(title, summary):
+        return False  # AI stories only when AI is helping
+    if HARD_PROBLEMS.search(title) and _WORSENING.search(title):
+        return False  # a hard problem getting worse, whatever else the headline says
     if trusted:
         return not is_hard_blocked(title)
     text = f"{title}\n{summary}"
+    if is_progress(title) or is_ai_for_good(title, summary):
+        return not (HARD_BLOCK_FOR_PROGRESS.search(text) or DOOM_FOR_PROGRESS.search(text))
     if is_hard_blocked(text) or DOOM.search(text):
         return False
     return positivity(title, summary) >= min_positivity
 
 
+_MEDICAL = _rx(["cancer", "tumour", "tumor", "leukaemia", "leukemia", "lymphoma", "melanoma", "alzheimer", "dementia",
+                "parkinson", "motor neurone", "multiple sclerosis", "diabetes", "stroke", "heart", "sickle cell",
+                "malaria", "hiv!", "tuberculosis", "sepsis", "blindness", "paralys", "epilepsy", "disease",
+                "vaccine", "drug!", "drugs!", "therapy", "treatment", "patient"])
+_CLIMATE = _rx(["climate", "emission", "carbon", "greenhouse", "global warming", "fossil fuel", "coal!",
+                "renewable", "solar", "wind power", "wind farm", "clean energy", "deforestation", "pollution"])
+
+
 def guess_category(title: str, summary: str) -> str:
+    if is_ai_for_good(title, summary):
+        return "AI"
+    if is_progress(title):
+        if _MEDICAL.search(title):
+            return "Health"
+        if _CLIMATE.search(title):
+            return "Environment"
     best, best_hits = "Community", 0
     for category, rx in CATEGORY_KEYWORDS.items():
         hits = 2 * len(rx.findall(title)) + len(rx.findall(summary))
@@ -496,7 +672,7 @@ def guess_category(title: str, summary: str) -> str:
 
 # Places elsewhere that share a UK or Irish name.
 _NOT_UK = re.compile(
-    r"new england|new london|\bscotland(?=,? county| county|,? (?:s\.?d|ct|conn|pa|tx|ga)\b)|"
+    r"british columbia|new south wales|british virgin|new england|new london|new hampshire|new jersey|\bkent(?= county)|\bscotland(?=,? county| county|,? (?:s\.?d|ct|conn|pa|tx|ga)\b)|"
     r"\b(?:dublin|london|birmingham|manchester|cambridge|oxford|kent|cork|belfast|newcastle|brighton|"
     r"bristol|leeds|glasgow|aberdeen|sheffield|norfolk|essex|devon|cornwall|durham)(?=\s*,\s*"
     r"(?:ohio|oh|calif|california|ca|ga|georgia|va|virginia|ky|kentucky|tx|texas|al|ala|alabama|nh|mass|"

@@ -138,6 +138,7 @@ enum class Topic(val key: String, val label: String, val emoji: String, val colo
     Animals("Animals", "Animals", "🐾", 0xFFE07A1F),
     Kindness("Community", "Kindness", "🤝", 0xFFD9477A),
     Innovation("Innovation", "Innovation", "💡", 0xFF8A56D6),
+    Ai("AI", "AI for good", "🤖", 0xFF2F80ED),
     Culture("Culture", "Culture", "🎨", 0xFFC9533A);
 
     companion object {
