@@ -159,3 +159,61 @@ def test_near_duplicates_are_merged():
               "Volunteers plant trees in Devon", "Volunteers plant trees in Cornwall"]
     kept = [s["title"] for s in drop_near_duplicates([{"kind": "article", "title": t} for t in titles])]
     assert kept == [titles[0], titles[2], titles[4], titles[5]]
+
+
+# Second pass, after adding the medicine, climate and AI searches.
+SECOND_PASS_BAD = [
+    ("Ondine Biomedical advances Steriwave with pivotal trial success and expanding hospital adoption", "TipRanks"),
+    ("Avacta cancer drug shows promise in patients as fresh cash raise launched", "TheBusinessDesk.com"),
+    ("Dentsu India expands GEO practice to address AI-led brand discovery", "socialsamosa.com"),
+    ("Renewables hit a record in 2025 but the world is still way off its 2030 climate target, report finds", "yourweather"),
+    ("Director of Irish Coastguard invited to Wexford as volunteers continue to work in 'horrendous conditions'", "X"),
+    ("'It's like living in the woods' - residents call for cull of 60ft trees", "BBC England"),
+    ("UAE leads global markets in large-scale agentic AI deployment, Dataiku finds", "Arabian Business"),
+    ("Can AI Predict Heart Surgery Recovery? Here's How Artificial Intelligence May Help Doctors", "Asianet"),
+    ("Doc Talk | Prostate Cancer At Stage 4 Is Not The End: How PSMA PET And Radioligand Therapy Help", "ABP Live"),
+    ("Google PageBreak AI Agent Finds 500+ XSS Flaws", "cyberkendra.com"),
+    ("RFK Jr. Says AI Can 'Free Us From Medical Tyranny' And Is 'Better Informed' Than Doctors", "Forbes"),
+    ("Some of the Top-Performing Songs From the Past 50 Years, by Decade", "Nice News"),
+    ("AI Tracker: EliseAI secures $350M", "Modern Healthcare"),
+    ("[Recap] SK Innovation Affiliates' Volunteer Week in H2 2026", "ASK Inno"),
+    ("Eli Lilly (LLY) Wins FDA Breakthrough Tag For Pancreatic Cancer Drug", "simplywall.st"),
+    ("Amazon adds Mossy Hill wind farm to UK portfolio of over 50 carbon-free energy projects", "About Amazon UK"),
+    ("ABC News' Will Reeve reveals testicular cancer diagnosis, chemotherapy", "ABC News"),
+    ("Lightspeed Study Finds AI Favours National Chains Over Independents", "6ix Retail"),
+    ("José W. Avitia at COGC 2026: Pluvicto or Triplet Therapy? New Frontline Decision in Prostate Cancer", "X"),
+    ("What Baltimore's new Hope Lodge means for cancer patients | GUEST COMMENTARY", "Baltimore Sun"),
+    ("Anthropic's AI agent claims enzyme discovery as researcher says he shared same work with Claude", "DongA"),
+    ("Oklahoma Watch: A Medicare trial program is helping dementia caregivers, but only 128 patients are enrolled", "X"),
+    ("ADNEC Group publishes 2025 ESG Report: Record economic impact delivered alongside falling emissions", "Zawya"),
+    ("5 Big Cancer Advances Redefining Care and Survival", "City of Hope"),
+    ("AstraZeneca invests £1.5bn into US firm Summit for cancer drug tie-up", "Exmouth Journal"),
+    ("Teen Sadness And Suicidal Thoughts Keep Falling, Even As Kids Keep Scrolling", "Lemmy"),
+    ("Cancer Treatments", "ABC News"),
+    ("Car going into river triggers large rescue effort", "BBC England"),
+    ("NASA Opens Applications for Second Season of ORBIT Student Challenge", "NASA"),
+    ("Podcast Transcript September 25th, 2026— The tilcayo, cancer-sniffing dogs, and 8 more things", "X"),
+    ("South Korea expands insurance to cover three cancer drugs and first combo", "X"),
+    ("'Volunteer' in the running for national scholarship pageant", "The Frederick News-Post"),
+]
+SECOND_PASS_GOOD = [
+    "New AI app helps people with ALS keep their own voices",
+    "AI can detect Type 2 diabetes from 20 seconds of speech",
+    "Durham gets AI-embedded tech to help stroke victims",
+    "Tavapadon, now Juvmo, wins FDA approval for treating Parkinson's",
+    "Gene editing approach opens potential new route to Alzheimer's treatment",
+    "WA marks major breakthrough in blood cancer treatment",
+    "Historic milestone as Gambia validates first-ever National Dementia Plan",
+    "Electric and hybrid ferries could cut emissions by 63% in Sea of Marmara, IMO study finds",
+    "Resetting the body clock could help the brain recover after stroke",
+]
+
+
+@pytest.mark.parametrize("title,source", SECOND_PASS_BAD)
+def test_second_pass_not_good_news(title, source):
+    assert unwanted(dict(BASE, title=title, source=source)) or not keywords.passes_keyword_filter(title, "", False)
+
+
+@pytest.mark.parametrize("title", SECOND_PASS_GOOD)
+def test_second_pass_good_news(title):
+    assert not unwanted(dict(BASE, title=title, source="X")) and keywords.passes_keyword_filter(title, "", False)

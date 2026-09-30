@@ -305,9 +305,7 @@ def refine_region(story: dict) -> None:
     if story.get("checkedBy") != "claude" and story.get("body"):
         # The article's opening says where it happened more reliably than a feed summary.
         opening = " ".join(story["body"].split("\n\n")[:2])
-        from_body = keywords.guess_region(story["title"], opening)
-        if from_body != "Global":
-            story["region"] = from_body
+        story["region"] = keywords.guess_region(story["title"], opening)
     region = story.get("region")
     outlet_region = keywords.region_for_source(source, homepage)
     if outlet_region and region in keywords.WESTERN_REGIONS | {"Global", None}:
@@ -358,6 +356,8 @@ def unwanted(story: dict) -> bool:
         return True
     if article and (keywords.is_clickbait(title) or keywords.is_tabloid(story.get("source", ""), story.get("sourceHomepage", ""))):
         return True
+    if article and len(title.split()) < 4:
+        return True  # "Cancer Treatments": a section name, not a story
     if not article:
         # Meme and animal titles: nothing sad or grim either.
         return bool(keywords.DOOM.search(title))
