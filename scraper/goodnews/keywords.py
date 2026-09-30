@@ -99,6 +99,9 @@ POLITICS = _rx([
     "republican", "democrat", "labour party", "conservative party", "tory", "tories",
     "governor", "lawmaker", "legislat", "chief whip", "candidate", "rightwing", "right-wing", "leftwing",
     "left-wing", "nra!", "eu commission", "european commission", "rfk", "kennedy",
+    # UK and Irish politicians who often appear in "good news" headlines.
+    "burnham", "sadiq khan", "rachel reeves", "miliband", "streeting", "rayner", "lammy", "badenoch", "swinney",
+    "sarwar", "taoiseach", "tánaiste", "tanaiste", "micheál martin", "micheal martin", "simon harris", "mcdonald!",
 ])
 
 # Named politicians and parties: a story whose text is about them is politics, whatever
@@ -669,7 +672,7 @@ def guess_category(title: str, summary: str) -> str:
 
 # Places elsewhere that share a UK or Irish name.
 _NOT_UK = re.compile(
-    r"british columbia|new south wales|british virgin|new england|new london|\bkent(?= county)|\bscotland(?=,? county| county|,? (?:s\.?d|ct|conn|pa|tx|ga)\b)|"
+    r"british columbia|new south wales|british virgin|new england|new london|new hampshire|new jersey|\bkent(?= county)|\bscotland(?=,? county| county|,? (?:s\.?d|ct|conn|pa|tx|ga)\b)|"
     r"\b(?:dublin|london|birmingham|manchester|cambridge|oxford|kent|cork|belfast|newcastle|brighton|"
     r"bristol|leeds|glasgow|aberdeen|sheffield|norfolk|essex|devon|cornwall|durham)(?=\s*,\s*"
     r"(?:ohio|oh|calif|california|ca|ga|georgia|va|virginia|ky|kentucky|tx|texas|al|ala|alabama|nh|mass|"

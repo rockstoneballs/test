@@ -251,3 +251,9 @@ def test_dot_co_websites_are_not_colombian():
                  body="About 50 years ago, red-legged frogs disappeared from Yosemite National Park.")
     refine_region(story)
     assert story["region"] != "Latin America"
+
+
+def test_fourth_pass():
+    assert unwanted(dict(BASE, title="Andy Burnham hails critical role of renewables and nuclear in curbing UK energy costs",
+                         source="BusinessGreen"))
+    assert keywords.guess_region("Counting the Recovery of New Hampshire Bats", "") != "UK & Ireland"
