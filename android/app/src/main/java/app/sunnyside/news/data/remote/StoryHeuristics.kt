@@ -15,6 +15,7 @@ object StoryHeuristics {
     )
 
     private val categoryWords: Map<Topic, Regex> = mapOf(
+        Topic.Ai to "artificial intelligence|machine learning|deepmind|alphafold|\\bai\\b",
         Topic.Animals to "animal|wildlife|species|dog|pupp|cats?\\b|kitten|bird|whale|dolphin|turtle|elephant|bees?\\b|sanctuary|otter|koala|penguin",
         Topic.Environment to "climate|emission|renewable|solar|carbon|forest|trees?\\b|ocean|river|plastic|recycl|rewild|conservation|nature|biodiversity|reef",
         Topic.Health to "health|vaccine|cancer|disease|patient|hospital|doctor|medic|therapy|treatment|mental",

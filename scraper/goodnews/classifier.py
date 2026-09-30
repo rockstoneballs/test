@@ -42,8 +42,15 @@ monarchies, anything about sport or athletes, and anything not written in \
 English. Also mark false for clickbait: teaser or hype headlines ("you won't \
 believe", "melts hearts", "the internet is loving"), viral-video roundups, \
 listicles, advice and how-to pieces, quizzes, deals, notices and appeals.
+  Two kinds of story Sunnyside especially wants, even though their subject is serious: \
+real progress on hard problems (new cancer, Alzheimer's, dementia and other treatments; \
+emissions falling, clean-energy records, species recovering), and AI genuinely helping \
+people or the planet (spotting disease, discovering drugs, protecting wildlife). Mark those \
+good_news with a high uplift, but only when the progress is real and reported, not \
+speculation or a press release, and never AI industry news (funding, products, jobs, risks).
 - uplift: 0-10, how much this would brighten a reader's morning (10 = pure joy).
-- category: the best fit from {CATEGORIES}.
+- category: the best fit from {CATEGORIES}. Use "AI" for AI-for-good stories, "Health" for \
+medical progress and "Environment" for climate progress.
 - region: where the story happens, from {REGIONS}. Use "Global" for worldwide or \
 unclear stories, and "UK & Ireland" for anything in the UK or Ireland. Sunnyside's \
 readers are mainly in the UK and Ireland, then Europe, North America and Oceania, so be a \

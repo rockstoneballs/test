@@ -32,7 +32,7 @@ Every post has a small topic tag, like Reddit's post flair:
 | 😂 Meme | Feel-good memes | r/wholesomememes, r/wholesome, Lemmy, 9GAG #wholesome, Imgur #wholesome |
 | 🥹 Cute | Cute animal photos and videos | r/aww, r/Eyebleach, r/rarepuppers, r/IllegallySmolCats, Lemmy, 9GAG #cute / #aww / #dogs / #cats, Imgur #aww / #cats / #dogs |
 | 😊 Wholesome | People (and animals) being lovely | r/MadeMeSmile, r/HumansBeingBros, r/AnimalsBeingBros, Lemmy |
-| 🔭 Science, 🌿 Environment, 💚 Health, 🐾 Animals, 🤝 Kindness, 💡 Innovation, 🎨 Culture | Good-news stories | Good-news outlets, world news filtered for positivity, Google News, r/UpliftingNews, r/goodnews |
+| 🔭 Science, 🌿 Environment, 💚 Health, 🐾 Animals, 🤝 Kindness, 💡 Innovation, 🤖 AI for good, 🎨 Culture | Good-news stories | Good-news outlets, world news filtered for positivity, Google News, r/UpliftingNews, r/goodnews |
 
 Memes and animal photos link back to the original post, as credit. Saved posts stay
 on your device.
@@ -56,6 +56,18 @@ stories, then one meme or animal post. **Latest** is simply newest first.
   Phys.org, ScienceAlert, New Atlas, NASA, Smithsonian, Mongabay, and Google News
   searches ("conservation success", "charity raises", "volunteers"…) in its US, UK,
   Canadian, Australian, Irish and New Zealand editions.
+* **Progress on hard problems.** Good news about really bad things gets special treatment:
+  new treatments for cancer, Alzheimer's, dementia, Parkinson's and other diseases, and
+  progress on climate change and nature (emissions falling, clean-energy records, species
+  recovering). Their headlines necessarily mention death, disease or warming, so a headline
+  that pairs a hard problem with real progress is judged without those words, unless the
+  problem is getting worse ("cancer deaths rise despite…"). These stories rank highly.
+  Sources include Cancer Research UK, Alzheimer's Research UK, ScienceDaily Health, Medical
+  Xpress, Carbon Brief, Canary Media and targeted Google News searches.
+* **🤖 AI for good.** Stories about AI helping people or the planet: spotting disease,
+  discovering drugs and materials, protecting wildlife. AI industry news (funding, products,
+  jobs, chips, lawsuits, risks and controversies) is left out. Sources include MIT News,
+  Google DeepMind and targeted searches.
 * **UK & Ireland first.** Most readers are in the UK and Ireland. Stories from there get
   their own 📍 UK & Ireland tag (from the places they mention, a UK or Irish local feed,
   or a `.uk`/`.ie` website) and a small boost in **Top stories**, worth six hours of

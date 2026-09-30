@@ -16,6 +16,7 @@ const TOPICS = {
   Animals: { label: "Animals", emoji: "🐾", color: "#E07A1F" },
   Community: { label: "Kindness", emoji: "🤝", color: "#D9477A" },
   Innovation: { label: "Innovation", emoji: "💡", color: "#8A56D6" },
+  AI: { label: "AI for good", emoji: "🤖", color: "#2F80ED" },
   Culture: { label: "Culture", emoji: "🎨", color: "#C9533A" },
 };
 

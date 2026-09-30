@@ -12,6 +12,13 @@ from goodnews.scrape import build_feed, canonical_url, clean_text
 
 FIXTURES = Path(__file__).parent / "fixtures"
 NOW = datetime(2026, 9, 26, 12, 0, tzinfo=timezone.utc)
+# Distinct words for synthetic headlines (near-identical ones are merged as duplicates).
+TOWNS = ["Exeter", "Truro", "Bath", "Wells", "Ely", "Ripon", "Durham", "Lincoln", "Hereford", "Salisbury",
+         "Chester", "Norwich", "Oxford", "Carlisle", "Lichfield", "Winchester", "Canterbury", "Gloucester",
+         "Worcester", "Peterborough"]
+THINGS = ["village hall", "canal towpath", "bandstand", "walled garden", "lido"]
+ACTS = [f"plant trees at {p}" for p in ["Cubbon Park", "Lalbagh", "Ulsoor Lake", "Hebbal", "Jayanagar", "Malleswaram",
+                                         "Koramangala", "Indiranagar", "Whitefield", "Yelahanka"]]
 
 
 @pytest.fixture
@@ -153,9 +160,9 @@ def test_feed_focuses_on_the_west(fixtures):
     base = {"kind": "article", "summary": "", "imageUrl": None, "sourceHomepage": "https://x", "author": "S",
             "publishedAt": "2026-09-26T10:00:00Z", "community": "Community", "category": "Community",
             "score": None, "comments": None, "discussionUrl": None}
-    western = [dict(base, id=f"w{i}", title=f"Volunteers restore village hall {i}", url=f"https://x/w{i}",
+    western = [dict(base, id=f"w{i}", title=f"Volunteers restore {TOWNS[i]} {THINGS[i % 5]}", url=f"https://x/w{i}",
                     source="BBC News", region="Europe", uplift=6) for i in range(20)]
-    indian = [dict(base, id=f"i{i}", title=f"Bengaluru volunteers plant trees {i}", url=f"https://x/i{i}",
+    indian = [dict(base, id=f"i{i}", title=f"Bengaluru volunteers {ACTS[i]}", url=f"https://x/i{i}",
                    source="Hindustan Times", region="Global", uplift=5 + i % 5) for i in range(10)]
     feed = build_feed(requests.Session(), {"stories": western + indian, "pets": []}, NOW,
                       fixtures=fixtures, fetch_pages=False, fetch_pets=False)
@@ -204,7 +211,7 @@ def test_live_bad_headlines_never_lead(fixtures):
             "comments": None, "discussionUrl": None}
     bad = [dict(base, id=f"bad{i}", title=t, summary=sm, url=f"https://x/bad{i}", source=src, sourceHomepage=home)
            for i, (t, sm, src, home) in enumerate(LIVE_BAD)]
-    good = [dict(base, id=f"g{i}", title=f"Volunteers plant a thousand trees in Devon {i}", url=f"https://x/g{i}",
+    good = [dict(base, id=f"g{i}", title=f"Volunteers plant a thousand trees in {TOWNS[i]}", url=f"https://x/g{i}",
                  source="Good News Network", sourceHomepage="https://www.goodnewsnetwork.org", region="Europe")
             for i in range(10)]
     feed = build_feed(requests.Session(), {"stories": bad + good, "pets": []}, NOW,
