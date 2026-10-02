@@ -201,7 +201,6 @@ main { padding: 16px 0 64px; min-width: 0; outline: none; }
   transition: border-color .15s;
 }
 .post:hover { border-color: var(--border-strong); }
-.post.pinned { border-color: var(--brand); }
 .post-head { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-3); min-width: 0; }
 .post-head .source { font-weight: 700; color: var(--text); }
 .post-head .dot::before { content: "•"; }
@@ -275,17 +274,6 @@ main { padding: 16px 0 64px; min-width: 0; outline: none; }
 .card-body p { margin: 0 0 10px; }
 .card-body p:last-child { margin-bottom: 0; }
 
-.pets { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; }
-.pet { position: relative; border-radius: var(--radius-sm); overflow: hidden; background: var(--surface-2); }
-.pet img { width: 100%; aspect-ratio: 1; object-fit: cover; }
-.pet .pet-label { position: absolute; left: 6px; top: 6px; padding: 2px 8px; border-radius: 999px; background: rgba(0,0,0,.55); color: #fff; font-size: 11px; font-weight: 700; }
-.pet .pet-name { padding: 8px 10px 0; font-weight: 800; color: var(--text); }
-.pet .pet-breed { padding: 0 10px; font-size: 12px; font-weight: 700; color: var(--brand-strong); }
-.pet .pet-caption { padding: 0 10px 10px; font-size: 12px; color: var(--text-2); }
-.pets.wide { grid-template-columns: 1fr 1fr; padding: 0; }
-.pinned-pets { padding-bottom: 12px; }
-.pinned-pets .pets { padding: 8px 0 0; }
-@media (min-width: 1081px) { .pinned-pets { display: none; } }
 
 .rail-links { display: flex; flex-wrap: wrap; gap: 6px 12px; padding: 0 4px; font-size: 12px; color: var(--text-3); }
 .rail-links a:hover { text-decoration: underline; }

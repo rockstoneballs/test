@@ -257,3 +257,21 @@ def test_fourth_pass():
     assert unwanted(dict(BASE, title="Andy Burnham hails critical role of renewables and nuclear in curbing UK energy costs",
                          source="BusinessGreen"))
     assert keywords.guess_region("Counting the Recovery of New Hampshire Bats", "") != "UK & Ireland"
+
+
+FIFTH_PASS_BAD = [
+    "One Dose of a New Immunotherapy Combo Triggered Four Organ Crises in a Lung Cancer Patient",
+    "Generic, brand-name multiple sclerosis drugs may produce varied effects",
+    "British firm raises £2.3m to develop AI voice agent for primary care",
+    "CHI breach data protection rules at facility in Tallaght",
+]
+
+
+@pytest.mark.parametrize("title", FIFTH_PASS_BAD)
+def test_fifth_pass_not_good_news(title):
+    assert unwanted(dict(BASE, title=title, source="X")) or not keywords.passes_keyword_filter(title, "", False, 2)
+
+
+def test_mentioning_a_treatment_is_not_progress_by_itself():
+    assert not keywords.is_progress("Architect images unveiled for Telford cancer treatment centre")
+    assert keywords.is_progress("Same-day chemotherapy boosts cancer vaccine responses in preclinical models")

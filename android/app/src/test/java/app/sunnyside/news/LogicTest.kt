@@ -19,7 +19,6 @@ import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import org.junit.Test
 import java.time.Duration
-import java.time.LocalDate
 import java.time.LocalDateTime
 
 class LogicTest {
@@ -106,9 +105,21 @@ class LogicTest {
     }
 
     @Test
-    fun petNamesAreStablePerDay() {
-        val day = LocalDate.of(2026, 9, 26)
-        assertEquals(PetNames.pick(PetNames.kittenNames, day, 1), PetNames.pick(PetNames.kittenNames, day, 1))
+    fun petNamesAreStablePerPhoto() {
+        val photo = "https://cdn2.thecatapi.com/images/abc.jpg"
+        assertEquals(PetNames.pick(PetNames.kittenNames, photo, 1), PetNames.pick(PetNames.kittenNames, photo, 1))
+    }
+
+    @Test
+    fun catAndDogPhotosAreSprinkledEverySixPosts() {
+        val news = (1..14).map { post("n$it", hoursAgo = it) }
+        val pets = (1..5).map { post("p$it", hoursAgo = 6 - it).copy(topic = Topic.Pets, kind = PostKind.Image) }
+        for (mode in SortMode.entries) {
+            val ids = Ranking.sort(news + pets, mode, NOW).map { it.id }
+            assertEquals("p5", ids[6])  // newest photo first, after six posts
+            assertEquals("p4", ids[13])
+            assertEquals(16, ids.size)  // no photos piled up at the end
+        }
     }
 
     @Test

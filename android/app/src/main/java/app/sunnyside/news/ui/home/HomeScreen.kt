@@ -31,11 +31,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.sunnyside.news.R
-import app.sunnyside.news.data.PetKind
 import app.sunnyside.news.ui.HomeViewModel
 import app.sunnyside.news.ui.components.EmptyState
 import app.sunnyside.news.ui.components.FeedFooter
-import app.sunnyside.news.ui.components.PinnedPetsCard
 import app.sunnyside.news.ui.components.PostCallbacks
 import app.sunnyside.news.ui.components.SortBar
 import app.sunnyside.news.ui.components.postItems
@@ -47,7 +45,6 @@ fun HomeScreen(
     viewModel: HomeViewModel,
     callbacks: PostCallbacks,
     snackbar: SnackbarHostState,
-    onOpenPets: (PetKind) -> Unit,
     onSearch: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -101,12 +98,6 @@ fun HomeScreen(
                         updatedLabel = updatedAt?.let { "Updated ${timeAgo(it).lowercase()}" },
                         onSort = viewModel::setSort,
                         onToggleView = viewModel::toggleView,
-                    )
-                }
-                item(key = "pets") {
-                    PinnedPetsCard(
-                        state.kitten, state.puppy, onOpen = onOpenPets,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                     )
                 }
                 if (state.loaded && state.posts.isEmpty() && !refreshing) {

@@ -52,7 +52,8 @@ _MONEY_WORDS = [
     "admit card", "exam result", "board result", "recruitment", "vacancy", "vacancies", "scheme",
     "tender!", "tenders!", "contract!", "contracts!", "acquisition", "acquires", "merger", "manufactur",
     "invests", "invest!", "portfolio", "transaction", "esg!", "insurance", "reimburs", "partners with",
-    "cash raise", "fresh cash", "funding round", "secures $", "raises $", "interim results",
+    "cash raise", "fresh cash", "funding round", "secures $", "raises $", "interim results", "firm raises",
+    "startup raises", "raises £", "raises €", "secures £", "secures €",
 ]
 MONEY = _rx(_MONEY_WORDS)
 
@@ -85,7 +86,7 @@ _DOOM_WORDS = [
     "objects to", "objection", "petition", "urged to", "below average", "hornet", "invasive", "damaged",
     "toppled", "drifting", "dumped", "forced to", "counting the cost", "carcass", "severed", "decapitat",
     "remains!", "head discovered", "head found", "prompts report", "investigat", "poach", "mining", "stolen",
-    "theft", "vandal", "horrendous", "horrific", "appalling", "cull!", "culled", "into river", "into a river",
+    "theft", "vandal", "breach", "data protection", "horrendous", "horrific", "appalling", "cull!", "culled", "into river", "into a river",
     "into the river", "plunge", "dental desert", "heat up", "heats up", "heating up", "accelerat", "faster than expected",
 ] + _MONEY_WORDS
 DOOM = _rx(_DOOM_WORDS)
@@ -546,7 +547,7 @@ AI_BAD = _rx([
     "warn", "risk", "danger", "threat", "existential", "superintelligen", "surveillance", "facial recognition",
     "military", "weapon", "girlfriend", "boyfriend", "companion", "romance", "energy use", "power use",
     "power demand", "electricity demand", "data cent", "water use", "chip", "nvidia", "openai", "stock",
-    "valuation", "funding round", "raises $", "investment", "investor", "startup", "ipo!", "billion", "trillion",
+    "valuation", "funding round", "raises $", "raises £", "raises €", "funding", "investment", "investor", "startup", "ipo!", "billion", "trillion",
     "ceo!", "musk", "altman", "zuckerberg", "arms race", "race to", "bias", "hallucinat", "mistake", "error",
     "addict", "lonel", "harm", "abuse", "privacy", "hack", "cyber", "spy", "propaganda", "election",
     "brand", "marketing", "advertis", "shop", "retail", "commerce", "enterprise", "agentic", "deploy", "market!",
@@ -593,14 +594,13 @@ HARD_PROBLEMS = _rx([
     "extinct", "endangered", "coral", "ocean acid", "plastic pollution", "pollution", "air quality",
 ])
 PROGRESS = _rx([
-    "breakthrough", "cure", "cured", "treatment", "therapy", "therapies", "vaccine", "drug!", "drugs!", "trial",
-    "approved", "approval", "slows", "slowed", "slowing", "halts", "halted", "reverse", "reverses", "reversed",
+    "breakthrough", "cure", "cured", "approved", "approval", "boosts", "improves", "improved", "slows", "slowed", "slowing", "halts", "halted", "reverse", "reverses", "reversed",
     "remission", "survival", "detect", "early diagnosis", "screening", "new test", "blood test", "gene therapy",
     "gene editing", "crispr", "immunotherapy", "restor", "record low", "fall!", "falls!", "fell!", "drop",
     "cut!", "cuts!", "slash", "phase out", "phase-out", "renewable", "solar", "wind power", "wind farm",
     "clean energy", "carbon capture", "rewild", "reforest", "recover", "rebound", "comeback", "protect",
-    "saved", "saves", "milestone", "first time", "promising", "discover", "invent", "new way", "innovat",
-    "success", "hope", "win!", "wins!", "record", "lowest", "back from the brink",
+    "saved", "saves", "milestone", "first time", "promising", "discover", "success", "hope", "win!", "wins!",
+    "record low", "lowest", "back from the brink",
 ])
 # Words that come with the territory in such stories.
 _INHERENT = {
@@ -617,7 +617,9 @@ HARD_BLOCK_FOR_PROGRESS = _rx(["killed", "murder", "massacre", "rape", "suicide"
 _WORSENING = re.compile(
     r"\b(?:deaths?|cases|emissions|infections|diagnoses|temperatures?|incidence|mortality)\b.{0,20}"
     r"\b(?:record high|highest|rise|rises|rising|risen|rose|increase[sd]?|increasing|surge[sd]?|soar(?:s|ed)?|climb(?:s|ed)?|jump(?:s|ed)?|"
-    r"double[sd]?|spike[sd]?)\b|\b(?:rise|rising|increase|surge|spike|jump) in\b|\bdespite\b|\bsetback\b|"
+    r"double[sd]?|spike[sd]?)\b|\bside[- ]effects?\b|\badverse\b|\btoxicit|\bcomplications?\b|\bcrises\b|"
+    r"\btriggered\b|\bharm(?:s|ed|ful)?\b|\bvaried effects\b|\bmixed results\b|\bno benefit\b|"
+    r"\b(?:rise|rising|increase|surge|spike|jump) in\b|\bdespite\b|\bsetback\b|"
     r"\bfail(?:s|ed|ure)?\b|\bnot enough\b|\bbut only\b|\bway off\b|\bstill off\b|\boff (?:its|their|the) "
     r"(?:\d{4} )?(?:climate )?targets?\b|\bbehind schedule\b|\breveals?\b.{0,40}\bdiagnos|\bdiagnosed with\b|"
     r"\bbattl(?:e|es|ing) (?:with )?\w*\s?cancer|\bdrops?\b.{0,30}\bdrug\b|\bless time\b|\bheat(?:s|ing)? up\b|\bworsen|\bshrink|"

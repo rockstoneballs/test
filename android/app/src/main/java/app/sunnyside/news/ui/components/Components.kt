@@ -51,8 +51,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.sunnyside.news.data.Topic
-import app.sunnyside.news.data.Pet
-import app.sunnyside.news.data.PetKind
 import app.sunnyside.news.data.PostKind
 import app.sunnyside.news.data.SortMode
 import app.sunnyside.news.data.Story
@@ -432,79 +430,6 @@ fun SortBar(
     }
 }
 
-/** The pinned "Kitten & Puppy of the Day" post at the top of Home. */
-@Composable
-fun PinnedPetsCard(kitten: Pet?, puppy: Pet?, onOpen: (PetKind) -> Unit, modifier: Modifier = Modifier) {
-    if (kitten == null && puppy == null) return
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)),
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Column(Modifier.padding(14.dp)) {
-            Text(
-                "📌 Pinned • Fresh every morning",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(6.dp))
-            Text("Today's Kitten & Puppy of the Day", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                kitten?.let { PetTile(it, onClick = { onOpen(PetKind.Kitten) }, modifier = Modifier.weight(1f)) }
-                puppy?.let { PetTile(it, onClick = { onOpen(PetKind.Puppy) }, modifier = Modifier.weight(1f)) }
-            }
-        }
-    }
-}
-
-@Composable
-fun PetTile(pet: Pet, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val kitten = pet.kind == PetKind.Kitten
-    Column(
-        modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .clickable(onClick = onClick),
-    ) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f),
-        ) {
-            SubcomposeAsyncImage(
-                model = pet.imageUrl,
-                contentDescription = "${pet.name}, the ${if (kitten) "kitten" else "puppy"} of the day",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-                loading = { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(if (kitten) "🐱" else "🐶", fontSize = 40.sp) } },
-                error = { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(if (kitten) "🐱" else "🐶", fontSize = 40.sp) } },
-            )
-            Text(
-                if (kitten) "🐱 Kitten" else "🐶 Puppy",
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.White,
-                modifier = Modifier
-                    .padding(8.dp)
-                    .clip(RoundedCornerShape(50))
-                    .background(Color.Black.copy(alpha = 0.5f))
-                    .padding(horizontal = 8.dp, vertical = 3.dp),
-            )
-        }
-        Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
-            Text(pet.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold)
-            pet.breed?.let { Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold) }
-            Text(
-                pet.caption,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-}
 
 @Composable
 fun SectionHeader(title: String, modifier: Modifier = Modifier, subtitle: String? = null) {

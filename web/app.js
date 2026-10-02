@@ -17,6 +17,7 @@ const TOPICS = {
   Community: { label: "Kindness", emoji: "🤝", color: "#D9477A" },
   Innovation: { label: "Innovation", emoji: "💡", color: "#8A56D6" },
   AI: { label: "AI for good", emoji: "🤖", color: "#2F80ED" },
+  Pets: { label: "Cats & dogs", emoji: "😺", color: "#B7791F" },
   Culture: { label: "Culture", emoji: "🎨", color: "#C9533A" },
 };
 
@@ -161,8 +162,27 @@ const HOME_BONUS = 1;
 // world's good news leads the feed and the fun stuff is sprinkled through it.
 const NEWS_PER_SOCIAL = 3;
 
+// Random cat and dog photos (topic "Pets") aren't ranked: one appears after every
+// POSTS_PER_PET posts, newest first, whichever sort is chosen.
+const POSTS_PER_PET = 6;
+
+function isPet(p) {
+  return p.community === "Pets";
+}
+
 function isSocial(p) {
   return (p.kind || "article") !== "article";
+}
+
+function intersperse(posts, pets) {
+  if (!posts.length) return pets;
+  const out = [];
+  let k = 0;
+  posts.forEach((p, i) => {
+    out.push(p);
+    if ((i + 1) % POSTS_PER_PET === 0 && k < pets.length) out.push(pets[k++]);
+  });
+  return out;
 }
 
 function blend(news, social) {
@@ -176,9 +196,12 @@ function blend(news, social) {
 }
 
 function sortPosts(posts, sort) {
-  if (sort === "new") return posts.slice().sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
+  const newest = (a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt);
+  const pets = posts.filter(isPet).sort(newest);
+  const rest = posts.filter((p) => !isPet(p));
+  if (sort === "new") return intersperse(rest.sort(newest), pets);
   const compare = (a, b) => hotScore(b) - hotScore(a);
-  return blend(posts.filter((p) => !isSocial(p)).sort(compare), posts.filter(isSocial).sort(compare));
+  return intersperse(blend(rest.filter((p) => !isSocial(p)).sort(compare), rest.filter(isSocial).sort(compare)), pets);
 }
 
 /* ------------------------------------------------------------------ actions */
@@ -425,36 +448,16 @@ function postRow(p) {
   );
 }
 
-function petTile(pet) {
-  const img = safeUrl(pet.imageUrl);
-  if (!img) return null;
-  const puppy = pet.kind === "puppy";
-  return h("div", { class: "pet" },
-    h("img", { src: img, alt: `${pet.name}, the ${puppy ? "puppy" : "kitten"} of the day`, loading: "lazy", referrerpolicy: "no-referrer" }),
-    h("span", { class: "pet-label" }, puppy ? "🐶 Puppy" : "🐱 Kitten"),
-    h("div", { class: "pet-name" }, pet.name),
-    pet.breed ? h("div", { class: "pet-breed" }, pet.breed) : null,
-    h("div", { class: "pet-caption" }, pet.caption),
-  );
-}
-
-function todaysPets() {
-  const pets = (state.feed && state.feed.pets) || [];
-  return ["kitten", "puppy"].map((kind) => pets.find((p) => p.kind === kind)).filter(Boolean);
-}
-
 /* ------------------------------------------------------------------ chrome */
 
 function renderRightRail() {
   const rail = document.getElementById("right-rail");
-  const pets = todaysPets().map(petTile).filter(Boolean);
   rail.replaceChildren(
-    pets.length ? h("section", { class: "card" }, h("div", { class: "card-head" }, "Today's cuties"), h("div", { class: "pets" }, pets)) : null,
     h("section", { class: "card" },
       h("div", { class: "card-head" }, "About Sunnyside"),
       h("div", { class: "card-body" },
         h("p", null, "Only good news. Every story is picked from dedicated good-news outlets, or checked for positivity before it gets here."),
-        h("p", null, "Sprinkled in: wholesome memes and cute animals, credited to where they were first posted."),
+        h("p", null, "Sprinkled in: wholesome memes, cute animals and cat and dog photos, credited to where they came from."),
         h("a", { class: "btn btn-primary btn-block", href: document.getElementById("get-app").href }, "📱 Get the Android app"),
         h("button", { class: "btn btn-block rail-feedback", onclick: () => openFeedback() }, "💬 Send feedback"),
       ),
@@ -462,7 +465,7 @@ function renderRightRail() {
     h("div", { class: "rail-links" },
       h("a", { href: "feed.json" }, "feed.json"),
       h("a", { href: "https://github.com/rockstoneballs/test", target: "_blank", rel: "noopener" }, "Source code"),
-      h("span", null, "Kittens: The Cat API · Puppies: Dog CEO"),
+      h("span", null, "Cat photos: The Cat API · Dog photos: Dog CEO"),
     ),
   );
 }
@@ -521,20 +524,10 @@ function empty(emoji, title, body) {
   return h("div", { class: "empty" }, h("div", { class: "big" }, emoji), h("h2", null, title), h("p", null, body));
 }
 
-function pinnedPets() {
-  const pets = todaysPets().map(petTile).filter(Boolean);
-  if (!pets.length) return null;
-  return h("section", { class: "post pinned pinned-pets" },
-    h("div", { class: "post-head" }, h("span", null, "📌 Pinned"), h("span", { class: "dot" }), h("span", null, "Fresh every morning")),
-    h("h2", { class: "post-title" }, "Today's Kitten & Puppy of the Day"),
-    h("div", { class: "pets wide" }, pets),
-  );
-}
-
 function pageHome() {
   const posts = sortPosts(state.posts, state.sort);
   return [
-    newPostsButton(), sortBar(), pinnedPets(),
+    newPostsButton(), sortBar(),
     feedList(posts, empty("🌤️", "Nothing here yet", "Check back soon — new good news arrives every half hour.")),
   ];
 }

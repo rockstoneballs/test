@@ -40,7 +40,6 @@ import app.sunnyside.news.data.Story
 import app.sunnyside.news.ui.components.PostCallbacks
 import app.sunnyside.news.ui.detail.StoryDetailScreen
 import app.sunnyside.news.ui.home.HomeScreen
-import app.sunnyside.news.ui.pets.PetsScreen
 import app.sunnyside.news.ui.saved.SavedScreen
 import app.sunnyside.news.ui.search.SearchScreen
 import app.sunnyside.news.ui.settings.SettingsScreen
@@ -122,7 +121,6 @@ fun SunnysideNavHost(openStoryId: String?, onStoryOpened: () -> Unit) {
                     viewModel = vm,
                     callbacks = rememberPostCallbacks(nav, vm),
                     snackbar = snackbar,
-                    onOpenPets = { kind -> nav.navigate("pets/${kind.name}") },
                     onSearch = { nav.navigate("search") },
                 )
             }
@@ -145,9 +143,6 @@ fun SunnysideNavHost(openStoryId: String?, onStoryOpened: () -> Unit) {
                     onBack = { nav.popBackStack() },
                     onReadArticle = { openInBrowser(context, it, toolbar) },
                 )
-            }
-            composable("pets/{kind}", arguments = listOf(navArgument("kind") { type = NavType.StringType })) {
-                PetsScreen(viewModel = viewModel(factory = AppViewModels), onBack = { nav.popBackStack() })
             }
         }
     }
