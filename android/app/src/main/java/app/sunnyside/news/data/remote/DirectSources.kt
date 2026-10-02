@@ -87,6 +87,11 @@ class DirectSources(private val client: OkHttpClient, private val json: Json) {
         cats.map { petPost(it, cat = true, now) } + dogs.map { petPost(it, cat = false, now) }
     }
 
+    private fun getJson(url: String) = client.newCall(Request.Builder().url(url).build()).execute().use {
+        if (!it.isSuccessful) throw IOException("HTTP ${it.code}")
+        json.parseToJsonElement(it.body!!.string())
+    }
+
     private fun petPost(imageUrl: String, cat: Boolean, now: String): StoryDto {
         val breed = if (cat) null else imageUrl.substringAfter("/breeds/", "").substringBefore("/").takeIf { it.isNotBlank() }
             ?.split("-")?.reversed()?.joinToString(" ") { part -> part.replaceFirstChar { it.uppercase() } }
