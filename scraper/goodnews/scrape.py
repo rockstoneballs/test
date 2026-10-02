@@ -45,6 +45,7 @@ SOCIAL_UPLIFT = 7
 MAX_PER_SOCIAL_COMMUNITY = 150
 # Cat and dog photos kept (two arrive every run, so about a day's worth).
 MAX_PET_PHOTOS = 60
+MIN_PET_PHOTOS = 20
 # The website and app show a cat or dog photo after every this many posts.
 POSTS_PER_PET = 6
 # "Top stories" nudges UK & Ireland stories up (worth six hours of freshness), as the
@@ -606,7 +607,10 @@ def build_feed(
         # but picks up the Reddit votes (see _merge_social_fields).
         scraped = fetch_social(session) + scraped
     if fetch_pets and fixtures is None:
-        scraped = [_item(trusted=True, **p) for p in fetch_pet_posts(session, now)] + scraped
+        # One cat and one dog a run; more while the feed has few (e.g. right after launch).
+        have = sum(1 for s in previous["stories"] if s.get("community") == PETS)
+        each = 1 if have >= MIN_PET_PHOTOS else 5
+        scraped = [_item(trusted=True, **p) for p in fetch_pet_posts(session, now, each)] + scraped
 
     cutoff = now - timedelta(days=max_age_days)
 

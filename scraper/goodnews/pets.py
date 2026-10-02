@@ -131,6 +131,7 @@ def fetch_dog(session: requests.Session, now: datetime) -> dict | None:
                  now=now, breed=_breed_from_dog_url(image_url))
 
 
-def fetch_pet_posts(session: requests.Session, now: datetime) -> list[dict]:
-    """A fresh cat and a fresh dog for this run (fewer if an API is down)."""
-    return [p for p in (fetch_cat(session, now), fetch_dog(session, now)) if p]
+def fetch_pet_posts(session: requests.Session, now: datetime, each: int = 1) -> list[dict]:
+    """``each`` fresh cats and dogs for this run (fewer if an API is down)."""
+    posts = [p for _ in range(each) for p in (fetch_cat(session, now), fetch_dog(session, now)) if p]
+    return list({p["imageUrl"]: p for p in posts}.values())  # the APIs occasionally repeat a photo

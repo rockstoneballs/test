@@ -104,6 +104,7 @@ def test_cat_and_dog_photos_become_posts():
     assert (cat["imageWidth"], cat["imageHeight"]) == (800, 600) and cat["source"] == "The Cat API"
     assert dog["summary"] and dog["source"] == "Dog CEO"
     assert fetch_pet_posts(Fake(), NOW)[0]["title"] == cat["title"]  # a photo keeps its name
+    assert len(fetch_pet_posts(Fake(), NOW, each=3)) == 2  # the same photo twice is kept once
 
 
 def test_pets_are_sprinkled_every_few_posts():

@@ -297,7 +297,7 @@ def test_pet_photos_flow_through_the_feed_and_are_capped(monkeypatch):
     monkeypatch.setattr(scrape, "MAX_PET_PHOTOS", 3)
     runs = iter(range(100))
 
-    def pets(session, now):
+    def pets(session, now, each=1):
         i = next(runs)
         return [{"title": f"Meet Pet {i} 🐶", "summary": "Tail set to maximum wag.", "url": f"https://dog/{i}.jpg",
                  "imageUrl": f"https://dog/{i}.jpg", "source": "Dog CEO", "sourceHomepage": "https://dog.ceo",
