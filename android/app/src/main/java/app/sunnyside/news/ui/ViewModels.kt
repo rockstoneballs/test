@@ -10,8 +10,6 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.sunnyside.news.SunnysideApp
 import app.sunnyside.news.data.NewsRepository
-import app.sunnyside.news.data.Pet
-import app.sunnyside.news.data.PetKind
 import app.sunnyside.news.data.Ranking
 import app.sunnyside.news.data.RefreshSource
 import app.sunnyside.news.data.Settings
@@ -61,8 +59,6 @@ abstract class PostsViewModel(
 
 data class HomeState(
     val posts: List<Story> = emptyList(),
-    val kitten: Pet? = null,
-    val puppy: Pet? = null,
     val loaded: Boolean = false,
 )
 
@@ -73,13 +69,8 @@ class HomeViewModel(repo: NewsRepository, settingsRepo: SettingsRepository) : Po
     val message: StateFlow<String?> = _message.asStateFlow()
     val updatedAt: StateFlow<Long?> = repo.feedUpdatedAt
 
-    val state: StateFlow<HomeState> = combine(repo.stories, repo.pets, settingsRepo.settings) { stories, pets, s ->
-        HomeState(
-            posts = Ranking.sort(stories, s.sort),
-            kitten = pets.firstOrNull { it.kind == PetKind.Kitten },
-            puppy = pets.firstOrNull { it.kind == PetKind.Puppy },
-            loaded = true,
-        )
+    val state: StateFlow<HomeState> = combine(repo.stories, settingsRepo.settings) { stories, s ->
+        HomeState(posts = Ranking.sort(stories, s.sort), loaded = true)
     }.asState(this, HomeState())
 
     init {
@@ -167,13 +158,6 @@ class DetailViewModel(repo: NewsRepository, settingsRepo: SettingsRepository, ha
     }.asState(this, DetailState())
 }
 
-// ------------------------------------------------------------------ Pets
-
-class PetsViewModel(repo: NewsRepository, handle: SavedStateHandle) : ViewModel() {
-    val kind: PetKind = PetKind.valueOf(checkNotNull(handle["kind"]))
-    val pets: StateFlow<List<Pet>> = repo.pets.map { list -> list.filter { it.kind == kind } }.asState(this, emptyList())
-}
-
 // ------------------------------------------------------------------ Settings
 
 class SettingsViewModel(private val app: SunnysideApp, private val repo: SettingsRepository) : ViewModel() {
@@ -203,6 +187,5 @@ val AppViewModels: ViewModelProvider.Factory = viewModelFactory {
     initializer { SearchViewModel(news(this), prefs(this)) }
     initializer { SavedViewModel(news(this), prefs(this)) }
     initializer { DetailViewModel(news(this), prefs(this), createSavedStateHandle()) }
-    initializer { PetsViewModel(news(this), createSavedStateHandle()) }
     initializer { SettingsViewModel(app(this), prefs(this)) }
 }

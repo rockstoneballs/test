@@ -7,7 +7,7 @@ import pytest
 import requests
 
 from goodnews import keywords
-from goodnews.pets import _breed_from_dog_url, pets_for_today
+from goodnews.pets import _breed_from_dog_url, fetch_pet_posts
 from goodnews.scrape import build_feed, canonical_url, clean_text
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -85,17 +85,34 @@ def test_breed_from_dog_url():
     assert _breed_from_dog_url("https://images.dog.ceo/breeds/pug/x.jpg") == "Pug"
 
 
-def test_pets_are_stable_within_a_day():
-    history = [
-        {"kind": "kitten", "date": "2026-09-26", "imageUrl": "https://a/cat.jpg", "name": "Mochi", "caption": "c", "breed": None},
-        {"kind": "puppy", "date": "2026-09-26", "imageUrl": "https://a/dog.jpg", "name": "Gus", "caption": "c", "breed": "Pug"},
-    ]
+def test_cat_and_dog_photos_become_posts():
+    class Fake:
+        def get(self, url, **kw):
+            class R:
+                def raise_for_status(self):
+                    pass
 
-    class NoNetwork(requests.Session):
-        def get(self, *a, **k):
-            raise AssertionError("should not fetch when today's pets exist")
+                def json(self):
+                    if "thecatapi" in url:
+                        return [{"url": "https://cdn2.thecatapi.com/images/abc.jpg", "width": 800, "height": 600}]
+                    return {"message": "https://images.dog.ceo/breeds/retriever-golden/n1.jpg", "status": "success"}
+            return R()
+    cat, dog = fetch_pet_posts(Fake(), NOW)
+    assert cat["community"] == dog["community"] == "Pets" and cat["kind"] == dog["kind"] == "image"
+    assert cat["title"].startswith("Meet ") and cat["title"].endswith("🐱")
+    assert dog["title"].endswith("a Golden Retriever 🐶")
+    assert (cat["imageWidth"], cat["imageHeight"]) == (800, 600) and cat["source"] == "The Cat API"
+    assert dog["summary"] and dog["source"] == "Dog CEO"
+    assert fetch_pet_posts(Fake(), NOW)[0]["title"] == cat["title"]  # a photo keeps its name
 
-    assert pets_for_today(NoNetwork(), NOW.date(), history) == sorted(history, key=lambda p: p["kind"], reverse=True)
+
+def test_pets_are_sprinkled_every_few_posts():
+    from goodnews import scrape
+    posts = [{"id": f"n{i}"} for i in range(14)]
+    pets = [{"id": f"p{i}"} for i in range(5)]
+    ids = [p["id"] for p in scrape.intersperse_pets(posts, pets)]
+    assert ids[6] == "p0" and ids[13] == "p1" and ids.count("p2") == 0  # one after every 6 posts, none trailing
+    assert scrape.intersperse_pets([], pets) == pets
 
 
 def test_celebrity_and_royal_news_is_off_topic():

@@ -4,8 +4,8 @@ Sunnyside is a news app and website that only shows good news, meant to be the
 first thing you open in the morning. It's a news site, not a social site: one feed
 of good news from around the world, laid out like Reddit's feed (cards or a compact
 list, **Top stories** or **Latest**), with wholesome memes and cute animals sprinkled
-in. There are no votes, comments or accounts. There's also a **Kitten of the Day** and
-a **Puppy of the Day**.
+in, plus a random cat or dog photo every few posts. There are no votes, comments or
+accounts.
 
 * **Android app:** `android/` (Kotlin + Jetpack Compose)
 * **Website:** `web/` (plain HTML/CSS/JS, no build step)
@@ -19,7 +19,7 @@ a **Puppy of the Day**.
  │  • Google News searches          │                │  feed.json   ← the data      │
  │  • Reddit, Lemmy, 9GAG, Imgur    │                └──────┬───────────────┬───────┘
  │  • positivity filter (Claude)    │                       │               │
- │  • kitten + puppy of the day     │                  Android app      web browsers
+ │  • random cat and dog photos     │                  Android app      web browsers
  └──────────────────────────────────┘
 ```
 
@@ -30,6 +30,7 @@ Every post has a small topic tag, like Reddit's post flair:
 | Tag | What it is | Where it comes from |
 |---|---|---|
 | 😂 Meme | Feel-good memes | r/wholesomememes, r/wholesome, Lemmy, 9GAG #wholesome, Imgur #wholesome |
+| 😺 Cats & dogs | A random cat or dog photo after every six posts, named and captioned | The Cat API, Dog CEO (a new cat and dog every run; the latest 60 are kept) |
 | 🥹 Cute | Cute animal photos and videos | r/aww, r/Eyebleach, r/rarepuppers, r/IllegallySmolCats, Lemmy, 9GAG #cute / #aww / #dogs / #cats, Imgur #aww / #cats / #dogs |
 | 😊 Wholesome | People (and animals) being lovely | r/MadeMeSmile, r/HumansBeingBros, r/AnimalsBeingBros, Lemmy |
 | 🔭 Science, 🌿 Environment, 💚 Health, 🐾 Animals, 🤝 Kindness, 💡 Innovation, 🤖 AI for good, 🎨 Culture | Good-news stories | Good-news outlets, world news filtered for positivity, Google News, r/UpliftingNews, r/goodnews |

@@ -1,7 +1,6 @@
 package app.sunnyside.news.data.remote
 
 import android.util.Xml
-import app.sunnyside.news.data.PetDto
 import app.sunnyside.news.data.StoryDto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -19,7 +18,6 @@ import java.io.IOException
 import java.io.InputStream
 import java.security.MessageDigest
 import java.time.Instant
-import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -27,7 +25,7 @@ import java.time.format.DateTimeFormatter
 /**
  * Fallback used when the published feed can't be reached (e.g. before the
  * scraper workflow has been deployed): reads a few dedicated good-news outlets'
- * RSS directly on the device, and fetches a kitten and puppy from their APIs.
+ * RSS directly on the device, and fetches a few cat and dog photos from their APIs.
  */
 class DirectSources(private val client: OkHttpClient, private val json: Json) {
 
@@ -75,41 +73,35 @@ class DirectSources(private val client: OkHttpClient, private val json: Json) {
         }
     }
 
-    suspend fun fetchPets(date: LocalDate): List<PetDto> = withContext(Dispatchers.IO) {
-        listOfNotNull(
-            runCatching { fetchKitten(date) }.getOrNull(),
-            runCatching { fetchPuppy(date) }.getOrNull(),
-        )
+    /** A few random cat and dog photos as posts, for when the published feed can't be reached. */
+    suspend fun fetchPetPosts(): List<StoryDto> = withContext(Dispatchers.IO) {
+        val cats = runCatching {
+            getJson("https://api.thecatapi.com/v1/images/search?mime_types=jpg,png&limit=3").jsonArray
+                .map { it.jsonObject["url"]!!.jsonPrimitive.content }
+        }.getOrDefault(emptyList())
+        val dogs = runCatching {
+            getJson("https://dog.ceo/api/breeds/image/random/3").jsonObject["message"]!!.jsonArray
+                .map { it.jsonPrimitive.content }
+        }.getOrDefault(emptyList())
+        val now = Instant.now().toString()
+        cats.map { petPost(it, cat = true, now) } + dogs.map { petPost(it, cat = false, now) }
     }
 
-    private fun getJson(url: String) = client.newCall(Request.Builder().url(url).build()).execute().use {
-        if (!it.isSuccessful) throw IOException("HTTP ${it.code}")
-        json.parseToJsonElement(it.body!!.string())
-    }
-
-    private fun fetchKitten(date: LocalDate): PetDto {
-        val url = getJson("https://api.thecatapi.com/v1/images/search?mime_types=jpg,png")
-            .jsonArray[0].jsonObject["url"]!!.jsonPrimitive.content
-        return PetDto(
-            kind = "kitten",
-            date = date.toString(),
-            imageUrl = url,
-            name = PetNames.pick(PetNames.kittenNames, date, 1),
-            caption = PetNames.pick(PetNames.kittenCaptions, date, 2),
-        )
-    }
-
-    private fun fetchPuppy(date: LocalDate): PetDto {
-        val url = getJson("https://dog.ceo/api/breeds/image/random").jsonObject["message"]!!.jsonPrimitive.content
-        val breed = url.substringAfter("/breeds/", "").substringBefore("/").takeIf { it.isNotBlank() }
+    private fun petPost(imageUrl: String, cat: Boolean, now: String): StoryDto {
+        val breed = if (cat) null else imageUrl.substringAfter("/breeds/", "").substringBefore("/").takeIf { it.isNotBlank() }
             ?.split("-")?.reversed()?.joinToString(" ") { part -> part.replaceFirstChar { it.uppercase() } }
-        return PetDto(
-            kind = "puppy",
-            date = date.toString(),
-            imageUrl = url,
-            name = PetNames.pick(PetNames.puppyNames, date, 3),
-            caption = PetNames.pick(PetNames.puppyCaptions, date, 4),
-            breed = breed,
+        val name = PetNames.pick(if (cat) PetNames.kittenNames else PetNames.puppyNames, imageUrl, 1)
+        val emoji = if (cat) "🐱" else "🐶"
+        return StoryDto(
+            id = sha1(imageUrl).take(16),
+            title = if (breed != null) "Meet $name, ${if (breed.first().lowercaseChar() in "aeiou") "an" else "a"} $breed $emoji" else "Meet $name $emoji",
+            summary = PetNames.pick(if (cat) PetNames.kittenCaptions else PetNames.puppyCaptions, imageUrl, 2),
+            url = imageUrl,
+            imageUrl = imageUrl,
+            source = if (cat) "The Cat API" else "Dog CEO",
+            publishedAt = now,
+            kind = "image",
+            community = "Pets",
         )
     }
 
@@ -228,6 +220,7 @@ object PetNames {
         "Heard you were having a day, brought you this face.",
     )
 
-    fun pick(options: List<String>, date: LocalDate, salt: Int): String =
-        options[Math.floorMod(date.toEpochDay() * 31 + salt * 17, options.size.toLong()).toInt()]
+    /** The same photo always gets the same name and caption. */
+    fun pick(options: List<String>, key: String, salt: Int): String =
+        options[Math.floorMod(key.hashCode() * 31 + salt * 17, options.size)]
 }

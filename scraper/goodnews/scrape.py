@@ -1,4 +1,4 @@
-"""Build feed.json: scrape feeds, keep only good news, add pets of the day.
+"""Build feed.json: scrape feeds, keep only good news, add cat and dog photos.
 
 Usage:
     python -m goodnews.scrape --out site --previous https://<you>.github.io/<repo>/feed.json
@@ -31,9 +31,9 @@ import requests
 
 from . import articles, keywords
 from .classifier import ClaudeClassifier
-from .pets import pets_for_today
+from .pets import fetch_pet_posts
 from .social import RedditClient, fetch_imgur, fetch_lemmy, fetch_ninegag, fetch_reddit, vet_social
-from .sources import MAX_AGE_DAYS, SOCIAL_COMMUNITIES, SOCIAL_SOURCES, SOURCES, Source
+from .sources import MAX_AGE_DAYS, PETS, SOCIAL_COMMUNITIES, SOCIAL_SOURCES, SOURCES, Source
 
 log = logging.getLogger("goodnews")
 
@@ -43,6 +43,10 @@ USER_AGENT = "SunnysideGoodNewsBot/1.1 (+https://github.com/rockstoneballs/test)
 MAX_ARTICLE_FETCHES = 120
 SOCIAL_UPLIFT = 7
 MAX_PER_SOCIAL_COMMUNITY = 150
+# Cat and dog photos kept (two arrive every run, so about a day's worth).
+MAX_PET_PHOTOS = 60
+# The website and app show a cat or dog photo after every this many posts.
+POSTS_PER_PET = 6
 # "Top stories" nudges UK & Ireland stories up (worth six hours of freshness), as the
 # website and app do.
 HOME_BONUS = 1.0
@@ -245,15 +249,30 @@ def top_stories(stories: list[dict], now: datetime, n: int = 15) -> list[dict]:
         home = HOME_BONUS if s.get("region") == keywords.HOME_REGION else 0
         return (s.get("uplift") or 5) + popular + (0.5 if s.get("imageUrl") else 0) + home - age_h / 6
 
-    news = sorted((s for s in stories if s.get("kind", "article") == "article"), key=hot, reverse=True)
-    social = sorted((s for s in stories if s.get("kind", "article") != "article"), key=hot, reverse=True)
-    out: list[dict] = []
-    while (news or social) and len(out) < n:
-        out += news[:3]
+    pets = sorted((s for s in stories if s.get("community") == PETS), key=lambda s: s["publishedAt"], reverse=True)
+    rest = [s for s in stories if s.get("community") != PETS]
+    news = sorted((s for s in rest if s.get("kind", "article") == "article"), key=hot, reverse=True)
+    social = sorted((s for s in rest if s.get("kind", "article") != "article"), key=hot, reverse=True)
+    blended: list[dict] = []
+    while news or social:
+        blended += news[:3]
         news = news[3:]
         if social:
-            out.append(social.pop(0))
-    return out[:n]
+            blended.append(social.pop(0))
+    return intersperse_pets(blended, pets)[:n]
+
+
+def intersperse_pets(posts: list[dict], pets: list[dict]) -> list[dict]:
+    """A cat or dog photo after every POSTS_PER_PET posts (as web/app.js does)."""
+    if not posts:
+        return pets
+    out: list[dict] = []
+    pets = list(pets)
+    for i, post in enumerate(posts, 1):
+        out.append(post)
+        if i % POSTS_PER_PET == 0 and pets:
+            out.append(pets.pop(0))
+    return out
 
 
 def keyword_uplift(title: str, summary: str, trusted: bool) -> int:
@@ -586,6 +605,8 @@ def build_feed(
         # Social posts first, so an article shared on Reddit keeps its RSS copy's summary
         # but picks up the Reddit votes (see _merge_social_fields).
         scraped = fetch_social(session) + scraped
+    if fetch_pets and fixtures is None:
+        scraped = [_item(trusted=True, **p) for p in fetch_pet_posts(session, now)] + scraped
 
     cutoff = now - timedelta(days=max_age_days)
 
@@ -689,14 +710,11 @@ def build_feed(
             continue
         if s["kind"] != "article":
             per_community[s["community"]] += 1
-            if per_community[s["community"]] > MAX_PER_SOCIAL_COMMUNITY:
+            if per_community[s["community"]] > (MAX_PET_PHOTOS if s["community"] == PETS else MAX_PER_SOCIAL_COMMUNITY):
                 continue
         kept.append(s)
     stories = drop_near_duplicates(kept)[:max_stories]
 
-    pets = previous["pets"]
-    if fetch_pets:
-        pets = pets_for_today(session, now.date(), pets)
 
     return {
         "version": FEED_VERSION,
@@ -705,7 +723,9 @@ def build_feed(
         "communities": keywords.CATEGORIES + SOCIAL_COMMUNITIES,
         "regions": keywords.REGIONS,
         "stories": stories,
-        "pets": pets,
+        # Kitten and Puppy of the Day were retired: cat and dog photos are now posts
+        # (topic "Pets"). Kept empty so older app versions still read the feed.
+        "pets": [],
         # IDs of recently rejected stories, so they aren't re-checked every run.
         "rejected": list(dict.fromkeys(rejected))[:MAX_REJECTED_IDS],
     }
@@ -719,7 +739,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--no-claude", action="store_true", help="use keyword filtering even if an API key is set")
     ap.add_argument("--no-pages", "--no-images", dest="no_pages", action="store_true",
                     help="don't read article pages (excerpts, images, Google News links)")
-    ap.add_argument("--no-pets", action="store_true", help="skip kitten/puppy of the day")
+    ap.add_argument("--no-pets", action="store_true", help="don't fetch new cat and dog photos")
     ap.add_argument("--no-social", action="store_true", help="skip Reddit and Lemmy")
     ap.add_argument("--list-news", action="store_true", help="log every news headline (for reviewing a dry run)")
     ap.add_argument("--max-age-days", type=int, default=7)
@@ -751,7 +771,8 @@ def main(argv: list[str] | None = None) -> int:
     (out / "feed.json").write_text(json.dumps(feed, ensure_ascii=False, separators=(",", ":")))
     (out / ".nojekyll").write_text("")
     counts = Counter(s["community"] for s in feed["stories"])
-    log.info("Wrote %s with %d posts and %d pets", out / "feed.json", len(feed["stories"]), len(feed["pets"]))
+    log.info("Wrote %s with %d posts (%d cat and dog photos)", out / "feed.json", len(feed["stories"]),
+             sum(1 for s in feed["stories"] if s.get("community") == PETS))
     log.info("Posts per community: %s", ", ".join(f"{c}: {n}" for c, n in sorted(counts.items())))
     log.info("Top stories right now:")
     for i, st in enumerate(top_stories(feed["stories"], datetime.now(timezone.utc)), 1):

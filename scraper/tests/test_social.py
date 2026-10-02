@@ -288,3 +288,25 @@ def test_saved_ninegag_posts_are_rechecked(monkeypatch):
     feed = scrape.build_feed(requests.Session(), {"stories": [old, ok], "pets": []}, NOW, fetch_pages=False, fetch_pets=False)
     assert [s["id"] for s in feed["stories"]] == ["ok"]
     assert feed["stories"][0]["tags"] == ["cat", "animals", "aww"]
+
+
+def test_pet_photos_flow_through_the_feed_and_are_capped(monkeypatch):
+    from datetime import timedelta
+    monkeypatch.setattr(scrape, "fetch_source", lambda *a: [])
+    monkeypatch.setattr(scrape, "fetch_social", lambda session: [])
+    monkeypatch.setattr(scrape, "MAX_PET_PHOTOS", 3)
+    runs = iter(range(100))
+
+    def pets(session, now):
+        i = next(runs)
+        return [{"title": f"Meet Pet {i} 🐶", "summary": "Tail set to maximum wag.", "url": f"https://dog/{i}.jpg",
+                 "imageUrl": f"https://dog/{i}.jpg", "source": "Dog CEO", "sourceHomepage": "https://dog.ceo",
+                 "publishedAt": now, "kind": "image", "community": "Pets", "author": "Dog CEO"}]
+    monkeypatch.setattr(scrape, "fetch_pet_posts", pets)
+    feed = {"stories": [], "pets": []}
+    for hour in range(5):
+        feed = scrape.build_feed(requests.Session(), feed, NOW + timedelta(hours=hour), fetch_pages=False)
+    titles = [s["title"] for s in feed["stories"]]
+    assert titles == ["Meet Pet 4 🐶", "Meet Pet 3 🐶", "Meet Pet 2 🐶"]  # newest three
+    assert all(s["community"] == "Pets" and s["kind"] == "image" for s in feed["stories"])
+    assert feed["pets"] == []  # the old Kitten/Puppy of the Day field is retired

@@ -164,7 +164,7 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
             Text(
-                "Kitten photos: The Cat API · Puppy photos: Dog CEO",
+                "Cat photos: The Cat API · Dog photos: Dog CEO",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp),

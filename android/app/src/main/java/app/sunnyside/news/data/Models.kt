@@ -139,6 +139,7 @@ enum class Topic(val key: String, val label: String, val emoji: String, val colo
     Kindness("Community", "Kindness", "🤝", 0xFFD9477A),
     Innovation("Innovation", "Innovation", "💡", 0xFF8A56D6),
     Ai("AI", "AI for good", "🤖", 0xFF2F80ED),
+    Pets("Pets", "Cats & dogs", "😺", 0xFFB7791F),
     Culture("Culture", "Culture", "🎨", 0xFFC9533A);
 
     companion object {
@@ -182,11 +183,28 @@ object Ranking {
     /** "Top stories" shows this many news stories for every meme / cute-animal post. */
     const val NEWS_PER_SOCIAL = 3
 
+    /** Random cat and dog photos aren't ranked: one follows every this many posts. */
+    const val POSTS_PER_PET = 6
+
     fun sort(stories: List<Story>, mode: SortMode, now: Long = System.currentTimeMillis()): List<Story> {
-        if (mode == SortMode.New) return stories.sortedByDescending { it.publishedAtMillis }
+        val (petPhotos, rest) = stories.partition { it.topic == Topic.Pets }
+        val pets = petPhotos.sortedByDescending { it.publishedAtMillis }
+        if (mode == SortMode.New) return intersperse(rest.sortedByDescending { it.publishedAtMillis }, pets)
         val comparator = compareByDescending<Story> { hot(it, now) }
-        val (news, social) = stories.partition { it.kind == PostKind.Article }
-        return blend(news.sortedWith(comparator), social.sortedWith(comparator))
+        val (news, social) = rest.partition { it.kind == PostKind.Article }
+        return intersperse(blend(news.sortedWith(comparator), social.sortedWith(comparator)), pets)
+    }
+
+    /** A cat or dog photo after every [POSTS_PER_PET] posts (same as the website). */
+    fun intersperse(posts: List<Story>, pets: List<Story>): List<Story> {
+        if (posts.isEmpty()) return pets
+        val out = ArrayList<Story>(posts.size + pets.size)
+        var k = 0
+        posts.forEachIndexed { i, post ->
+            out += post
+            if ((i + 1) % POSTS_PER_PET == 0 && k < pets.size) out += pets[k++]
+        }
+        return out
     }
 
     /** News leads the feed; the fun stuff is sprinkled through it. */
