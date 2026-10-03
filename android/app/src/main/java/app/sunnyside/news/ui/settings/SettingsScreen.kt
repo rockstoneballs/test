@@ -21,6 +21,7 @@ import androidx.compose.material.icons.outlined.Feedback
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -39,6 +40,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
@@ -48,6 +50,7 @@ import app.sunnyside.news.BuildConfig
 import app.sunnyside.news.data.ThemeMode
 import app.sunnyside.news.ui.SettingsViewModel
 import app.sunnyside.news.ui.feedback.FeedbackDialog
+import app.sunnyside.news.util.openInBrowser
 import app.sunnyside.news.work.Notifications
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -61,6 +64,8 @@ private val SOURCES = listOf(
     "ScienceDaily", "Phys.org", "NASA", "Mongabay", "Google News",
     "Reddit", "Lemmy", "9GAG", "Imgur",
 )
+
+private const val PRIVACY_POLICY_URL = "https://rockstoneballs.github.io/test/privacy.html"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -179,6 +184,15 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
                 modifier = Modifier.clickable(onClickLabel = "Send feedback") { showFeedback = true },
             )
             if (showFeedback) FeedbackDialog(story = null, onDismiss = { showFeedback = false })
+            val toolbarColor = MaterialTheme.colorScheme.surface.toArgb()
+            ListItem(
+                headlineContent = { Text("Privacy policy") },
+                supportingContent = { Text("No accounts, ads or tracking") },
+                leadingContent = { Icon(Icons.Outlined.PrivacyTip, contentDescription = null) },
+                modifier = Modifier.clickable(onClickLabel = "Open the privacy policy") {
+                    openInBrowser(context, PRIVACY_POLICY_URL, toolbarColor)
+                },
+            )
             ListItem(
                 headlineContent = { Text("Sunnyside ${BuildConfig.VERSION_NAME}") },
                 supportingContent = { Text("Only good news. Every morning. ☀️") },

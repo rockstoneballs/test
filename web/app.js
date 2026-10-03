@@ -465,6 +465,7 @@ function renderRightRail() {
     h("div", { class: "rail-links" },
       h("a", { href: "feed.json" }, "feed.json"),
       h("a", { href: "https://github.com/rockstoneballs/test", target: "_blank", rel: "noopener" }, "Source code"),
+      h("a", { href: "privacy.html" }, "Privacy"),
       h("span", null, "Cat photos: The Cat API · Dog photos: Dog CEO"),
     ),
   );

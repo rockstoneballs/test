@@ -128,7 +128,7 @@ Optional repository secrets (**Settings → Secrets and variables → Actions**)
 | `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET` | Reliable Reddit access. Reddit often blocks anonymous requests from GitHub's servers. Create a free "script" app at <https://www.reddit.com/prefs/apps>. Without these, Lemmy and 9GAG still supply memes and cute animals. |
 | `IMGUR_CLIENT_ID` | Turns on Imgur as a source. Register a free app at <https://api.imgur.com/oauth2/addclient> ("anonymous usage"). Note: Imgur isn't available to visitors in the UK, so its images won't load there. |
 | `FEEDBACK_URL` (an Actions **variable**, not a secret) | Where the website's and app's feedback form sends messages. See [Feedback](#feedback). |
-| `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` | Signs release APKs with your own key, so updates install over the previous version. |
+| `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` | Signs release APKs and the Play Store bundle with your upload key, so updates install over the previous version. See [`android/play/README.md`](android/play/README.md). |
 
 On branches other than `main`, the scrape runs as a dry run. The result is
 uploaded as a `site-preview` artifact, so you can check source changes before
@@ -170,6 +170,12 @@ cd android
 The app reads `https://rockstoneballs.github.io/test/feed.json`. To change that,
 edit `sunnyside.feedUrl` in `android/gradle.properties`, or build with
 `-Psunnyside.feedUrl=…`.
+
+### 3. Publish on Google Play
+
+See [`android/play/README.md`](android/play/README.md) for the step-by-step guide. It covers
+the store listing, graphics, privacy policy, Play Console answers, the upload key, and the
+**Publish to Google Play** workflow, which builds, signs and uploads the app bundle.
 
 ### Running things locally
 

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sunnyside Privacy Policy</title>
+  <meta name="description" content="What the Sunnyside app and website do (and don't do) with your data.">
+  <meta name="theme-color" content="#F76707">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .policy { max-width: 720px; margin: 0 auto; padding: 24px 16px 64px; color: var(--text); line-height: 1.6; }
+    .policy h1 { font-size: 1.8rem; margin: 8px 0 4px; }
+    .policy h2 { font-size: 1.15rem; margin: 28px 0 6px; }
+    .policy .updated { color: var(--text-3); margin: 0 0 20px; }
+    .policy a { color: var(--brand-strong); }
+    .policy ul { padding-left: 1.2em; }
+    .policy .summary { background: var(--brand-soft); border-radius: var(--radius); padding: 14px 18px; }
+  </style>
+  <script>
+    try { const t = localStorage.getItem("sunnyside.theme"); if (t) document.documentElement.dataset.theme = JSON.parse(t); } catch (e) {}
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="Sunnyside home">
+      <img src="icon.svg" alt="" width="32" height="32"><span>sunnyside</span>
+    </a>
+  </header>
+  <main class="policy">
+    <h1>Privacy policy</h1>
+    <p class="updated">Applies to the Sunnyside Android app (app.sunnyside.news) and this website. Last updated 3 October 2026.</p>
+
+    <p class="summary"><strong>In short:</strong> Sunnyside has no accounts, no ads, no analytics and no tracking.
+      Your saved posts and settings stay on your device. The only things you send us are what you choose
+      to type into the feedback form.</p>
+
+    <h2>What stays on your device</h2>
+    <ul>
+      <li>Posts you save, posts you've read, and the cached feed.</li>
+      <li>Your settings: theme, and whether and when to show the morning briefing notification.</li>
+    </ul>
+    <p>This is stored only in the app's private storage (or your browser's local storage on the website). We can't
+      see it. Uninstalling the app, or clearing the site's data, deletes it.</p>
+
+    <h2>What the app downloads, and from where</h2>
+    <p>To show you the news, the app downloads:</p>
+    <ul>
+      <li>The Sunnyside feed, from GitHub Pages (rockstoneballs.github.io), run by GitHub.</li>
+      <li>A few good-news publications' public RSS feeds directly, so the app stays fresh between feed updates.</li>
+      <li>Pictures and videos from the sites that published them (for example news sites, Reddit, Imgur and 9GAG),
+        plus cat photos from The Cat API and dog photos from Dog CEO.</li>
+    </ul>
+    <p>Like any website you visit, these services receive your device's IP address and basic technical
+      information (such as the app or browser version) when content is downloaded. They handle that under their
+      own privacy policies. Sunnyside does not send them anything that identifies you, and does not use cookies,
+      advertising IDs or device identifiers.</p>
+    <p>When you open a story's full article, it opens in your browser on the publisher's site, which has its own
+      privacy policy.</p>
+
+    <h2>Feedback and reports</h2>
+    <p>If you send feedback or report a post, we receive what you type, the post you're reporting (if any), your
+      app version and Android version, and your email address only if you choose to give it so we can reply.
+      Feedback is delivered either through our form service (Formspree), or, if you're sent to GitHub to finish it,
+      as a public GitHub issue, so please don't include anything private there. We use feedback only to improve
+      Sunnyside, keep it only as long as it's useful for that, and never sell or share it.</p>
+
+    <h2>Notifications</h2>
+    <p>The morning briefing is scheduled on your device. It's off unless you turn it on, and you can turn it off at
+      any time in Settings. No push notification service is involved.</p>
+
+    <h2>Children</h2>
+    <p>Sunnyside is a general news app and isn't directed at children under 13. We don't knowingly collect any
+      information from children.</p>
+
+    <h2>Your choices</h2>
+    <p>Because we don't hold personal data about you, there's nothing to download or delete on our side, except
+      feedback you've sent. To have that deleted, send another message through the feedback form asking us to,
+      including the email address you used.</p>
+
+    <h2>Changes</h2>
+    <p>If this policy changes, we'll update this page and the date at the top.</p>
+
+    <h2>Contact</h2>
+    <p>Use the feedback button in the app or on <a href="./">the website</a>, or open an issue on
+      <a href="https://github.com/rockstoneballs/test/issues">GitHub</a>.</p>
+  </main>
+</body>
+</html>
