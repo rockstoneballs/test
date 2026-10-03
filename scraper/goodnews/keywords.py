@@ -89,7 +89,8 @@ _DOOM_WORDS = [
     "remains!", "head discovered", "head found", "prompts report", "investigat", "poach", "mining", "stolen",
     "theft", "vandal", "breach", "data protection", "refusal", "refused", "rejected", "urge!", "urges!",
     "levels drop", "despite", "still uses", "reluctan", "faults", "lavish", "charges", "aground", "capsiz",
-    "sinks!", "sank!", "house fire", "blaze", "bottleneck", "hurdle", "conservation season", "horrendous", "horrific", "appalling", "cull!", "culled", "into river", "into a river",
+    "sinks!", "sank!", "house fire", "blaze", "bottleneck", "hurdle", "conservation season", "horrendous",
+    "neglect", "cruelty", "seized", "seizure", "mistreat", "concerns about", "welfare concerns", "horrific", "appalling", "cull!", "culled", "into river", "into a river",
     "into the river", "plunge", "dental desert", "heat up", "heats up", "heating up", "accelerat", "faster than expected",
 ] + _MONEY_WORDS
 DOOM = _rx(_DOOM_WORDS)

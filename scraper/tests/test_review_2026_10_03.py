@@ -122,3 +122,10 @@ def test_canadian_cambridge_is_not_the_uk():
              source="CambridgeToday.ca", sourceHomepage="https://www.cambridgetoday.ca", region="UK & Ireland")
     refine_region(s)
     assert s["region"] == "North America"
+
+
+def test_neglect_cases_behind_rescue_headlines():
+    from goodnews.scrape import grim_inside
+    assert grim_inside({"title": "Animals rescued from Halesowen sanctuary", "source": "Rayo", "checkedBy": "keywords",
+                        "body": "RSPCA and West Midlands Police team up over concerns about neglect\n\nDogs, cats, "
+                                "livestock, and various birds have been rescued from a sanctuary in Halesowen."})
