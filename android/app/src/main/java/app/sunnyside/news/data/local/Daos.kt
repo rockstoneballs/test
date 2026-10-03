@@ -10,16 +10,19 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface StoryDao {
-    @Query("SELECT * FROM stories ORDER BY publishedAt DESC")
+    @Query("SELECT * FROM stories WHERE id NOT IN (SELECT id FROM downers) ORDER BY publishedAt DESC")
     fun observeAll(): Flow<List<StoryEntity>>
 
     @Query("SELECT * FROM stories WHERE id = :id")
     fun observe(id: String): Flow<StoryEntity?>
 
-    @Query("SELECT * FROM stories WHERE kind = 'article' ORDER BY uplift DESC, publishedAt DESC LIMIT 1")
+    @Query(
+        "SELECT * FROM stories WHERE kind = 'article' AND id NOT IN (SELECT id FROM downers) " +
+            "ORDER BY uplift DESC, publishedAt DESC LIMIT 1",
+    )
     suspend fun topStory(): StoryEntity?
 
-    @Query("SELECT COUNT(*) FROM stories WHERE publishedAt >= :since")
+    @Query("SELECT COUNT(*) FROM stories WHERE publishedAt >= :since AND id NOT IN (SELECT id FROM downers)")
     suspend fun countSince(since: Long): Int
 
     @Query("DELETE FROM stories")
@@ -37,7 +40,7 @@ interface StoryDao {
 
 @Dao
 interface SavedStoryDao {
-    @Query("SELECT * FROM saved_stories ORDER BY savedAt DESC")
+    @Query("SELECT * FROM saved_stories WHERE id NOT IN (SELECT id FROM downers) ORDER BY savedAt DESC")
     fun observeAll(): Flow<List<SavedStoryEntity>>
 
     @Query("SELECT * FROM saved_stories WHERE id = :id")
@@ -51,6 +54,19 @@ interface SavedStoryDao {
 
     @Query("DELETE FROM saved_stories WHERE id = :id")
     suspend fun remove(id: String)
+}
+
+@Dao
+interface DownerDao {
+    @Upsert
+    suspend fun add(downer: DownerEntity)
+
+    @Query("DELETE FROM downers WHERE id = :id")
+    suspend fun remove(id: String)
+
+    /** Posts leave the feed after about a week, so old marks are no longer needed. */
+    @Query("DELETE FROM downers WHERE markedAt < :before")
+    suspend fun deleteBefore(before: Long)
 }
 
 @Dao

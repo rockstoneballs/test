@@ -59,6 +59,13 @@ data class SavedStoryEntity(
     val checkedBy: String? = null,
 )
 
+/** Posts the reader hid with the Downer button ("not good news"). */
+@Entity(tableName = "downers")
+data class DownerEntity(
+    @PrimaryKey val id: String,
+    val markedAt: Long,
+)
+
 @Entity(tableName = "pets", primaryKeys = ["date", "kind"])
 data class PetEntity(
     val date: String,

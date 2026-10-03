@@ -140,6 +140,11 @@ The website (💬 in the top bar, and **Report** on every post) and the app (**S
 Send feedback**, and 🚩 on every post) have a feedback form. Readers can send an idea, a
 problem or a source to add, or report a post as not good news, clickbait, wrong or broken.
 
+Every post also has a one-tap **☁️ Downer** button for "this isn't good news". It hides
+the post for that reader straight away (with Undo), and, once `FEEDBACK_URL` is set,
+sends you a report with the post's title and link. Without a form service, downers only
+hide the post: a GitHub issue can't be filed quietly in the background.
+
 Until a form service is set up, the form opens a pre-filled GitHub issue (labelled
 `feedback`), which needs a GitHub account. To take feedback from anyone:
 

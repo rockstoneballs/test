@@ -2,12 +2,16 @@ package app.sunnyside.news
 
 import android.content.Context
 import android.os.Build
+import app.sunnyside.news.data.Downers
 import app.sunnyside.news.data.FeedbackSender
 import app.sunnyside.news.data.NewsRepository
 import app.sunnyside.news.data.SettingsRepository
 import app.sunnyside.news.data.local.AppDatabase
 import app.sunnyside.news.data.remote.DirectSources
 import app.sunnyside.news.data.remote.FeedApi
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.serialization.json.Json
 import okhttp3.Cache
 import okhttp3.OkHttpClient
@@ -50,4 +54,9 @@ class AppContainer(context: Context) {
         appVersion = BuildConfig.VERSION_NAME,
         androidVersion = Build.VERSION.RELEASE,
     )
+
+    /** For work that should outlive the screen that started it. */
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    val downers = Downers(database, feedbackSender, appScope)
 }
