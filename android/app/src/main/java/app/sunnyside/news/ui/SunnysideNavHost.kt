@@ -15,12 +15,15 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -35,6 +38,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import app.sunnyside.news.SunnysideApp
 import app.sunnyside.news.data.PostKind
 import app.sunnyside.news.data.Story
 import app.sunnyside.news.ui.components.PostCallbacks
@@ -45,6 +49,7 @@ import app.sunnyside.news.ui.search.SearchScreen
 import app.sunnyside.news.ui.settings.SettingsScreen
 import app.sunnyside.news.util.openInBrowser
 import app.sunnyside.news.util.shareText
+import kotlinx.coroutines.launch
 
 private enum class Tab(val route: String, val label: String, val selected: ImageVector, val unselected: ImageVector) {
     Home("home", "Home", Icons.Filled.WbSunny, Icons.Outlined.WbSunny),
@@ -54,15 +59,16 @@ private enum class Tab(val route: String, val label: String, val selected: Image
 
 /** Opens posts, links and the share sheet for whichever screen is showing posts. */
 @Composable
-private fun rememberPostCallbacks(nav: NavHostController, vm: PostsViewModel): PostCallbacks {
+private fun rememberPostCallbacks(nav: NavHostController, vm: PostsViewModel, downer: (Story) -> Unit): PostCallbacks {
     val context = LocalContext.current
     val toolbar = MaterialTheme.colorScheme.surface.toArgb()
-    return remember(nav, vm, toolbar) {
+    return remember(nav, vm, toolbar, downer) {
         PostCallbacks(
             open = { nav.navigate("post/${it.id}") },
             toggleSave = { vm.toggleSave(it) },
             share = { shareText(context, it.title, shareBody(it)) },
             openOriginal = { story -> story.discussionUrl?.let { openInBrowser(context, it, toolbar) } },
+            downer = downer,
         )
     }
 }
@@ -81,6 +87,23 @@ fun SunnysideNavHost(openStoryId: String?, onStoryOpened: () -> Unit) {
     val showBottomBar = Tab.entries.any { tab -> destination?.hierarchy?.any { it.route == tab.route } == true }
     val context = LocalContext.current
     val toolbar = MaterialTheme.colorScheme.surface.toArgb()
+    val downers = (context.applicationContext as SunnysideApp).container.downers
+    val scope = rememberCoroutineScope()
+    // Hides the post at once; the snackbar offers Undo.
+    val downer: (Story) -> Unit = remember(downers, snackbar, scope) {
+        { story ->
+            downers.mark(story)
+            scope.launch {
+                snackbar.currentSnackbarData?.dismiss()
+                val result = snackbar.showSnackbar(
+                    if (downers.reported) "Hidden. Thanks, we'll look at it ☁️" else "Hidden from your feed ☁️",
+                    actionLabel = "Undo",
+                    duration = SnackbarDuration.Short,
+                )
+                if (result == SnackbarResult.ActionPerformed) downers.undo(story.id)
+            }
+        }
+    }
 
     LaunchedEffect(openStoryId) {
         if (openStoryId != null) {
@@ -119,27 +142,27 @@ fun SunnysideNavHost(openStoryId: String?, onStoryOpened: () -> Unit) {
                 val vm: HomeViewModel = viewModel(factory = AppViewModels)
                 HomeScreen(
                     viewModel = vm,
-                    callbacks = rememberPostCallbacks(nav, vm),
+                    callbacks = rememberPostCallbacks(nav, vm, downer),
                     snackbar = snackbar,
                     onSearch = { nav.navigate("search") },
                 )
             }
             composable(Tab.Saved.route) {
                 val vm: SavedViewModel = viewModel(factory = AppViewModels)
-                SavedScreen(viewModel = vm, callbacks = rememberPostCallbacks(nav, vm))
+                SavedScreen(viewModel = vm, callbacks = rememberPostCallbacks(nav, vm, downer))
             }
             composable(Tab.Settings.route) {
                 SettingsScreen(viewModel = viewModel(factory = AppViewModels))
             }
             composable("search") {
                 val vm: SearchViewModel = viewModel(factory = AppViewModels)
-                SearchScreen(viewModel = vm, callbacks = rememberPostCallbacks(nav, vm), onBack = { nav.popBackStack() })
+                SearchScreen(viewModel = vm, callbacks = rememberPostCallbacks(nav, vm, downer), onBack = { nav.popBackStack() })
             }
             composable("post/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {
                 val vm: DetailViewModel = viewModel(factory = AppViewModels)
                 StoryDetailScreen(
                     viewModel = vm,
-                    callbacks = rememberPostCallbacks(nav, vm),
+                    callbacks = rememberPostCallbacks(nav, vm, downer),
                     onBack = { nav.popBackStack() },
                     onReadArticle = { openInBrowser(context, it, toolbar) },
                 )

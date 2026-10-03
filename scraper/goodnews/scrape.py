@@ -162,7 +162,7 @@ def fetch_source(session: requests.Session, source: Source, fixtures: Path | Non
     items = []
     for entry in parsed.entries:
         url = entry.get("link")
-        title = clean_text(entry.get("title", ""), limit=220)
+        title = keywords.strip_site_suffix(clean_text(entry.get("title", ""), limit=220))
         if not is_http_url(url) or not title:
             continue
         name = source.name
@@ -238,7 +238,9 @@ def fetch_social(session: requests.Session) -> list[dict]:
             newest = max((g["publishedAt"] for g in got), default=None)
             log.info("%s %s: %d posts (newest %s)", src.platform, src.name, len(got), newest and iso(newest))
             results += got
-    return [_item(trusted=True, **r) for r in results]
+    # Memes and animal photos come from curated communities; link posts (r/UpliftingNews,
+    # Lemmy) carry user-written headlines, so they get the same checks as other news.
+    return [_item(trusted=r.get("community") is not None, **r) for r in results]
 
 
 def top_stories(stories: list[dict], now: datetime, n: int = 15) -> list[dict]:
@@ -301,7 +303,7 @@ def still_good(story: dict) -> bool:
     if story.get("kind", "article") != "article" or story.get("checkedBy") == "claude":
         return True
     source = story.get("source", "")
-    trusted = source in TRUSTED_NAMES or source.startswith(("r/", "Lemmy"))
+    trusted = source in TRUSTED_NAMES
     title, summary = story["title"], story.get("summary") or ""
     if not keywords.passes_keyword_filter(title, summary, trusted, min_positivity(story)):
         return False
@@ -313,6 +315,7 @@ def still_good(story: dict) -> bool:
 
 
 SOURCE_REGION = {s.name: s.region for s in SOURCES if s.region}
+_ELSEWHERE_TLD = {"ca": "North America", "us": "North America", "au": "Oceania", "nz": "Oceania"}
 SOURCE_NAMES = {s.name for s in SOURCES}
 
 
@@ -332,6 +335,11 @@ def refine_region(story: dict) -> None:
         story["region"] = outlet_region
         return
     home = keywords.HOME_REGION
+    tld = urlsplit(homepage).netloc.lower().rsplit(".", 1)[-1] if homepage else ""
+    if region == home and tld in _ELSEWHERE_TLD:
+        # Cambridge and Dumfries in Ontario, Oxford in North Carolina: not the UK.
+        story["region"] = _ELSEWHERE_TLD[tld]
+        return
     if region in (None, "Global", "Europe") and keywords.guess_region(story["title"], story.get("summary") or "") == home:
         story["region"] = home
     elif region in (None, "Global") and (
@@ -533,7 +541,7 @@ _DUP_STOP = {"the", "a", "an", "of", "to", "in", "on", "for", "and", "at", "by",
 
 def _title_words(title: str) -> dict[str, bool]:
     """Word stems (first five letters) -> whether it's a name or place (capitalised, not first)."""
-    words = _WORD_RX.findall(title)
+    words = _WORD_RX.findall(keywords.strip_site_suffix(title))
     return {w.lower()[:5]: i > 0 and w[0].isupper() for i, w in enumerate(words) if w.lower() not in _DUP_STOP}
 
 

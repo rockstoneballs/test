@@ -50,6 +50,7 @@ const state = {
   sort: store.get("sort", "hot") === "new" ? "new" : "hot",
   view: store.get("view", "card"),
   saved: store.get("saved", {}),          // id -> post snapshot
+  downers: new Set(store.get("downers", [])), // ids of posts the reader marked "not good news"
   pendingFeed: null,
   shown: PAGE_SIZE,
   list: [],
@@ -124,12 +125,17 @@ function flair(p) {
   return h("span", { class: "flair", style: `background:${t.color}22;color:${t.color}` }, `${t.emoji} ${t.label}`);
 }
 
-function toast(text) {
+/** A short message at the bottom of the screen, optionally with a button (e.g. Undo). */
+function toast(text, action) {
   const el = document.getElementById("toast");
-  el.textContent = text;
+  el.replaceChildren(text);
+  if (action) {
+    el.append(h("button", { class: "toast-action", onclick: () => { el.classList.remove("show"); action.run(); } }, action.label));
+  }
+  el.classList.toggle("has-action", !!action);
   el.classList.add("show");
   clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => el.classList.remove("show"), 2200);
+  toast.timer = setTimeout(() => el.classList.remove("show"), action ? 5000 : 2200);
 }
 
 const ICON = {
@@ -139,6 +145,7 @@ const ICON = {
   out: '<svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M11 3h6v6M17 3l-8 8M8 5H4v11h11v-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   back: '<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M12 4 6 10l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   sun: '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  cloud: '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M6 15.5h8.5a3.5 3.5 0 0 0 .4-7A5 5 0 0 0 5.3 8 3.75 3.75 0 0 0 6 15.5z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>',
   flag: '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M5 17V3.5M5 4h9l-2 3.5 2 3.5H5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   moon: '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="currentColor"/></svg>',
 };
@@ -246,6 +253,10 @@ function actions(p, withReport = false) {
   return h("div", { class: "actions" },
     h("button", { class: "pill", onclick: (e) => { e.preventDefault(); share(p); } }, h("span", { html: ICON.share }), "Share"),
     saveButton(p),
+    isPet(p) ? null : h("button", {
+      class: "pill downer", title: "Not good news? Hide it and let us know", "aria-label": "Not good news: hide this post",
+      onclick: (e) => { e.preventDefault(); markDowner(p, e.currentTarget.closest(".post")); },
+    }, h("span", { html: ICON.cloud }), "Downer"),
     withReport ? h("button", { class: "pill", onclick: (e) => { e.preventDefault(); openFeedback(p); } },
       h("span", { html: ICON.flag }), "Report") : null,
   );
@@ -267,6 +278,35 @@ const REPORT_REASONS = [
   ["broken", "Broken link, picture or video"],
   ["other", "Something else"],
 ];
+
+/**
+ * The Downer button: one tap hides a post that isn't good news, and (when a form service
+ * is configured) tells us about it so the filters can be tuned. Undo puts it back.
+ */
+function markDowner(p, el) {
+  state.downers.add(p.id);
+  store.set("downers", [...state.downers].slice(-500));
+  applyFeed(state.feed);
+  if (el && !el.classList.contains("detail")) el.remove();
+  else location.hash = "#/";
+  if (CONFIG.feedbackUrl) {
+    sendFeedback({
+      _subject: `Downer: ${p.title}`.slice(0, 120),
+      kind: "report", reason: "not-good-news", message: "Marked with the Downer button",
+      story: { id: p.id, title: p.title, url: p.url, source: p.source },
+      page: location.href, platform: "web",
+    }).catch(() => {});
+  }
+  toast(CONFIG.feedbackUrl ? "Hidden. Thanks, we'll look at it ☁️" : "Hidden from your feed ☁️", {
+    label: "Undo",
+    run: () => {
+      state.downers.delete(p.id);
+      store.set("downers", [...state.downers]);
+      applyFeed(state.feed);
+      render();
+    },
+  });
+}
 
 /** Where feedback goes: the configured form service, or else a pre-filled GitHub issue. */
 async function sendFeedback(data) {
@@ -465,6 +505,7 @@ function renderRightRail() {
     h("div", { class: "rail-links" },
       h("a", { href: "feed.json" }, "feed.json"),
       h("a", { href: "https://github.com/rockstoneballs/test", target: "_blank", rel: "noopener" }, "Source code"),
+      h("a", { href: "privacy.html" }, "Privacy"),
       h("span", null, "Cat photos: The Cat API · Dog photos: Dog CEO"),
     ),
   );
@@ -489,7 +530,7 @@ function sortBar() {
 function newPostsButton() {
   if (!state.pendingFeed) return null;
   const known = new Set(state.posts.map((p) => p.id));
-  const fresh = state.pendingFeed.stories.filter((p) => !known.has(p.id)).length;
+  const fresh = state.pendingFeed.stories.filter((p) => !known.has(p.id) && !state.downers.has(p.id)).length;
   if (!fresh) return null;
   return h("div", { class: "new-posts" },
     h("button", { onclick: () => { applyFeed(state.pendingFeed); state.pendingFeed = null; render(); scrollTo({ top: 0 }); } },
@@ -533,7 +574,7 @@ function pageHome() {
 }
 
 function pageSaved() {
-  const posts = Object.values(state.saved).sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
+  const posts = Object.values(state.saved).filter((p) => !state.downers.has(p.id)).sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
   document.title = "Saved · Sunnyside";
   return [
     h("h1", { class: "page-title" }, "🔖 Saved"),
@@ -643,7 +684,7 @@ function render() {
 
 function applyFeed(feed) {
   state.feed = feed;
-  state.posts = (feed.stories || []).filter((p) => p && p.id && p.title);
+  state.posts = (feed.stories || []).filter((p) => p && p.id && p.title && !state.downers.has(p.id));
   state.byId = new Map(state.posts.map((p) => [p.id, p]));
   // Keep saved snapshots fresh (scores, comment counts) while they're still in the feed.
   let changed = false;

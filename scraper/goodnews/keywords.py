@@ -37,7 +37,7 @@ HARD_BLOCK = _rx([
     "shooting", "shot dead", "stabbing", "genocide", "beheaded", "bombing",
     "dead bod", "death toll", "fatal", "slaughter", "abuse", "hostage",
     "war crime", "execution", "executed", "body found", "body was found", "baby's body", "bodies found",
-    "remains found", "human remains",
+    "remains found", "human remains", "inquest", "coroner", "lifeless",
 ])
 
 # Money, markets, disputes and admin notices: not what anyone means by good news, and
@@ -53,7 +53,8 @@ _MONEY_WORDS = [
     "tender!", "tenders!", "contract!", "contracts!", "acquisition", "acquires", "merger", "manufactur",
     "invests", "invest!", "portfolio", "transaction", "esg!", "insurance", "reimburs", "partners with",
     "cash raise", "fresh cash", "funding round", "secures $", "raises $", "interim results", "firm raises",
-    "startup raises", "raises £", "raises €", "secures £", "secures €",
+    "startup raises", "raises £", "raises €", "secures £", "secures €", "financing", "first-half", "first half",
+    "outlook", "reiterates", "in talks", "jobs at risk", "save jobs", "investment", "partner with", "half-off",
 ]
 MONEY = _rx(_MONEY_WORDS)
 
@@ -86,7 +87,10 @@ _DOOM_WORDS = [
     "objects to", "objection", "petition", "urged to", "below average", "hornet", "invasive", "damaged",
     "toppled", "drifting", "dumped", "forced to", "counting the cost", "carcass", "severed", "decapitat",
     "remains!", "head discovered", "head found", "prompts report", "investigat", "poach", "mining", "stolen",
-    "theft", "vandal", "breach", "data protection", "horrendous", "horrific", "appalling", "cull!", "culled", "into river", "into a river",
+    "theft", "vandal", "breach", "data protection", "refusal", "refused", "rejected", "urge!", "urges!",
+    "levels drop", "despite", "still uses", "reluctan", "faults", "lavish", "charges", "aground", "capsiz",
+    "sinks!", "sank!", "house fire", "blaze", "bottleneck", "hurdle", "conservation season", "horrendous",
+    "neglect", "cruelty", "seized", "seizure", "mistreat", "concerns about", "welfare concerns", "horrific", "appalling", "cull!", "culled", "into river", "into a river",
     "into the river", "plunge", "dental desert", "heat up", "heats up", "heating up", "accelerat", "faster than expected",
 ] + _MONEY_WORDS
 DOOM = _rx(_DOOM_WORDS)
@@ -102,7 +106,7 @@ POLITICS = _rx([
     "left-wing", "nra!", "eu commission", "european commission", "rfk", "kennedy",
     # UK and Irish politicians who often appear in "good news" headlines.
     "burnham", "sadiq khan", "rachel reeves", "miliband", "streeting", "rayner", "lammy", "badenoch", "swinney",
-    "sarwar", "taoiseach", "tánaiste", "tanaiste", "micheál martin", "micheal martin", "simon harris", "mcdonald!",
+    "sarwar", "polanski", "demands", "kiggans", "taoiseach", "tánaiste", "tanaiste", "micheál martin", "micheal martin", "simon harris", "mcdonald!",
 ])
 
 # Named politicians and parties: a story whose text is about them is politics, whatever
@@ -184,7 +188,8 @@ CATEGORY_KEYWORDS: dict[str, re.Pattern[str]] = {
         "lpga", "ryder cup", "six nations", "tour de france", "grand final", "semifinal",
         "innings", "wicket", "halftime", "half-time", "off the mark", "win over", "matildas",
         "socceroos", "wallabies", "all blacks", "lionesses", "gymnast", "sprinter", "skier", "snowboard",
-        "vs!", "vs.", "game highlights", "match highlights", "espn", "clinch", "division title", "stood down as", "years in charge", "as manager", "new manager", "managerial", "county board", "all-ireland", "inter-county",
+        "vs!", "vs.", "game highlights", "match highlights", "espn", "clinch", "division title", "stood down as", "years in charge", "as manager", "new manager", "managerial", "county board", "all-ireland", "inter-county", "hurler", "camogie",
+        "footballer", "gaelic",
     ]),
 }
 
@@ -206,7 +211,8 @@ OFF_TOPIC = _rx([
     "film star", "singer", "rapper", "actress", "actor!", "actors!", "star-studded",
     "royal ascot", "engaged to", "wedding of", "baby bump", "net worth",
     "bafta", "rock star", "rockstar", "boy band", "girl band", "frontman", "gig!", "gigs!", "world tour",
-    "u2!", "bono!", "coldplay", "ed sheeran", "oasis!", "bafta-nominated", "pageant", "top-performing songs",
+    "u2!", "bono!", "coldplay", "ed sheeran", "oasis!", "bafta-nominated", "pageant", "top-performing songs", "jamie oliver",
+    "social media star", "rap group", "talking points",
 ])
 
 # Country / place names -> region. Order matters only for readability.
@@ -399,7 +405,7 @@ _CLICKBAIT_RX = re.compile(
     r"\bwhen it'?s on\b|\bhow to watch\b|\bwhere to watch\b|\bfull details\b|\bepisode\b|\bseason \d|"
     r"\b(?:needs?|calls? for|appeals? for|seeks?|seeking|looking for|recruit\w*|wanted)\b.{0,30}\bvolunteers?\b|"
     r"\bvolunteer (?:opportunit|push|drive|board)|\bappeal\b|\bshortlist|\bfinalists?\b|\bnominations?\b|"
-    r"\baward recipients\b|\bto host\b|\bwill host\b|\bworkshop\b|\bopen house\b|"
+    r"\baward recipients\b|\bto host\b|\bwill host\b|\bworkshops?\b|\bopen house\b|"
     r"\b(?:festival|fest|fair|show|event|market|parade|concert|race|walk|run|gala|exhibition)s?\b.{0,30}\breturns?\b|"
     r"^an evening (?:at|with|of)\b|\b(?:is|are) looking for\b|\bawards 20\d\d\b|\b(?:underlines|reaffirms|renews) "
     r"(?:its |their )?commitment\b|^[A-Z][a-z]+ [A-Z][a-z]+:\s|\bstage \d\b.{0,30}\b(?:water|drought|restriction)|"
@@ -414,6 +420,10 @@ _CLICKBAIT_RX = re.compile(
     r"^the download\b|\bto watch\b|\bat [A-Z]{3,}\s?20\d\d\b|\bcongress\b|\bconference\b|\bto attend\b|"
     r"\bopens? applications\b|\bholding\b.{0,30}\b(?:training|event|meeting|session)|\bvolunteer training\b|"
     r"\btop[- ]performing\b|\bby decade\b|®|™|\([A-Z]{2,5}\)|\bfy\s?\d\d\b|\bq[1-4] (?:20)?\d\d\b|\?\s+[-–|]|"
+    r"\bcalls? for\b|\bawareness (?:month|week|day)\b|\bwhy .{0,60}\bmatters?\b|\|\s*opinion\b|\bopinion\s*$|"
+    r"\b(?:adopters|homes|fosters|foster homes) (?:are )?needed\b|\bhosting\b|\bgrant money\b|\bopens up\b|"
+    r"\b(?:scholarship|funding|volunteer) opportunities\b|\bcomments on\b|\bproposed revisions\b|\bnew (?:\w+ )?series\b|"
+    r"\bsymposium\s*:|\bexpo\b|\blatest (?:android|ios) app\b|\bseason update\b|"
     r"^good news in history\b|\bgrants?\s*:|\bfunding opportunit|\bcall for proposals|\bapply now\b",
     re.IGNORECASE,
 )
@@ -438,10 +448,21 @@ _QUOTES = str.maketrans({"\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": 
 
 def is_clickbait(title: str) -> bool:
     t = title.strip().translate(_QUOTES)
+    letters = [c for c in t if c.isalpha()]
+    shouting = len(t.split()) >= 4 and letters and sum(c.isupper() for c in letters) / len(letters) > 0.8
     return bool(
         _CLICKBAIT_RX.search(t) or _LISTICLE_RX.search(t)
-        or "?" in t or t.endswith(("...", "…")) or "!" in t
+        or "?" in t or t.endswith(("...", "…")) or "!" in t or shouting
     )
+
+
+_SITE_SUFFIX_RX = re.compile(r"\s+\|\s+[^|]{2,60}$")
+
+
+def strip_site_suffix(title: str) -> str:
+    """'Animals rescued from sanctuary | News - Magic Radio' -> 'Animals rescued from sanctuary'."""
+    stripped = _SITE_SUFFIX_RX.sub("", title)
+    return stripped if len(stripped.split()) >= 4 else title
 
 
 # Tabloids, viral-content sites and entertainment outlets: their good news is mostly
@@ -455,7 +476,8 @@ _TABLOID_RX = re.compile(
     r"buzzfeed|\bparade\b|parade\.com|whimsy|shared\.com|diply|viralnova|the dodo|thedodo|"
     r"animalsaroundtheglobe|dogtime|pawtracks|countryliving|"
     r"business ?wire|pr ?newswire|globe ?newswire|accesswire|einpresswire|press release|investing\.com|"
-    r"stt info|marketscreener|yougov|american hunter|\bwwd\b|36kr|vietnam\.vn|fundsforngos|tipranks|simply ?wall|"
+    r"stt info|marketscreener|openpr|pressat|ein ?news|morningstar|indexbox|smartbrief|bar magazine|"
+    r"travel weekly|house\.gov|senate\.gov|irish mirror|irishmirror|아시아경제|yougov|american hunter|\bwwd\b|36kr|vietnam\.vn|fundsforngos|tipranks|simply ?wall|"
     r"thebusinessdesk|biggo|scanx|chosunbiz|stock ?titan|investing news|arabian business|economy\.ac|"
     r"modern healthcare|socialsamosa|marketing-interactive|contentgrip|roastbrief|ecommercenews|6ix retail|lavx|"
     r"cyberkendra|insight eu|hypefresh|express computer|zawya|energyglobal|manila times|ritzau|about amazon|"
@@ -533,12 +555,10 @@ _AI_WORDS_RX = re.compile(
 )
 # What makes an AI story good news: AI helping people, science, health or the planet.
 AI_HELPS = _rx([
-    "help", "detect", "diagnos", "predict", "discover", "find!", "finds!", "found!", "spot", "speed", "faster",
-    "save!", "saves!", "saving", "saved", "cure", "treat", "translat", "accessib", "blind", "deaf", "paralys",
+    "help", "detect", "diagnos", "predict", "discovers", "discovered", "discover!", "finds!", "found!", "spot",
+    "speed", "faster", "save!", "saves!", "saving", "saved", "cure", "cures", "treat!", "treats!", "translat",
     "restore", "protect", "track", "map!", "maps!", "mapping", "forecast", "early warning", "breakthrough",
-    "advance", "new drug", "antibiotic", "protein", "enzyme", "wildlife", "conservation", "climate", "energy",
-    "crop", "farm", "doctor", "nurse", "patient", "scientist", "research", "cancer", "disease", "rescue",
-    "voice", "sight", "hearing", "speak", "walk", "clean", "reduce", "cut!", "cuts!",
+    "rescue", "reduce", "cut!", "cuts!", "warns of floods", "gives voice", "keep their own voices", "watch over",
 ])
 # ...and what doesn't: the AI industry, its risks and its controversies.
 AI_BAD = _rx([
@@ -555,6 +575,10 @@ AI_BAD = _rx([
     "geo!", "tools!", "platform", "receptionist", "tracker", "secures", "logistics", "claim", "harder test",
     "problem", "rfk", "kennedy", "tyranny", "trend", "revive", "mammoth", "anniversary", "award", "partners",
     "invest", "customer", "sales", "productivity", "workforce", "employ", "cheaper", "profit",
+    "taps", "launch", "joint research", "enters", "foundry", "backbone", "summit", "expo", "forum", "panel",
+    "dean", "guide", "sceptic", "skeptic", "doctors not ai", "final say", "act!", "agreement", "pushes",
+    "attribution", "publishers", "footprint", "could transform", "transform", "bets", "android app",
+    "voice agent", "auto trade",
 ])
 # Who or what an AI story must be helping, for it to count as AI for good.
 AI_BENEFITS = _rx([
@@ -599,7 +623,7 @@ PROGRESS = _rx([
     "gene editing", "crispr", "immunotherapy", "restor", "record low", "fall!", "falls!", "fell!", "drop",
     "cut!", "cuts!", "slash", "phase out", "phase-out", "renewable", "solar", "wind power", "wind farm",
     "clean energy", "carbon capture", "rewild", "reforest", "recover", "rebound", "comeback", "protect",
-    "saved", "saves", "milestone", "first time", "promising", "discover", "success", "hope", "win!", "wins!",
+    "saved", "saves", "milestone", "first time", "promising", "discover", "success", "hope",
     "record low", "lowest", "back from the brink",
 ])
 # Words that come with the territory in such stories.
@@ -618,7 +642,10 @@ _WORSENING = re.compile(
     r"\b(?:deaths?|cases|emissions|infections|diagnoses|temperatures?|incidence|mortality)\b.{0,20}"
     r"\b(?:record high|highest|rise|rises|rising|risen|rose|increase[sd]?|increasing|surge[sd]?|soar(?:s|ed)?|climb(?:s|ed)?|jump(?:s|ed)?|"
     r"double[sd]?|spike[sd]?)\b|\bside[- ]effects?\b|\badverse\b|\btoxicit|\bcomplications?\b|\bcrises\b|"
-    r"\btriggered\b|\bharm(?:s|ed|ful)?\b|\bvaried effects\b|\bmixed results\b|\bno benefit\b|"
+    r"\bdies\b|\bdied\b|\bpassed away\b|\bdeath of\b|\bcancer battle\b|\bafter (?:a |his |her )?(?:long |brave )?"
+    r"battle\b|\bobituar|\bdoes(?: not|n't)\b|\bdid(?: not|n't)\b|\bno longer works\b|\bstops? working\b|"
+    r"\bresistance\b|\bisn't guaranteed\b|\bnot guaranteed\b|\bwait(?:ing)? (?:list|times?)\b|\b\w+[- ]years? wait\b|"
+    r"\bfaces?\b.{0,30}\b(?:wait|bottleneck|hurdle|delay|shortage)|\brash(?:es)?\b|\btriggered\b|\bharm(?:s|ed|ful)?\b|\bvaried effects\b|\bmixed results\b|\bno benefit\b|"
     r"\b(?:rise|rising|increase|surge|spike|jump) in\b|\bdespite\b|\bsetback\b|"
     r"\bfail(?:s|ed|ure)?\b|\bnot enough\b|\bbut only\b|\bway off\b|\bstill off\b|\boff (?:its|their|the) "
     r"(?:\d{4} )?(?:climate )?targets?\b|\bbehind schedule\b|\breveals?\b.{0,40}\bdiagnos|\bdiagnosed with\b|"

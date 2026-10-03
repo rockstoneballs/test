@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -65,6 +66,8 @@ class PostCallbacks(
     val toggleSave: (Story) -> Unit,
     val share: (Story) -> Unit,
     val openOriginal: (Story) -> Unit,
+    /** The Downer button: hide a post that isn't good news, and tell us. */
+    val downer: (Story) -> Unit,
 )
 
 /** Your saved posts, needed to draw each post's Save button. */
@@ -224,6 +227,13 @@ private fun PostActions(story: Story, saved: Boolean, callbacks: PostCallbacks) 
             onClick = { callbacks.toggleSave(story) },
             tint = if (saved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (story.topic != Topic.Pets) {
+            ActionPill(
+                Icons.Outlined.Cloud, "Downer",
+                contentDescription = "Not good news: hide this post",
+                onClick = { callbacks.downer(story) },
+            )
+        }
     }
 }
 
@@ -367,6 +377,18 @@ fun PostRow(story: Story, saved: Boolean, callbacks: PostCallbacks) {
                         .padding(6.dp)
                         .size(18.dp),
                 )
+                if (story.topic != Topic.Pets) {
+                    Icon(
+                        Icons.Outlined.Cloud,
+                        contentDescription = "Not good news: hide this post",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .clickable { callbacks.downer(story) }
+                            .padding(6.dp)
+                            .size(18.dp),
+                    )
+                }
             }
         }
     }

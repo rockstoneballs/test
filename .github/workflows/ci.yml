@@ -50,21 +50,29 @@ jobs:
             echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
             echo "SUNNYSIDE_KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
           fi
+      - name: Version code
+        # Minutes since 1970: always higher than the last build, as Google Play requires.
+        run: echo "SUNNYSIDE_VERSION_CODE=$(( $(date +%s) / 60 ))" >> "$GITHUB_ENV"
       - name: Unit tests
         run: ./gradlew --no-daemon testDebugUnitTest
-      - name: Build APKs
+      - name: Build APKs and the Play Store bundle
         env:
           SUNNYSIDE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           SUNNYSIDE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           SUNNYSIDE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           SUNNYSIDE_FEEDBACK_URL: ${{ vars.FEEDBACK_URL }}
-        run: ./gradlew --no-daemon assembleDebug assembleRelease
+        run: ./gradlew --no-daemon assembleDebug assembleRelease bundleRelease
       - uses: actions/upload-artifact@v4
         with:
           name: sunnyside-apk
           path: |
             android/app/build/outputs/apk/debug/*.apk
             android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sunnyside-play-bundle
+          path: android/app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
       - name: Publish APK (main only)
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'

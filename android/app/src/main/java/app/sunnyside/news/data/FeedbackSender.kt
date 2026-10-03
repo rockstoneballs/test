@@ -73,6 +73,14 @@ class FeedbackSender(
         )
     }
 
+    /** Is a form service set up? Without one, feedback has to be finished on GitHub. */
+    val configured: Boolean get() = endpoint.isNotBlank()
+
+    /** Reports a post marked with the Downer button. Only sent when [configured]: there's no quiet way to file a GitHub issue. */
+    suspend fun sendDowner(story: Story) {
+        if (configured) send(FeedbackDraft("not-good-news", "It isn't good news", "Marked with the Downer button", "", story))
+    }
+
     suspend fun send(draft: FeedbackDraft): FeedbackResult {
         val payload = payload(draft)
         if (endpoint.isBlank()) return FeedbackResult.OpenInBrowser(githubIssueUrl(payload))

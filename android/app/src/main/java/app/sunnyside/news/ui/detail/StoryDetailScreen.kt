@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -59,6 +60,7 @@ import app.sunnyside.news.ui.components.PostMedia
 import app.sunnyside.news.ui.components.PostTitle
 import app.sunnyside.news.ui.components.SectionHeader
 import app.sunnyside.news.ui.components.postItems
+import app.sunnyside.news.data.Topic
 import app.sunnyside.news.data.ViewMode
 import app.sunnyside.news.util.domainOf
 
@@ -86,6 +88,11 @@ fun StoryDetailScreen(
                 actions = {
                     if (story != null) {
                         val saved = story.id in user.savedIds
+                        if (story.topic != Topic.Pets) {
+                            IconButton(onClick = { callbacks.downer(story); onBack() }) {
+                                Icon(Icons.Outlined.Cloud, contentDescription = "Not good news: hide this post")
+                            }
+                        }
                         IconButton(onClick = { reporting = true }) { Icon(Icons.Outlined.Flag, contentDescription = "Report this post") }
                         IconButton(onClick = { callbacks.share(story) }) { Icon(Icons.Filled.Share, contentDescription = "Share") }
                         IconButton(onClick = { callbacks.toggleSave(story) }) {

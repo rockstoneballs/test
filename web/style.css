@@ -292,9 +292,15 @@ main { padding: 16px 0 64px; min-width: 0; outline: none; }
   position: fixed; left: 50%; bottom: 24px; z-index: 50;
   transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
   padding: 10px 16px; border-radius: 999px; background: var(--text); color: var(--bg); font-weight: 600;
+  white-space: nowrap; max-width: calc(100vw - 32px); overflow: hidden; text-overflow: ellipsis;
   transition: opacity .2s, transform .2s;
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.has-action.show { pointer-events: auto; }
+.toast-action {
+  margin-left: 12px; padding: 0; border: 0; background: none;
+  color: var(--brand-soft); font: inherit; text-decoration: underline; cursor: pointer;
+}
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }

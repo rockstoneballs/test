@@ -12,16 +12,20 @@ val feedUrl = providers.gradleProperty("sunnyside.feedUrl").get()
 val feedbackUrl = providers.environmentVariable("SUNNYSIDE_FEEDBACK_URL")
     .orElse(providers.gradleProperty("sunnyside.feedbackUrl")).getOrElse("")
 val repo = providers.gradleProperty("sunnyside.repo").get()
+// Google Play needs a higher versionCode for every upload. CI passes one derived from the
+// time (minutes since 1970), so builds always increase; local builds use 5.
+val appVersionCode = providers.environmentVariable("SUNNYSIDE_VERSION_CODE").map { it.toInt() }.getOrElse(5)
 
 android {
     namespace = "app.sunnyside.news"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "app.sunnyside.news"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 5
+        // Google Play requires new apps and updates to target Android 16 (API 36) from 31 Aug 2026.
+        targetSdk = 36
+        versionCode = appVersionCode
         versionName = "0.5.0"
         buildConfigField("String", "FEED_URL", "\"$feedUrl\"")
         buildConfigField("String", "FEEDBACK_URL", "\"$feedbackUrl\"")
