@@ -167,6 +167,20 @@ enum class SortMode(val label: String, val emoji: String) { Hot("Top stories", "
 
 enum class ViewMode { Card, Compact }
 
+/**
+ * Shared links open the post's own page on the Sunnyside website (written by the scraper,
+ * see scraper/goodnews/share.py), so people who tap them land on Sunnyside.
+ */
+object ShareLinks {
+    /** The website's address, from the feed's: ".../test/feed.json" -> ".../test/". */
+    fun siteUrl(feedUrl: String): String = feedUrl.substringBeforeLast('/') + "/"
+
+    fun forStory(siteUrl: String, story: Story): String = "${siteUrl}s/${story.id}/"
+
+    fun message(siteUrl: String, story: Story): String =
+        "${story.title}\n\n${forStory(siteUrl, story)}\n\nShared from Sunnyside ☀️"
+}
+
 /** "Top stories" ranking, shared with the website (web/app.js): uplift, decaying with age. */
 object Ranking {
     fun hot(story: Story, now: Long = System.currentTimeMillis()): Double {

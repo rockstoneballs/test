@@ -226,7 +226,8 @@ function toggleSave(p) {
 }
 
 async function share(p) {
-  const url = location.href.split("#")[0] + "#/post/" + encodeURIComponent(p.id);
+  // Shared links open the post's own Sunnyside page (with a preview card for chat apps).
+  const url = new URL("s/" + encodeURIComponent(p.id) + "/", location.href.split("#")[0]).href;
   const data = { title: p.title, text: p.title + " — via Sunnyside ☀️", url };
   try {
     if (navigator.share) {

@@ -39,7 +39,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import app.sunnyside.news.SunnysideApp
-import app.sunnyside.news.data.PostKind
+import app.sunnyside.news.BuildConfig
+import app.sunnyside.news.data.ShareLinks
 import app.sunnyside.news.data.Story
 import app.sunnyside.news.ui.components.PostCallbacks
 import app.sunnyside.news.ui.detail.StoryDetailScreen
@@ -66,16 +67,11 @@ private fun rememberPostCallbacks(nav: NavHostController, vm: PostsViewModel, do
         PostCallbacks(
             open = { nav.navigate("post/${it.id}") },
             toggleSave = { vm.toggleSave(it) },
-            share = { shareText(context, it.title, shareBody(it)) },
+            share = { shareText(context, it.title, ShareLinks.message(ShareLinks.siteUrl(BuildConfig.FEED_URL), it)) },
             openOriginal = { story -> story.discussionUrl?.let { openInBrowser(context, it, toolbar) } },
             downer = downer,
         )
     }
-}
-
-private fun shareBody(story: Story): String {
-    val link = if (story.kind == PostKind.Article) story.url else story.discussionUrl ?: story.url
-    return "${story.title}\n\n$link\n\nShared from Sunnyside ☀️"
 }
 
 @Composable

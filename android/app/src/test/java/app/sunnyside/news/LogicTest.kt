@@ -5,6 +5,7 @@ import app.sunnyside.news.data.FeedbackSender
 import app.sunnyside.news.data.Topic
 import app.sunnyside.news.data.PostKind
 import app.sunnyside.news.data.Ranking
+import app.sunnyside.news.data.ShareLinks
 import app.sunnyside.news.data.SortMode
 import app.sunnyside.news.data.Story
 import app.sunnyside.news.data.Region
@@ -138,6 +139,17 @@ class LogicTest {
         publishedAtMillis = NOW - hoursAgo * 3_600_000L, topic = Topic.Aww, region = Region.Global,
         uplift = uplift, score = score, kind = kind,
     )
+
+    @Test
+    fun sharedLinksOpenTheSunnysidePageNotThePublisher() {
+        val site = ShareLinks.siteUrl("https://rockstoneballs.github.io/test/feed.json")
+        assertEquals("https://rockstoneballs.github.io/test/", site)
+        val story = post("0123456789abcdef", hoursAgo = 1)
+        assertEquals("https://rockstoneballs.github.io/test/s/0123456789abcdef/", ShareLinks.forStory(site, story))
+        val message = ShareLinks.message(site, story)
+        assertTrue(message.contains("/s/0123456789abcdef/"))
+        assertFalse(message.contains(story.url))
+    }
 
     @Test
     fun topStoriesBalancePopularityAndFreshness() {
