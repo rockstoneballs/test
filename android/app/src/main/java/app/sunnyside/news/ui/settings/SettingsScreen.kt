@@ -49,6 +49,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.sunnyside.news.BuildConfig
 import app.sunnyside.news.data.ThemeMode
 import app.sunnyside.news.ui.SettingsViewModel
+import app.sunnyside.news.ui.account.AccountSettings
 import app.sunnyside.news.ui.feedback.FeedbackDialog
 import app.sunnyside.news.util.openInBrowser
 import app.sunnyside.news.work.Notifications
@@ -100,6 +101,8 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
                 .padding(padding)
                 .verticalScroll(rememberScrollState()),
         ) {
+            AccountSettings(sectionLabel = { SectionLabel(it) })
+
             SectionLabel("Morning briefing")
             ListItem(
                 headlineContent = { Text("Daily good-news notification") },

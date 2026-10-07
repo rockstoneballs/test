@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -51,6 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.sunnyside.news.account.FeedAds
 import app.sunnyside.news.data.Topic
 import app.sunnyside.news.data.PostKind
 import app.sunnyside.news.data.SortMode
@@ -73,14 +74,18 @@ class PostCallbacks(
 /** Your saved posts, needed to draw each post's Save button. */
 data class PostUserState(val savedIds: Set<String> = emptySet())
 
-/** Adds [stories] to a LazyColumn in the chosen layout. */
+/**
+ * Adds [stories] to a LazyColumn in the chosen layout. With [ad], an ad slot follows some
+ * posts (see [FeedAds]); [ad] draws slot n.
+ */
 fun LazyListScope.postItems(
     stories: List<Story>,
     view: ViewMode,
     user: PostUserState,
     callbacks: PostCallbacks,
+    ad: (@Composable (slot: Int) -> Unit)? = null,
 ) {
-    items(stories, key = { it.id }, contentType = { view }) { story ->
+    itemsIndexed(stories, key = { _, story -> story.id }, contentType = { _, _ -> view }) { index, story ->
         val saved = story.id in user.savedIds
         when (view) {
             ViewMode.Card -> PostCard(story, saved, callbacks, Modifier.padding(horizontal = 10.dp, vertical = 5.dp))
@@ -89,6 +94,7 @@ fun LazyListScope.postItems(
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
             }
         }
+        if (ad != null && FeedAds.slotAfter(index)) ad((index + 1 - FeedAds.FIRST_AFTER) / FeedAds.EVERY)
     }
 }
 
