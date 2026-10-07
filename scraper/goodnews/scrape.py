@@ -29,7 +29,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 import feedparser
 import requests
 
-from . import articles, keywords
+from . import articles, keywords, share
 from .classifier import ClaudeClassifier
 from .pets import fetch_pet_posts
 from .social import RedditClient, fetch_imgur, fetch_lemmy, fetch_ninegag, fetch_reddit, vet_social
@@ -756,6 +756,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--list-news", action="store_true", help="log every news headline (for reviewing a dry run)")
     ap.add_argument("--max-age-days", type=int, default=7)
     ap.add_argument("--max-stories", type=int, default=900)
+    ap.add_argument("--site-url", help="the site's public address, for share pages (default: from --previous)")
+    ap.add_argument("--app-url", default="https://github.com/rockstoneballs/test/releases/latest/download/sunnyside.apk",
+                    help="where share pages send people to get the app")
     args = ap.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -782,6 +785,12 @@ def main(argv: list[str] | None = None) -> int:
     out.mkdir(parents=True, exist_ok=True)
     (out / "feed.json").write_text(json.dumps(feed, ensure_ascii=False, separators=(",", ":")))
     (out / ".nojekyll").write_text("")
+    shares = share.merge(
+        share.load_archive(share.archive_url(args.previous), session),
+        feed["stories"], datetime.now(timezone.utc), set(feed.get("rejected", [])),
+    )
+    pages = share.write(out, shares, args.site_url or share.site_url_from(args.previous), args.app_url)
+    log.info("Wrote %d share pages (posts from the last %d days)", pages, share.SHARE_DAYS)
     counts = Counter(s["community"] for s in feed["stories"])
     log.info("Wrote %s with %d posts (%d cat and dog photos)", out / "feed.json", len(feed["stories"]),
              sum(1 for s in feed["stories"] if s.get("community") == PETS))

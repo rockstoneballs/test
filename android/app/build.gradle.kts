@@ -16,6 +16,19 @@ val repo = providers.gradleProperty("sunnyside.repo").get()
 // time (minutes since 1970), so builds always increase; local builds use 5.
 val appVersionCode = providers.environmentVariable("SUNNYSIDE_VERSION_CODE").map { it.toInt() }.getOrElse(5)
 
+// Accounts, ads and the ad-free subscription. CI passes these from the repository's Actions
+// variables (see android/play/MONETISATION.md). Without the Firebase ones, sign-in is hidden; without
+// the AdMob ones, release builds show no ads and debug builds show Google's test ads.
+fun setting(name: String, default: String = ""): String =
+    providers.environmentVariable(name).orNull?.takeIf { it.isNotBlank() } ?: default
+val firebaseProjectId = setting("FIREBASE_PROJECT_ID")
+val firebaseAppId = setting("FIREBASE_ANDROID_APP_ID")
+val firebaseApiKey = setting("FIREBASE_API_KEY")
+val firebaseWebClientId = setting("FIREBASE_WEB_CLIENT_ID")
+val admobConfigured = setting("ADMOB_APP_ID").isNotBlank() && setting("ADMOB_FEED_AD_UNIT").isNotBlank()
+val admobAppId = setting("ADMOB_APP_ID", "ca-app-pub-3940256099942544~3347511713")
+val admobFeedUnit = setting("ADMOB_FEED_AD_UNIT", "ca-app-pub-3940256099942544/9214589741")
+
 android {
     namespace = "app.sunnyside.news"
     compileSdk = 36
@@ -30,6 +43,12 @@ android {
         buildConfigField("String", "FEED_URL", "\"$feedUrl\"")
         buildConfigField("String", "FEEDBACK_URL", "\"$feedbackUrl\"")
         buildConfigField("String", "REPO", "\"$repo\"")
+        buildConfigField("String", "FIREBASE_PROJECT_ID", "\"$firebaseProjectId\"")
+        buildConfigField("String", "FIREBASE_APP_ID", "\"$firebaseAppId\"")
+        buildConfigField("String", "FIREBASE_API_KEY", "\"$firebaseApiKey\"")
+        buildConfigField("String", "FIREBASE_WEB_CLIENT_ID", "\"$firebaseWebClientId\"")
+        buildConfigField("String", "ADMOB_FEED_AD_UNIT", "\"$admobFeedUnit\"")
+        manifestPlaceholders["admobAppId"] = admobAppId
     }
 
     // Release signing comes from environment variables (see .github/workflows/ci.yml). Without them the
@@ -47,7 +66,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("boolean", "ADS_ENABLED", "true") // Google's test ads until real ids are set
+        }
         release {
+            // Releases show ads only once AdMob is set up: no "Test Ad" banners for real readers.
+            buildConfigField("boolean", "ADS_ENABLED", "$admobConfigured")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
@@ -94,6 +118,17 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.play.services)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+    implementation(libs.firebase.functions)
+    implementation(libs.play.services.ads)
+    implementation(libs.user.messaging.platform)
+    implementation(libs.billing)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services)
+    implementation(libs.googleid)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     testImplementation(libs.junit)

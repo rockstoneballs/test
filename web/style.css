@@ -334,3 +334,14 @@ main { padding: 16px 0 64px; min-width: 0; outline: none; }
 .fb-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
 .fb-status { margin: 0 auto 0 0; font-size: 13px; color: var(--text-2); }
 .rail-feedback { margin-top: 8px; }
+
+/* ------------------------------------------------------------------ share pages (s/<id>/) */
+
+.share-page { max-width: 720px; margin: 0 auto; padding: 16px 16px 64px; display: grid; gap: 16px; }
+.share-image { display: block; width: 100%; max-height: 420px; object-fit: cover; border-radius: 10px; margin: 10px 0 14px; background: var(--surface-2); }
+.share-excerpt { margin: 0 0 14px; font-size: 17px; line-height: 1.65; overflow-wrap: anywhere; }
+.share-credit { margin: 4px 0 14px; font-size: 13px; color: var(--text-3); }
+.share-actions { display: grid; }
+.share-actions .btn { height: auto; min-height: 44px; padding: 10px 16px; text-align: center; }
+.share-cta h2 { margin: 0 0 6px; font-size: 18px; color: var(--text); }
+.share-cta .btn { margin-top: 8px; }

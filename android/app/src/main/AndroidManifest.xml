@@ -23,7 +23,19 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- The website's sign-in page (web/signin.html) hands email sign-in links back here. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="sunnyside" android:host="finish-signin" />
+            </intent-filter>
         </activity>
+
+        <!-- AdMob. CI sets the real id; without it Google's test id shows test ads. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="${admobAppId}" />
     </application>
 
     <!-- Lets Custom Tabs find a browser on Android 11+. -->

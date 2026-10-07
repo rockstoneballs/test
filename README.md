@@ -129,6 +129,7 @@ Optional repository secrets (**Settings → Secrets and variables → Actions**)
 | `IMGUR_CLIENT_ID` | Turns on Imgur as a source. Register a free app at <https://api.imgur.com/oauth2/addclient> ("anonymous usage"). Note: Imgur isn't available to visitors in the UK, so its images won't load there. |
 | `FEEDBACK_URL` (an Actions **variable**, not a secret) | Where the website's and app's feedback form sends messages. See [Feedback](#feedback). |
 | `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` | Signs release APKs and the Play Store bundle with your upload key, so updates install over the previous version. See [`android/play/README.md`](android/play/README.md). |
+| `FIREBASE_SERVICE_ACCOUNT` (secret) and the `FIREBASE_*` / `ADMOB_*` **variables** | Accounts, ads and the ad-free subscription. See [`android/play/MONETISATION.md`](android/play/MONETISATION.md). Without them, sign-in is hidden, and release builds show no ads. |
 
 On branches other than `main`, the scrape runs as a dry run. The result is
 uploaded as a `site-preview` artifact, so you can check source changes before
@@ -177,6 +178,13 @@ edit `sunnyside.feedUrl` in `android/gradle.properties`, or build with
 `-Psunnyside.feedUrl=…`.
 
 ### 3. Publish on Google Play
+
+Sharing a post (in the app or on the website) links to that post's own Sunnyside page, `s/<id>/`. The
+scraper writes these pages, with preview cards for chat apps, and keeps them for 30 days.
+
+The app is free with ads, or ad-free by subscription. Readers can sign in to keep ad-free across devices.
+The server side lives in [`firebase/`](firebase), and setup is in
+[`android/play/MONETISATION.md`](android/play/MONETISATION.md).
 
 See [`android/play/README.md`](android/play/README.md) for the step-by-step guide. It covers
 the store listing, graphics, privacy policy, Play Console answers, the upload key, and the

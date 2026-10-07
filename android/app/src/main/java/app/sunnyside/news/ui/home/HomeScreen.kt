@@ -46,6 +46,8 @@ fun HomeScreen(
     callbacks: PostCallbacks,
     snackbar: SnackbarHostState,
     onSearch: () -> Unit,
+    /** Draws ad slot n between posts; null when the reader sees no ads. */
+    ad: (@Composable (slot: Int) -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val user by viewModel.user.collectAsStateWithLifecycle()
@@ -105,7 +107,7 @@ fun HomeScreen(
                         EmptyState("🌤️", "The sun is still rising", "Pull down to fetch today's good news.")
                     }
                 }
-                postItems(state.posts, settings.view, user, callbacks)
+                postItems(state.posts, settings.view, user, callbacks, ad)
                 if (state.posts.isNotEmpty()) item(key = "footer") { FeedFooter() }
             }
         }

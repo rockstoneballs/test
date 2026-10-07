@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in to Sunnyside</title>
+  <meta name="theme-color" content="#F76707">
+  <meta name="robots" content="noindex">
+  <!-- The link in the URL is a one-time sign-in code: never send it to other sites. -->
+  <meta name="referrer" content="no-referrer">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .signin { max-width: 440px; margin: 0 auto; padding: 48px 16px; text-align: center; color: var(--text); }
+    .signin .big { font-size: 56px; }
+    .signin h1 { font-size: 24px; margin: 8px 0; }
+    .signin p { color: var(--text-2); }
+    .signin .btn { margin-top: 12px; height: 48px; width: 100%; }
+  </style>
+</head>
+<body>
+  <main class="signin">
+    <div class="big">☀️</div>
+    <h1 id="title">Finish signing in</h1>
+    <p id="body">Tap below to open Sunnyside and finish signing in.</p>
+    <a class="btn btn-primary" id="open" href="#">Open Sunnyside</a>
+    <p id="hint" hidden>Didn't open? Make sure the Sunnyside app is installed and open this link on the same phone.</p>
+  </main>
+  <script>
+    // Email sign-in links from the app land here (Firebase adds mode=signIn and a one-time
+    // code). Hand the whole link to the app, which finishes signing in.
+    const params = new URLSearchParams(location.search);
+    const open = document.getElementById("open");
+    if (params.get("mode") === "signIn" && params.get("oobCode")) {
+      const link = encodeURIComponent(location.href);
+      const intent = `intent://finish-signin?link=${link}#Intent;scheme=sunnyside;package=app.sunnyside.news;end`;
+      open.href = /android/i.test(navigator.userAgent) ? intent : `sunnyside://finish-signin?link=${link}`;
+      open.addEventListener("click", () => setTimeout(() => { document.getElementById("hint").hidden = false; }, 1500));
+      history.replaceState(null, "", location.pathname); // keep the code out of history and screenshots
+    } else {
+      document.getElementById("title").textContent = "This sign-in link has expired";
+      document.getElementById("body").textContent = "Ask for a new one in the Sunnyside app: Settings → Sign in.";
+      open.textContent = "Back to Sunnyside";
+      open.href = "./";
+    }
+  </script>
+</body>
+</html>

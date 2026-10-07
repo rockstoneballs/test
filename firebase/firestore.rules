@@ -1,0 +1,17 @@
+rules_version = '2';
+
+// Readers can see their own account (whether they're ad-free). Only Sunnyside's Cloud
+// Functions write accounts, after checking purchases with Google Play, so nobody can
+// make themselves ad-free by editing their own record.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+    // Which account each Play purchase belongs to: server only.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
