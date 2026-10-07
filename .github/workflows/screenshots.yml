@@ -28,7 +28,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Build the app
         working-directory: android
-        run: ./gradlew --no-daemon assembleDebug
+        # A release build, so screenshots never show test ads (it has none until AdMob is set up).
+        run: ./gradlew --no-daemon assembleRelease
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -44,7 +45,7 @@ jobs:
           profile: Nexus 5X
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
-          script: ./android/play/screenshots.sh android/app/build/outputs/apk/debug/app-debug.apk android/play/screenshots
+          script: ./android/play/screenshots.sh android/app/build/outputs/apk/release/app-release.apk android/play/screenshots
       - uses: actions/upload-artifact@v4
         with:
           name: play-screenshots

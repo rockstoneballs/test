@@ -39,6 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.sunnyside.news.BuildConfig
 import app.sunnyside.news.SunnysideApp
 import app.sunnyside.news.account.MANAGE_SUBSCRIPTION_URL
 import app.sunnyside.news.account.SignInResult
@@ -72,7 +73,8 @@ fun AccountSettings(sectionLabel: @Composable (String) -> Unit) {
     var signInReason by remember { mutableStateOf<String?>(null) }
     var confirmDelete by remember { mutableStateOf(false) }
 
-    sectionLabel(if (accounts.available) "Account & ad-free" else "Ad-free")
+    if (!accounts.available && !BuildConfig.ADS_ENABLED) return // nothing to show in this build
+    sectionLabel(if (!BuildConfig.ADS_ENABLED) "Account" else if (accounts.available) "Account & ad-free" else "Ad-free")
 
     if (accounts.available) {
         val signedIn = account
@@ -105,7 +107,7 @@ fun AccountSettings(sectionLabel: @Composable (String) -> Unit) {
             leadingContent = { Icon(Icons.Outlined.WbSunny, contentDescription = null) },
             modifier = Modifier.clickable { openInBrowser(context, MANAGE_SUBSCRIPTION_URL, toolbarColor) },
         )
-    } else {
+    } else if (BuildConfig.ADS_ENABLED) {
         ListItem(
             headlineContent = { Text("Go ad-free") },
             supportingContent = { Text(price?.let { "$it a month. No ads anywhere in the app." } ?: "No ads anywhere in the app, for a small monthly fee.") },

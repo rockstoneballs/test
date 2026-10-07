@@ -72,7 +72,7 @@ class Ads(private val context: Context, private val scope: CoroutineScope) {
 
     /** Asks for consent if needed, then starts AdMob. Called only for readers who see ads. */
     fun start(activity: Activity) {
-        if (started) return
+        if (started || !BuildConfig.ADS_ENABLED) return
         started = true
         consent.requestConsentInfoUpdate(
             activity,

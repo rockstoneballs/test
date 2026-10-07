@@ -12,6 +12,8 @@ account owner in the Play Console. They're marked **👤 you**.
 | Answers for the App content forms | [`console-answers.md`](console-answers.md) |
 | Privacy policy | <https://rockstoneballs.github.io/test/privacy.html> ([source](../../web/privacy.html)) |
 | Build and upload | [`.github/workflows/play.yml`](../../.github/workflows/play.yml) |
+| Ads, accounts and the ad-free subscription | [`MONETISATION.md`](MONETISATION.md) |
+| Account deletion page (required by Play) | <https://rockstoneballs.github.io/test/delete-account.html> |
 
 ## 1. Create a developer account 👤 you
 

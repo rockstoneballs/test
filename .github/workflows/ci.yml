@@ -61,6 +61,12 @@ jobs:
           SUNNYSIDE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           SUNNYSIDE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           SUNNYSIDE_FEEDBACK_URL: ${{ vars.FEEDBACK_URL }}
+          FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+          FIREBASE_ANDROID_APP_ID: ${{ vars.FIREBASE_ANDROID_APP_ID }}
+          FIREBASE_API_KEY: ${{ vars.FIREBASE_API_KEY }}
+          FIREBASE_WEB_CLIENT_ID: ${{ vars.FIREBASE_WEB_CLIENT_ID }}
+          ADMOB_APP_ID: ${{ vars.ADMOB_APP_ID }}
+          ADMOB_FEED_AD_UNIT: ${{ vars.ADMOB_FEED_AD_UNIT }}
         run: ./gradlew --no-daemon assembleDebug assembleRelease bundleRelease
       - uses: actions/upload-artifact@v4
         with:

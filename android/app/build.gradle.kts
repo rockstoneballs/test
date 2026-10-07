@@ -17,13 +17,15 @@ val repo = providers.gradleProperty("sunnyside.repo").get()
 val appVersionCode = providers.environmentVariable("SUNNYSIDE_VERSION_CODE").map { it.toInt() }.getOrElse(5)
 
 // Accounts, ads and the ad-free subscription. CI passes these from the repository's Actions
-// variables (see android/play/README.md). Without the Firebase ones, sign-in is hidden; without
-// the AdMob ones, Google's test ads are shown, which earn nothing.
-fun setting(name: String, default: String = "") = providers.environmentVariable(name).getOrElse(default)
+// variables (see android/play/MONETISATION.md). Without the Firebase ones, sign-in is hidden; without
+// the AdMob ones, release builds show no ads and debug builds show Google's test ads.
+fun setting(name: String, default: String = ""): String =
+    providers.environmentVariable(name).orNull?.takeIf { it.isNotBlank() } ?: default
 val firebaseProjectId = setting("FIREBASE_PROJECT_ID")
 val firebaseAppId = setting("FIREBASE_ANDROID_APP_ID")
 val firebaseApiKey = setting("FIREBASE_API_KEY")
 val firebaseWebClientId = setting("FIREBASE_WEB_CLIENT_ID")
+val admobConfigured = setting("ADMOB_APP_ID").isNotBlank() && setting("ADMOB_FEED_AD_UNIT").isNotBlank()
 val admobAppId = setting("ADMOB_APP_ID", "ca-app-pub-3940256099942544~3347511713")
 val admobFeedUnit = setting("ADMOB_FEED_AD_UNIT", "ca-app-pub-3940256099942544/9214589741")
 
@@ -64,7 +66,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("boolean", "ADS_ENABLED", "true") // Google's test ads until real ids are set
+        }
         release {
+            // Releases show ads only once AdMob is set up: no "Test Ad" banners for real readers.
+            buildConfigField("boolean", "ADS_ENABLED", "$admobConfigured")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
